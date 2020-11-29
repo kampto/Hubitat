@@ -20,7 +20,7 @@
  *
  */
 metadata {
-	definition (name: "Child Voltage Sensor Advanced", namespace: "kampto", author: "T Kamp", importUrl: " ") {
+	definition (name: "Child Voltage Sensor Advanced", namespace: "kampto", author: "T Kamp", importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child-Voltage-Sensor-Advanced") {
 		capability "Voltage Measurement"
 		capability "Sensor"
         
