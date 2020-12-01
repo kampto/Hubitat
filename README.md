@@ -1,6 +1,6 @@
 DRIVERS:
 Instructions on adding/changeing Drivers (Device Handlers).
-To add a driver to Hubitat. First go to Hubitat "Drivers Code". Click "New Driver". Copy the Driver code from Github. Patse into the blank new drivers page. Hit Save.
+To add a driver to Hubitat. First go to Hubitat "Drivers Code". Click "New Driver". Copy the Driver code from Github. Paste into the blank new drivers page. Hit Save.
 
 To use new added Driver. First go to Hubitat "Devices". Find the device you want to use this new driver with and open device. Go to Device information and "Type" drop down.
 Select the new Driver near the bottom of the list. Click "Save Device". Scroll up and change any "Prefernces" you want if any. Click "Save Prevernces". All done. 
