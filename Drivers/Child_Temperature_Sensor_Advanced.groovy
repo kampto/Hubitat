@@ -25,8 +25,8 @@
 metadata {
 	definition (name: "Child Temperature Sensor Advanced", namespace: "kampto", author: "T. Kamp", 
         importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Temperature_Sensor_Advanced.groovy") {
-		    capability "Temperature Measurement"
-		    capability "Sensor"
+	    capability "Temperature Measurement"
+	    capability "Sensor"
         
     	    attribute "lastUpdated", "String"    
             attribute "maxValue", "number"  
@@ -34,8 +34,8 @@ metadata {
             }
     
     preferences {
-        input name: "tempOffset", type: "number", title: "<b>Temperature Offset</b>", description: "Offset temperature +/- Deg", range: "*...*", defaultValue: 0, required: false, displayDuringSetup: false
-	input name: "units", type: "enum", title: "<b>Temperature Unit Conversion</b>", description: "Default = none (DegF)", defaultValue: "1", required: false, multiple: false, options:[["1":"none"], ["2":"Fahrenheit to Celsius"], ["3":"Celsius to Fahrenheit"]], displayDuringSetup: false
+        input name: "valueOffset", type: "number", title: "<b>Temperature Offset</b>", description: "Offset temperature +/- Deg", range: "*...*", defaultValue: 0, required: false, displayDuringSetup: false
+	input name: "units", type: "enum", title: "<b>Temperature Units or Conversion</b>", description: "Default = °F", defaultValue: "2", required: false, multiple: false, options:[["1":"°F"], ["2":"°C"], ["3":"Celsius to Fahrenheit"], ["4":"Fahrenheit to Celsius"]], displayDuringSetup: false
         input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b>", description: "Will Auto Disable in 30min", defaultValue: true
 	input name: "multiplier", type: "enum", title: "<b>Number Multiplier</b>", description: "Default = x1", defaultValue: "1", required: false, multiple: false, options:[["0.001":"x0.001"], ["0.01":"x0.01"], ["0.1":"x0.1"],["1":"x1"], ["10":"x10"], ["100":"x100"], ["1000":"x1000"]], displayDuringSetup: false
         input name: "numDecimalPlaces", type: "enum", title: "<b>Number of Decimals Places</b>", description: "Default = 1", defaultValue: "1", required: false, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
@@ -57,13 +57,13 @@ def parse(String description) {
     if (name && value) {
         
 //// Temp unit and offset conversion
-        if (units == "2") {dispUnit = "°C"}
+	if (units == "2" || units == "4" ) {dispUnit = "°C"}
          else {dispUnit = "°F"}
         
         float tmpValue = Float.parseFloat(value)
-        if (units == "2") {tmpValue = fahrenheitToCelsius(tmpValue) }  //convert from Fahrenheit to Celsius
-        if (units == "3") {tmpValue = celsiusToFahrenheit(tmpValue) }  //convert from Celsius to Fahrenheit
-        if (tempOffset) {tmpValue = tmpValue + tempOffset.toFloat()}
+		if (units == "3") {tmpValue = celsiusToFahrenheit(tmpValue) }  //convert from Celsius to Fahrenheit
+        if (units == "4") {tmpValue = fahrenheitToCelsius(tmpValue) }  //convert from Fahrenheit to Celsius
+        if (valueOffset) {tmpValue = tmpValue + valueOffset.toFloat()}
         //if (logEnable) log.debug "Test Unit Conversion, value is ${tmpValue} " + dispUnit
         
 //// Send Value with #Decimals and Decimal position Conversion Calc                         
@@ -77,7 +77,7 @@ def parse(String description) {
 	if (max_minEnable) {
 		if (max_minResetEnable) {
 		 float tmpHour = new Date().format("HH", location.timeZone) as float 
-         float tmpMinute = new Date().format("mm", location.timeZone) as float	
+         	 float tmpMinute = new Date().format("mm", location.timeZone) as float	
 			 
 			if (tmpHour == 0 && tmpMinute < 31) {   // 30min window to reset    
            		sendEvent(name: "maxValue", value: tmpValue, unit: " max")   // Send new Max Value if enabled
@@ -90,16 +90,16 @@ def parse(String description) {
            	}
 		 }          
         
-		 float tmpInputMinValue = inputMinValue as float
+	 float tmpInputMinValue = inputMinValue as float
          float tmpInputMaxValue = inputMaxValue as float 
 					
-		if (tmpInputMaxValue < tmpValue) { 
+	if (tmpInputMaxValue < tmpValue) { 
            sendEvent(name: "maxValue", value: tmpValue, unit: " max")   // Send new Max Value if enabled
            if (logEnable) {log.info "New Max Value is ${tmpValue} " + dispUnit}
            device.updateSetting("inputMaxValue", [value: tmpValue, type: "number"])  
            }
 			
-		if (tmpValue < tmpInputMinValue) {
+	if (tmpValue < tmpInputMinValue) {
            sendEvent(name: "minValue", value: tmpValue, unit: " min")   // Send new Min Value if enabled
            if (logEnable) {log.info "New Min Value is ${tmpValue} " + dispUnit}
            device.updateSetting("inputMinValue", [value: tmpValue, type: "number"]) 
