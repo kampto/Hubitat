@@ -10,7 +10,7 @@
 *    NOTES:  Parsed log/sent float values produce a value with 1 decimal, And if values after the decimals are all Zero's, it will only use one "0" decimal.
 *            So the Multiplier and Number of Decimals settings will not achieve certain conditions. It will work for cases like converting smaller unit large 
 *            numbers to larger unit numbers or vise vera. EX: 12489mV to 12.49V. If availible you can modify decimal on the Hub dash or Frontend apps (sharptools, etc..)
-*    Smartthings: This DH will not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
+*    Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
 *    SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
 *
 *  Change Revision History:
@@ -24,8 +24,8 @@
 */
 metadata {
 	definition (name: "Child Generic Sensor Advanced", namespace: "kampto", author: "T. Kamp", 
-        importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Generic_Sensor_Advanced.groovy") {
-		    capability "Sensor"
+		importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Generic_Sensor_Advanced.groovy") {
+			capability "Sensor"
         
 			attribute "lastUpdated", "String"    
 			attribute "maxValue", "number"  
@@ -33,17 +33,17 @@ metadata {
 	        }
         
     preferences {
-		    input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b>", description: "Will Auto Disable in 30min", defaultValue: true
-        input name: "multiplier", type: "enum", title: "<b>Number Multiplier</b>", description: "Default = x1", defaultValue: "1", required: false, multiple: false, options:[["0.001":"x0.001"], ["0.01":"x0.01"], ["0.1":"x0.1"],["1":"x1"], ["10":"x10"], ["100":"x100"], ["1000":"x1000"]], displayDuringSetup: false
-		    input name: "numDecimalPlaces", type: "enum", title: "<b>Number of Decimals Places</b>", description: "Default = 1", defaultValue: "1", required: false, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
-        input name: "lastUpdateEnable", type: "bool", title: "<b>Enable Last Update Attribute?</b>", defaultValue: true
-        input name: "clockformat", type: "bool", title: "<b>Use 24 hour clock?</b>", description: "Used in Last Update if Enabled", defaultValue: true
-        input name: "max_minEnable", type: "bool", title: "<b>Enable Max/Min VALUE Attributtes?</b>", defaultValue: false
-        input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: false
-        input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -65,535, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -65535, required: false, displayDuringSetup: false
-        input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 65,535, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 65535, required: false, displayDuringSetup: false
-		    input name: "units", type: "enum", title: "<b>Units</b>", description: "Default = none", defaultValue: "none", required: false,   
-			  options:[
+		input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b>", description: "Will Auto Disable in 30min", defaultValue: true
+		input name: "multiplier", type: "enum", title: "<b>Number Multiplier</b>", description: "Default = x1", defaultValue: "1", required: false, multiple: false, options:[["0.001":"x0.001"], ["0.01":"x0.01"], ["0.1":"x0.1"],["1":"x1"], ["10":"x10"], ["100":"x100"], ["1000":"x1000"]], displayDuringSetup: false
+		input name: "numDecimalPlaces", type: "enum", title: "<b>Number of Decimals Places</b>", description: "Default = 1", defaultValue: "1", required: false, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
+		input name: "lastUpdateEnable", type: "bool", title: "<b>Enable Last Update Attribute?</b>", defaultValue: true
+		input name: "clockformat", type: "bool", title: "<b>Use 24 hour clock?</b>", description: "Used in Last Update if Enabled", defaultValue: true
+		input name: "max_minEnable", type: "bool", title: "<b>Enable Max/Min VALUE Attributtes?</b>", defaultValue: false
+		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: false
+		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -65,535, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -65535, required: false, displayDuringSetup: false
+		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 65,535, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 65535, required: false, displayDuringSetup: false
+		input name: "units", type: "enum", title: "<b>Units</b>", description: "Default = none", defaultValue: "none", required: false,   
+			options:[
 					["none":"none"],  // Default
 					["mV":"mV"], 
 					["V":"V"],
@@ -58,6 +58,8 @@ metadata {
 					["kW":"kW"],
 					["gal":"gal"],
 					["L":"L"],
+					["in":"in"],
+					["mm":"mm"],
 					["PPM":"PPM"],
 					["counts":"counts"],
 					["resets":"resets"],
@@ -73,19 +75,19 @@ def parse(String description) {
 	def name  = parts.length>0?parts[0].trim():null
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
-    if (name && value) {
+	if (name && value) {
 
 //// Set units
-        if (units == "none") {dispUnit = ""}
+		if (units == "none") {dispUnit = ""}
 		else {dispUnit = units}
             
 //// Send Value with #Decimals and Decimal position Conversion Calc                        
-        float tmpMultiplier = multiplier as float 
-        float tmpValue = Float.parseFloat(value)
-         tmpValue = tmpValue * tmpMultiplier
-         tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
-          sendEvent(name: name, value: tmpValue, unit: dispUnit)
-		      if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
+		float tmpMultiplier = multiplier as float 
+		float tmpValue = Float.parseFloat(value)
+		tmpValue = tmpValue * tmpMultiplier
+		tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
+		sendEvent(name: name, value: tmpValue, unit: dispUnit)
+		if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
 		
 //// Send Max & Min VALUE Conversion Calc and Reset, if Enabled
 	if (max_minEnable) {
@@ -104,7 +106,7 @@ def parse(String description) {
            	}
 		 }          
         
-		     float tmpInputMinValue = inputMinValue as float
+		 float tmpInputMinValue = inputMinValue as float
          float tmpInputMaxValue = inputMaxValue as float 
 					
 		if (tmpInputMaxValue < tmpValue) { 
@@ -121,18 +123,18 @@ def parse(String description) {
       }
         
 //// Send Last Update Time, if Enabled                 
-        def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-        def nowDay = new Date().format("MMM dd", location.timeZone)
-        def nowTime = new Date().format("${timeString}", location.timeZone) 
-        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
-}
+		def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
+		def nowDay = new Date().format("MMM dd", location.timeZone)
+		def nowTime = new Date().format("${timeString}", location.timeZone) 
+		if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
+	}
     
-    else {log.error "Missing either name or value.  Cannot parse!"}
+	else {log.error "Missing either name or value.  Cannot parse!"}
 }
 
 def logsOff(){
-    log.warn "debug logging auto disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
+	log.warn "debug logging auto disabled..."
+	device.updateSetting("logEnable",[value:"false",type:"bool"])
 }
 
 def installed() {
