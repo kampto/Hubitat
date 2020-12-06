@@ -7,20 +7,19 @@
 *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 *  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
-*    NOTES:  Parsed log/sent float values produce a value with 1 decimal, And if values after the decimals are all Zero's, it will only use one "0" decimal.
-*            So the Multiplier and Number of Decimals settings will not achieve certain conditions. It will work for cases like converting smaller unit large 
-*            numbers to larger unit numbers or vise vera. EX: 12489mV to 12.49V. If availible you can modify decimal on the Hub dash or Frontend apps (sharptools, etc..)
-*    Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
-*    SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
+*	NOTES:  Use the multipler and decimal position options to convert numbers. EX: 12489mV to 12.49V.
+*	If availible you can also modify decimal on Hub dash or Frontend apps (sharptools, etc..)
+*	Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
+*	SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
 *
-*  Change Revision History:
-*    Date:       Who:           What:
-*    2020-11-29  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
-*    2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
-*    2019-07-01  kampto         Added decimal poistion and multipler
-*    2018-10-16  kampto         Advanced color mapping (legacy ST app)   
-*    2018-05-12  kampto         Last update 24hr selectable feature 
-*    2017-10-09  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
+*  	Change Revision History:
+*	Date:       Who:           What:
+*	2020-11-29  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
+* 	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
+*	2019-07-01  kampto         Added decimal poistion and multipler
+* 	2018-10-16  kampto         Advanced color mapping (legacy ST app)   
+*	2018-05-12  kampto         Last update 24hr selectable feature 
+*	2017-10-09  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
 */
 metadata {
 	definition (name: "Child Generic Sensor Advanced", namespace: "kampto", author: "T. Kamp", 
@@ -42,29 +41,30 @@ metadata {
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: false
 		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -65,535, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -65535, required: false, displayDuringSetup: false
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 65,535, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 65535, required: false, displayDuringSetup: false
+		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
 		input name: "units", type: "enum", title: "<b>Units</b>", description: "Default = none", defaultValue: "none", required: false,   
 			options:[
-					["none":"none"],  // Default
-					["mV":"mV"], 
-					["V":"V"],
-					["kV":"kV"],
-					["sec":"sec"],
-					["min":"min"],
-					["hour":"hour"],
-					["°F":"°F"],
-					["°C":"°C"],
-					["%":"%"],
-					["W":"W"],
-					["kW":"kW"],
-					["gal":"gal"],
-					["L":"L"],
-					["in":"in"],
-					["mm":"mm"],
-					["PPM":"PPM"],
-					["counts":"counts"],
-					["resets":"resets"],
-					["sleeps":"sleeps"],
-					], displayDuringSetup: false	
+				["none":"none"],  // Default
+				["mV":"mV"], 
+				["V":"V"],
+				["kV":"kV"],
+				["sec":"sec"],
+				["min":"min"],
+				["hour":"hour"],
+				["°F":"°F"],
+				["°C":"°C"],
+				["%":"%"],
+				["W":"W"],
+				["kW":"kW"],
+				["gal":"gal"],
+				["L":"L"],
+				["in":"in"],
+				["mm":"mm"],
+				["PPM":"PPM"],
+				["counts":"counts"],
+				["resets":"resets"],
+				["sleeps":"sleeps"],
+				], displayDuringSetup: false	
 	
 	}
 }   
@@ -76,18 +76,26 @@ def parse(String description) {
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
 	if (name && value) {
+		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
+		
+		float tmpValue = Float.parseFloat(value)
+		float tmpMultiplier = multiplier as float
 
 //// Set units
 		if (units == "none") {dispUnit = ""}
 		else {dispUnit = units}
             
-//// Send Value with #Decimals and Decimal position Conversion Calc                        
-		float tmpMultiplier = multiplier as float 
-		float tmpValue = Float.parseFloat(value)
+//// Send Value with #Decimals and Decimal position Conversion Calc  
 		tmpValue = tmpValue * tmpMultiplier
 		tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
-		sendEvent(name: name, value: tmpValue, unit: dispUnit)
-		if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
+		if (numDecimalPlaces == "0") {
+			sendEvent(name: name, value: (tmpValue.round()), unit: dispUnit)
+			if (logEnable) log.debug "Sent Value = ${tmpValue.round()} " + dispUnit
+			}
+		else {
+			sendEvent(name: name, value: tmpValue, unit: dispUnit)
+			if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
+			}
 		
 //// Send Max & Min VALUE Conversion Calc and Reset, if Enabled
 	if (max_minEnable) {
