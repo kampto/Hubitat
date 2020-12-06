@@ -7,23 +7,23 @@
 *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 *  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
-*    NOTES:  Enter your units or unit conversions first. EX: if you want inches/gallons but sensor reports in cm then select "Convert Sensor Centimeters to Inches". 
+*    NOTES:  This is for cylindrical vertical tanks with unltrasonic senor on the top. Enter your units or unit conversions first. EX: if you want inches/gallons but sensor reports in cm then select "Convert Sensor Centimeters to Inches". 
 *	 Required is the 3 tank dimensions. If availible you can modify decimals on the Hub dash or Frontend apps (sharptools, etc..)
 *    Smartthings: This DH might compile on Smarthings IDE as of 2020, Its built for Hubitat. You can try but no garuantee's 
 *    SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
 *
-*  Change Revision History:
-*    Date:       Who:           What:
-*    2020-12-04  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
-*    2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
-*    2018-10-16  kampto         Advanced color mapping (legacy ST app)	
-*	 2018-07-17  kampto         Added tank volume percentage
-*    2018-05-12  kampto         Last update 24hr selectable feature 
-*    2017-10-10  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
+*	Change Revision History:
+*	Date:       Who:           What:
+*	2020-12-04  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
+*	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
+*	2018-10-16  kampto         Advanced color mapping (legacy ST app)	
+*	2018-07-17  kampto         Added tank volume percentage
+*	2018-05-12  kampto         Last update 24hr selectable feature 
+*	2017-10-10  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
 */
 metadata {
 	definition (name: "Child Ultrasonic Tank Level Sensor", namespace: "kampto", author: "T. Kamp", 
-      importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Ultrasonic_Tank_Level_Sensor.groovy") {
+		importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Ultrasonic_Tank_Level_Sensor.groovy") {
 			capability "Sensor"
         
 			attribute "lastUpdated", "String" 
@@ -45,7 +45,8 @@ metadata {
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: true
 		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -50, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -50, required: false, displayDuringSetup: false
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 50000, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 50000, required: false, displayDuringSetup: false
-    }
+		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
+	}
 }   
 
 def parse(String description) {
@@ -55,19 +56,16 @@ def parse(String description) {
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
 	if (name && value) {
+		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
        	
 		float tmpValue = Float.parseFloat(value)
-		if (tmpValue == 0) {
-			if (logEnable) {log.debug "Invalid sensor data = ${tmpValue} received and excluded"; return} // Dont send anything if sensor failure
-			}
 		float tmpHeight = height as float
 		float tmpDiameter = diameter as float
 		float tmpAirgap = airgap as float
 			
 //// Units Conversion
 	if (units == "2" || units == "4" ) {dispUnit = "L"} // centimeters input used
-	else {dispUnit = "gal"} // inches input used
-		
+		else {dispUnit = "gal"} // inches input used
 	if (units == "3") {tmpValue = tmpValue / 2.54} // Convert sensor raw data and input to inches
 	if (units == "4") {tmpValue = tmpValue * 2.54} // Convert sensor raw data to centimeters
 
@@ -77,7 +75,7 @@ def parse(String description) {
 	if (units == "4") {maxVolume = maxVolume / 1000} // convert cubic cm to Liters
 	maxVolume = maxVolume as int  // Remove decimals
 	sendEvent(name: "tankMaxVolume", value: maxVolume, unit: dispUnit) // This is the total capacity when full
-		if (logEnable) log.info "tankMaxVolume = ${maxVolume} " + dispUnit
+	if (logEnable) log.info "tankMaxVolume = ${maxVolume} " + dispUnit
 		
 //// Remaining measured volume in Tank
 	float measuredVolume = ((3.14159 * (tmpDiameter/2) * (tmpDiameter/2) * tmpHeight) -  (3.14159 * (tmpDiameter/2) * (tmpDiameter/2) * (tmpValue - tmpAirgap)))
