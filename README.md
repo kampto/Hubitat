@@ -10,4 +10,4 @@ If you copy this driver into an existing driver and save, you will need to go to
 If needed go to dashboard and edit the Device tile to enable what attributes you want to be displayed.
 SharpTools and other frontends: If you switch to a DH with extra attributes you will need to go (Hubitat) Apps - sharptools - next - done, to get them to take. 
 
-No guarantee these device handlers will work with new Smartthings App (2020 and beyond). They may not even compile in the ST IDE. I have no plans to try to get them to work on ST.
+No guarantee these device handlers will work with new Smartthings App/IDE (2020 and beyond). They may not even compile in the ST IDE. There are some in my Smartthings repository that might still work.
