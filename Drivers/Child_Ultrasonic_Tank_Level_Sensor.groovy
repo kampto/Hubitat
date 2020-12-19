@@ -14,7 +14,7 @@
 *
 *	Change Revision History:
 *	Date:       Who:           What:
-*	2020-12-04  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
+*	2020-12-04  kampto         Added Max/Min Value attribute, Skip values in a range, notes, unit conversion
 *	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
 *	2018-10-16  kampto         Advanced color mapping (legacy ST app)	
 *	2018-07-17  kampto         Added tank volume percentage
@@ -45,7 +45,9 @@ metadata {
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: true
 		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -50, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -50, required: false, displayDuringSetup: false
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 50000, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 50000, required: false, displayDuringSetup: false
-		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
+		input name: "skipBadValueEnable", type: "bool", title: "<b>Dont Send Bad Values?</b>", description: "Limit sent Level % values to this Max/Min range", defaultValue: false, required: false
+		input name: "inputMaxOddValue", type: "number", title: "<b>Max limit VALUE</b>", description: "Default = 100%, Don't send values above this number", range: "*...*", defaultValue: 100, required: false, displayDuringSetup: false
+		input name: "inputMinOddValue", type: "number", title: "<b>Min limit VALUE</b>", description: "Default = 0%, Don't send values below this number", range: "*...*", defaultValue: 0, required: false, displayDuringSetup: false
 	}
 }   
 
@@ -56,12 +58,13 @@ def parse(String description) {
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
 	if (name && value) {
-		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
-       	
+			       	
 		float tmpValue = Float.parseFloat(value)
 		float tmpHeight = height as float
 		float tmpDiameter = diameter as float
 		float tmpAirgap = airgap as float
+		float tmpInputMaxOddValue = inputMaxOddValue as float
+        float tmpInputMinOddValue = inputMinOddValue as float
 			
 //// Units Conversion
 	if (units == "2" || units == "4" ) {dispUnit = "L"} // centimeters input used
@@ -73,24 +76,29 @@ def parse(String description) {
 	float maxVolume = 3.14159 * (tmpDiameter/2) * (tmpDiameter/2) * tmpHeight // Max Volume of Tank
 	if (units == "3") {maxVolume = maxVolume / 231} // convert cubic in to Gallons
 	if (units == "4") {maxVolume = maxVolume / 1000} // convert cubic cm to Liters
-	maxVolume = maxVolume as int  // Remove decimals
-	sendEvent(name: "tankMaxVolume", value: maxVolume, unit: dispUnit) // This is the total capacity when full
-	if (logEnable) log.info "tankMaxVolume = ${maxVolume} " + dispUnit
+	maxVolume = maxVolume as int  // Remove decimals		
 		
 //// Remaining measured volume in Tank
 	float measuredVolume = ((3.14159 * (tmpDiameter/2) * (tmpDiameter/2) * tmpHeight) -  (3.14159 * (tmpDiameter/2) * (tmpDiameter/2) * (tmpValue - tmpAirgap)))
 	if (units == "3") {measuredVolume = measuredVolume / 231} // convert cubic in to Gallons
 	if (units == "4") {measuredVolume = measuredVolume / 1000} // convert cubic cm to Liters
-	measuredVolume = measuredVolume as int // Remove decimals
-	sendEvent(name: "tankMeasuredVolume", value: measuredVolume, unit: dispUnit) // Use this for how much is left in the tank
-		if (logEnable) log.info "tankMeasuredVolume = ${measuredVolume} " + dispUnit
-    
+	measuredVolume = measuredVolume as int // Remove decimals		
+		
 //// Tank Percent full (Primary Attributte)   
 	tmpValue = 100 - ((tmpValue-tmpAirgap)/height * 100 )  // Get the percent full
 	tmpValue = tmpValue.round(1)
-	sendEvent(name: name, value: tmpValue, unit: "%")
-		if (logEnable) log.debug "Sent Primary Value = ${tmpValue}%"	
 		
+//// Send all Values if valid  			
+	if (skipBadValueEnable && tmpValue <= inputMaxOddValue && tmpValue >= inputMinOddValue) {  // Skip everything, dont send
+		sendEvent(name: name, value: tmpValue, unit: "%")
+		if (logEnable) log.debug "Sent Primary Value = ${tmpValue}%"	
+			
+		sendEvent(name: "tankMaxVolume", value: maxVolume, unit: dispUnit) // This is the total capacity when full
+		if (logEnable) log.info "tankMaxVolume = ${maxVolume} " + dispUnit
+
+		sendEvent(name: "tankMeasuredVolume", value: measuredVolume, unit: dispUnit) // Use this for how much is left in the tank
+		if (logEnable) log.info "tankMeasuredVolume = ${measuredVolume} " + dispUnit
+    		
 //// Send Max & Min VALUE Conversion Calc and Reset, if Enabled
 	if (max_minEnable) {
 		if (max_minResetEnable) {
@@ -124,14 +132,15 @@ def parse(String description) {
 			}   
 		}
         
-//// Send Last Update Time, if Enabled                
+//// Send Last Update Time, if Enabled                 
         def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-        def nowDay = new Date().format("MMM dd", location.timeZone)
+        def nowDay = new Date().format("MMMdd", location.timeZone)
         def nowTime = new Date().format("${timeString}", location.timeZone) 
-        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
-    }
-    
-    else {log.error "Missing either name or value.  Cannot parse!"}
+        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + "-" + nowTime, displayed: false)}
+    	}
+		else if (logEnable) {log.error "Bad Value, out of the specified range. Will not send! Value = ${value}"}
+	}
+    else if (logEnable) {log.error "Missing either name or value or out or range. Cannot parse! Value = ${value}"}
 }
 
 def logsOff(){
