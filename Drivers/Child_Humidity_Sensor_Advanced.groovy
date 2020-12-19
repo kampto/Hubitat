@@ -7,7 +7,7 @@
 *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 *  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
-*    NOTES:  Parsed log/sent float values produce a value with 1 decimal. If availible you can chop the decimal on the Hub dash or Frontend apps (sharptools, etc..)
+*    NOTES:  Units are %. Will be sent with one decimal. If availible you can chop the decimal on the Hub dash or Frontend apps (sharptools, etc..)
 *    Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
 *    SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
 *
@@ -15,7 +15,6 @@
 *	Date:       Who:           What:
 *	2020-12-02  kampto         Added Max/Min Value attribute, resetable, notes 
 *	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
-*	2019-07-01  kampto         Added decimal poistion and multipler
 *	2018-10-16  kampto         Advanced color mapping (legacy ST app)   
 *	2018-05-12  kampto         Last update 24hr selectable feature 
 *	2017-10-09  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
@@ -40,7 +39,7 @@ metadata {
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: true
 		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = -50, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: -50, required: false, displayDuringSetup: false
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 500, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 500, required: false, displayDuringSetup: false
-		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false	
+		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false, required: false
 	}
 }   
 
@@ -50,9 +49,8 @@ def parse(String description) {
 	def name  = parts.length>0?parts[0].trim():null
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit = "%"
-	if (name && value) {
-		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
-		
+	if (name && ((skipZeroValueEnable && value != 0) || (skipZeroValueEnable == false && value))) {  // dont proceed or send if value is zero or null
+			
 		float tmpValue = Float.parseFloat(value)
 		        
 //// Offset conversion
@@ -93,14 +91,14 @@ def parse(String description) {
            }   
       }
         
-//// Send Last Update Time, if Enabled                
+//// Send Last Update Time, if Enabled                 
         def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-        def nowDay = new Date().format("MMM dd", location.timeZone)
+        def nowDay = new Date().format("MMMdd", location.timeZone)
         def nowTime = new Date().format("${timeString}", location.timeZone) 
-        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
+        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + "-" + nowTime, displayed: false)} 
     }
     
-	else {log.error "Missing either name or value.  Cannot parse!"}
+	else if (logEnable) {log.error "Missing either name or value or zero value skip enabled. Cannot parse! Value = ${value}"}
 }
 
 def logsOff(){
