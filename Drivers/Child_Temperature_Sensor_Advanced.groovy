@@ -14,16 +14,16 @@
 *
 *	Change Revision History:
 *	Date:       Who:           What:
-*   2020-12-05  kampto         Added option to not send Zero value
+*   	2020-12-05  kampto         Added option to not send Zero value
 *	2020-11-29  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
-*   2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
+*   	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
 *	2019-07-01  kampto         Added decimal poistion and multipler
 *	2018-10-16  kampto         Advanced color mapping (legacy ST app)   
 *	2018-05-12  kampto         Last update 24hr selectable feature 
 *	2017-10-09  kampto         Origination and deviation for value formatting, Modified from ST_Anything child DH
 */
 metadata {
-	definition (name: "Child Temperature Sensor Advanced Test", namespace: "kampto", author: "T. Kamp", 
+	definition (name: "Child Temperature Sensor Advanced", namespace: "kampto", author: "T. Kamp", 
         importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Temperature_Sensor_Advanced.groovy") {
 		    capability "Temperature Measurement"
 		    capability "Sensor"
@@ -55,12 +55,11 @@ def parse(String description) {
 	def name  = parts.length>0?parts[0].trim():null
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
-	if (name && value) {
-		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
-		
+	if (name && ((skipZeroValueEnable && value != 0) || (skipZeroValueEnable == false && value))) {  // dont proceed or send if value is zero or null
+					
 		float tmpValue = Float.parseFloat(value)
 		float tmpMultiplier = multiplier as float
-						
+				
 //// Temp unit and offset conversion
 		if (units == "2" || units == "4" ) {dispUnit = "°C"}
 			else {dispUnit = "°F"}
@@ -114,14 +113,14 @@ def parse(String description) {
            }   
       }
         
-//// Send Last Update Time, if Enabled                
-		def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-		def nowDay = new Date().format("MMM dd", location.timeZone)
-		def nowTime = new Date().format("${timeString}", location.timeZone) 
-		if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
+//// Send Last Update Time, if Enabled                 
+        def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
+        def nowDay = new Date().format("MMMdd", location.timeZone)
+        def nowTime = new Date().format("${timeString}", location.timeZone) 
+        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + "-" + nowTime, displayed: false)}
     }
     
-	else {log.error "Missing either name or value. Cannot parse!"}
+	else if (logEnable) {log.error "Missing either name or value or zero value skip enabled. Cannot parse! Value = ${value}"}
 }
 
 def logsOff(){
