@@ -43,7 +43,7 @@ metadata {
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: true
 		input name: "inputMaxValue", type: "number", title: "<b>Starting Max VALUE</b>", description: "Default = 0, Don't change, will Auto populate with new Max VALUE", range: "*...*", defaultValue: 0, required: false, displayDuringSetup: false
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 50000, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 50000, required: false, displayDuringSetup: false
-    	input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
+		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
 	}
 }   
 
@@ -53,9 +53,8 @@ def parse(String description) {
 	def name  = parts.length>0?parts[0].trim():null
 	def value = parts.length>1?parts[1].trim():null
 	def dispUnit
-	if (name && value) {
-		if (skipZeroValueEnable && value == 0) {return} // dont proceed or send if value is zero
-		
+	if (name && ((skipZeroValueEnable && value != 0) || (skipZeroValueEnable == false && value))) {  // dont proceed or send if value is zero or null
+			
 		float tmpValue = Float.parseFloat(value)
 		float tmpMultiplier = multiplier as float
 
@@ -109,23 +108,23 @@ def parse(String description) {
         
 //// Send Last Update Time, if Enabled                 
         def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-        def nowDay = new Date().format("MMM dd", location.timeZone)
+        def nowDay = new Date().format("MMMdd", location.timeZone)
         def nowTime = new Date().format("${timeString}", location.timeZone) 
-        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
+        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + "-" + nowTime, displayed: false)}  
     }
     
-	else {log.error "Missing either name or value.  Cannot parse!"}
+	else if (logEnable) {log.error "Missing either name or value or zero value skip enabled. Cannot parse! Value = ${value}"}
 }
 
 def logsOff(){
-    log.warn "debug logging auto disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
+	log.warn "debug logging auto disabled..."
+	device.updateSetting("logEnable",[value:"false",type:"bool"])
 }
 
 def installed() {
-    updated()
+	updated()
 }
 
 def updated() {
-    if (logEnable) runIn(1800,logsOff)
+	if (logEnable) runIn(1800,logsOff)
 }
