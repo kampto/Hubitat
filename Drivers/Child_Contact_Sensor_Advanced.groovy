@@ -7,12 +7,13 @@
 *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 *  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
-*	NOTES:  This DH allows you to select what text is sent besides the generic "Open", "Closed". EX: you can select "Empty" or "Full" or in reverse.
-*	Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its now built for Hubitat.  
+*	NOTES:  This DH allows you to select what text is sent besides the generic "open", "closed". EX: you can select "Empty" or "Full" or in reverse.
+*	Smartthings: This DH may still compile on Smarthings IDE as of 2020, Its now built for Hubitat.  
 *	SharpTools and other frontends: If you switch to this DH with the extra attributes you may need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
 *
 *	Change Revision History:
 *	Date:       Who:           What:
+*	2020-12-23  kampto         Fixed issue of default state being in caps. 
 *	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
 *	2018-06-12  kampto         Last update 24hr selectable feature
 *	2018-04-16  kampto         Add several contact open/closed text selections and color mapping  
@@ -32,10 +33,10 @@ metadata {
 		input name: "lastUpdateEnable", type: "bool", title: "<b>Enable Last Update Attribute?</b>", defaultValue: true
 		input name: "clockformat", type: "bool", title: "<b>Use 24 hour clock?</b>", description: "Used in Last Update if Enabled", defaultValue: true
 //// Closed State Inputs			         
-		input name: "displayLabel1", type: "enum", title: "<b>Change Text for Contact 'Closed'</b>", description: "Default = Closed", defaultValue: "Closed", required: false, 
+		input name: "displayLabel1", type: "enum", title: "<b>Change Text for Contact 'Closed'</b>", description: "Default = Closed", defaultValue: "closed", required: false, 
 			options:[
-			["Closed":"Closed"], // Default
-			["Open":"Open"], 
+			["closed":"closed"], // Default
+			["open":"open"], 
 			["Full":"Full"],
 			["Empty":"Empty"],
 			["High":"High"],    
@@ -54,10 +55,10 @@ metadata {
 			], displayDuringSetup: false
             
 //// Open State Inputs            
-			input name: "displayLabel2", type: "enum", title: "<b>Change Text for Contact 'Open'</b>", description: "Default = Open", defaultValue: "Open", required: false, 
+			input name: "displayLabel2", type: "enum", title: "<b>Change Text for Contact 'Open'</b>", description: "Default = Open", defaultValue: "open", required: false, 
 			options:[
-            ["Closed":"Closed"], 
-			["Open":"Open"],  // Default
+            ["closed":"closed"], 
+			["open":"open"],  // Default
 			["Full":"Full"],
 			["Empty":"Empty"],
 			["High":"High"],    
@@ -83,12 +84,20 @@ def parse(String description) {
 	def name  = parts.length>0?parts[0].trim():null
 	def value = parts.length>1?parts[1].trim():null
 	if (name && value) {
+		
+//// Update and Send
+        if (value.equals("open")) {sendEvent(name: "contact", value: displayLabel2, isStateChange: true)
+			if (logEnable) log.debug "Sent Value = parse(${displayLabel2})"
+        }
+        else if (value.equals("closed")) {sendEvent(name: "contact", value: displayLabel1, isStateChange: true)
+			if (logEnable) log.debug "Sent Value = parse(${displayLabel1})"
+        }
         
 //// Send Last Update Time, if Enabled                 
         def timeString = clockformat ? "HH:mm" : "h:mm: a" // 24Hr : 12Hr
-        def nowDay = new Date().format("MMM dd", location.timeZone)
+        def nowDay = new Date().format("MMMdd", location.timeZone)
         def nowTime = new Date().format("${timeString}", location.timeZone) 
-        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + " " + nowTime, displayed: false)}  
+        if (lastUpdateEnable) {sendEvent(name: "lastUpdated", value: nowDay + "-" + nowTime, displayed: false)} 
     }
     
 	else {log.error "Missing either name or value.  Cannot parse!"}
