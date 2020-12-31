@@ -26,7 +26,8 @@ metadata {
 		importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Generic_Sensor_Advanced.groovy") {
 			capability "Sensor"
         
-			attribute "lastUpdated", "String"    
+			attribute "lastUpdated", "String"
+			attribute "genericValue", "String"  
 			attribute "maxValue", "number"  
 			attribute "minValue", "number"    
 	        }
@@ -48,6 +49,8 @@ metadata {
 				["mV":"mV"], 
 				["V":"V"],
 				["kV":"kV"],
+				["ma":"ma"], 
+				["A":"A"],
 				["sec":"sec"],
 				["min":"min"],
 				["hour":"hour"],
@@ -88,11 +91,11 @@ def parse(String description) {
 		tmpValue = tmpValue * tmpMultiplier
 		tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
 		if (numDecimalPlaces == "0") {
-			sendEvent(name: name, value: (tmpValue.round()), unit: dispUnit)
+			sendEvent(name: "genericValue", value: (tmpValue.round()), unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue.round()} " + dispUnit
 			}
 		else {
-			sendEvent(name: name, value: tmpValue, unit: dispUnit)
+			sendEvent(name: "genericValue", value: tmpValue, unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
 			}
 		
