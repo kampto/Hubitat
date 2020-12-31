@@ -27,6 +27,7 @@ metadata {
 			capability "Sensor"
         
 			attribute "lastUpdated", "String" 
+			attribute "tankPercentFull", "number"
 			attribute "tankMaxVolume", "number"
 			attribute "tankMeasuredVolume", "number"
 			attribute "maxValue", "number"  
@@ -90,7 +91,7 @@ def parse(String description) {
 		
 //// Send all Values if valid  			
 	if (skipBadValueEnable && tmpValue <= inputMaxOddValue && tmpValue >= inputMinOddValue) {  // Skip everything, dont send
-		sendEvent(name: name, value: tmpValue, unit: "%")
+		sendEvent(name: "tankPercentFull", value: tmpValue, unit: "%")
 		if (logEnable) log.debug "Sent Primary Value = ${tmpValue}%"	
 			
 		sendEvent(name: "tankMaxVolume", value: maxVolume, unit: dispUnit) // This is the total capacity when full
