@@ -8,9 +8,10 @@
 *  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
 *	NOTES:  Use the multipler and decimal position options to convert numbers. EX: 12489mV to 12.49V.
-*	If availible you can also modify decimal on Hub dash or Frontend apps (sharptools, etc..)
-*	Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
-*	SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
+*	-Smartthings: This DH may not compile on Smarthings IDE as of 2020, Its built for Hubitat. Smarthing IDE seems to have changed/broken some legacy Groovy code. 
+*	-SharpTools and other frontends: If you switch to this DH with the extra attributes you will need to go (Hubitat) Apps/sharptools/next/done to get them to take. 
+*		lastUpdated Attribute is useful for the other frontends, you can disable it if using Hubitat dashboard, it has its own.
+*		If availible you can also modify decimal on Hub dash or Frontend apps (sharptools, etc..)
 *
 *  	Change Revision History:
 *	Date:       Who:           What:
@@ -27,7 +28,7 @@ metadata {
 			capability "Sensor"
         
 			attribute "lastUpdated", "String"
-			attribute "genericValue", "String"  
+			attribute "generic", "String"  
 			attribute "maxValue", "number"  
 			attribute "minValue", "number"    
 	        }
@@ -91,11 +92,11 @@ def parse(String description) {
 		tmpValue = tmpValue * tmpMultiplier
 		tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
 		if (numDecimalPlaces == "0") {
-			sendEvent(name: "genericValue", value: (tmpValue.round()), unit: dispUnit)
+			sendEvent(name: "generic", value: (tmpValue.round()), unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue.round()} " + dispUnit
 			}
 		else {
-			sendEvent(name: "genericValue", value: tmpValue, unit: dispUnit)
+			sendEvent(name: "generic", value: tmpValue, unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
 			}
 		
