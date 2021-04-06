@@ -28,7 +28,7 @@ metadata {
 			capability "Sensor"
         
 			attribute "lastUpdated", "String"
-			attribute "generic", "String"  
+			attribute "genericValue", "String"  
 			attribute "maxValue", "number"  
 			attribute "minValue", "number"    
 	        }
@@ -37,7 +37,7 @@ metadata {
 		input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b>", description: "Will Auto Disable in 30min", defaultValue: true
 		input name: "multiplier", type: "enum", title: "<b>Number Multiplier</b>", description: "Default = x1", defaultValue: "1", required: false, multiple: false, options:[["0.001":"x0.001"], ["0.01":"x0.01"], ["0.1":"x0.1"],["1":"x1"], ["10":"x10"], ["100":"x100"], ["1000":"x1000"]], displayDuringSetup: false
 		input name: "numDecimalPlaces", type: "enum", title: "<b>Number of Decimals Places</b>", description: "Default = 1", defaultValue: "1", required: false, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
-		input name: "lastUpdateEnable", type: "bool", title: "<b>Enable Last Update Attribute?</b>", defaultValue: true
+		input name: "lastUpdateEnable", type: "bool", title: "<b>Enable Last Update Attribute?</b>", defaultValue: false
 		input name: "clockformat", type: "bool", title: "<b>Use 24 hour clock?</b>", description: "Used in Last Update if Enabled", defaultValue: true
 		input name: "max_minEnable", type: "bool", title: "<b>Enable Max/Min VALUE Attributtes?</b>", defaultValue: false
 		input name: "max_minResetEnable", type: "bool", title: "<b>Reset Max/Min VALUE's at Midnite?</b>", defaultValue: false
@@ -92,11 +92,11 @@ def parse(String description) {
 		tmpValue = tmpValue * tmpMultiplier
 		tmpValue = tmpValue.round(numDecimalPlaces.toInteger())
 		if (numDecimalPlaces == "0") {
-			sendEvent(name: "generic", value: (tmpValue.round()), unit: dispUnit)
+			sendEvent(name: "genericValue", value: (tmpValue.round()), unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue.round()} " + dispUnit
 			}
 		else {
-			sendEvent(name: "generic", value: tmpValue, unit: dispUnit)
+			sendEvent(name: "genericValue", value: tmpValue, unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
 			}
 		
