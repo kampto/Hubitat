@@ -1,0 +1,100 @@
+/*	Outage Pinger
+*  
+*	Copyright 2020 T. Kamp (kampto)
+*	Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at:
+*            http://www.apache.org/licenses/LICENSE-2.0
+*	Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+*	OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+*	-If modifying this project, please keep the above header intact and add your comments/credits below - Thank you! -  @kampto
+*
+*	NOTES:  Monitor if website or IP address is online or not. Attach to a virtual switch. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
+*
+*	Change Revision History:  
+*	Ver		Date:		Who:		What:
+* 	1.0.1	2020-12-09	kampto		Formating and config preference changes
+* 	1.0.0	2020-08-03	kampto		Origination for Hubitat to check outages, testing phase
+*/
+
+def setVersion(){
+    state.name = "Outage Pinger"
+	state.version = "1.0.1"
+}
+
+definition(
+	name: "Outage Pinger", namespace: "kampto", author: "T. Kamp",
+	description: "Monitor if website or IP address is online or not. Attach to a virtual switch",
+	category: "Convenience",
+	iconUrl: "",
+	iconX2Url: "",
+	iconX3Url: "",
+)
+
+preferences {
+	page(name: "Config")
+}
+
+def Config() {
+    dynamicPage(name: "", title: "", install: true, uninstall: true) {
+		displayTitle()
+    	installCheck()
+		if(state.appInstalled == 'COMPLETE'){
+			section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
+			paragraph "Purpose: Ping a website or IP address, activate virtual switch state if Up or Down.<br>-Use this Parent App to install one or more child apps.<br>-Then configure the child app"	
+			}
+			section("") {
+				app(name: "anyOpenApp", appName: "Outage Pinger Child", namespace: "kampto", title: "<b>Click to add a new 'Outage Pinger' child</b>", multiple: true)
+			}
+  			
+			section("") {
+       		label title: "<b>Change name for parent app (optional)</b>", required: false
+ 			}
+			
+		}
+	}
+}
+
+def installed() {
+    log.debug "Installed with settings: ${settings}"
+    initialize()
+}
+
+def updated() {
+    log.debug "Updated with settings: ${settings}"
+    unsubscribe()
+    initialize()
+}
+
+def initialize() {
+    log.info "There are ${childApps.size()} child apps"
+    childApps.each {child ->
+    log.info "Child app: ${child.label}"
+    }
+}
+
+def installCheck(){  
+    state.appInstalled = app.getInstallationState() 
+	if(state.appInstalled != 'COMPLETE'){
+		section{paragraph "Please hit 'Done' to install '${app.label}' parent app "}
+  	}
+  	else{
+    	log.info "Parent Installed OK"
+  	}
+}
+
+def getFormat(type, myText="") {		
+    if(type == "title") return "<h2 style='color:#0000ff;font-weight: bold'>${myText}</h2>"
+	if(type == "red") return "<style='color:#ff5349;'>${myText}"
+	}
+
+def getImage(type) {				
+	//def loc = "<img src=https://github.com/kampto/Hubitat/Images/"
+    def loc = "<img src=https://github.com/kampto/Hubitat/tree/main/Images/"
+    if(type == "InternetOn") return "${loc}InternetOn.png height=60 width=60>"
+	}
+
+def displayTitle() {
+    setVersion()
+    theName = app.label
+    if(theName == null || theName == "") theName = "New Child App"
+	section (getFormat("title",  "${getImage("InternetOn")}" + "App: ${state.name} - ${state.version}")) {}
+	}
