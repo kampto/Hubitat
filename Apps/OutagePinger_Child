@@ -1,0 +1,221 @@
+/*	Outage Pinger
+*  
+*	Copyright 2020 T. Kamp (kampto)
+*	Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at:
+*            http://www.apache.org/licenses/LICENSE-2.0
+*	Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+*	OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+*	-If modifying this project, please keep the above header intact and add your comments/credits below - Thank you! -  @kampto
+*
+*	NOTES:  Monitor if website or IP address is online or not. Attach to a virtual switch. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
+*
+*	Change Revision History:  
+*	Ver		Date:		Who:		What:
+* 	1.0.1	2020-12-09	kampto		Formating and config preference changes
+* 	1.0.0	2020-08-03	kampto		Origination for Hubitat to check outages, testing phase
+*/
+
+import groovy.time.TimeCategory
+import java.text.SimpleDateFormat
+
+def setVersion() {
+    state.name = "Outage Pinger Child"
+	state.version = "1.0.1"
+}
+
+definition(
+	name: "Outage Pinger Child", namespace: "kampto", author: "T. Kamp",
+	description: "Monitor if website or IP address is online or not. Attach to a virtual switch",
+	category: "Convenience",
+	parent: "kampto:Outage Pinger",
+	iconUrl: "",
+	iconX2Url: "",
+	iconX3Url: "",
+	//importUrl: "https://XXXXXXXXXXWP-child.groovy",
+)
+
+preferences {
+	page(name: "Config")
+}
+
+def Config() {
+	dynamicPage(name: "", title: "", install: true, uninstall: true) {
+		displayTitle() 
+        section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
+			paragraph "Purpose: Ping a website or IP address, activate virtual switch state if Up or Down."	
+		 	paragraph "Use: Enter in any valid URL or IP, EX: google.com, 192.168.0.10, or 99.45.4.5:90<br>- Can be a website, LAN IP, or WAN IP:port<br>- Enter in how long between pings<br>- Select virtual switch to activate.<br>- Optional: Send push notifications with custom message"	
+		}
+		
+		section{
+            input name: "website", type: "text", title:"<b>Enter URL to monitor</b>", required: true 
+			input name: "timeToPing", type: "enum", title: "<b>Ping interval (minutes)</b> &nbsp &nbsp <small>Only do <5min for testing purposes</small>", submitOnChange: true,  options: ["1","5","10","15","30", "59"], required: true, Multiple: false
+		    input name: "switchSelect", type: "capability.switch", title: "<b>Select the switches to toggle. Switch OFF if ping failed, ON if ping successful.</b>", multiple: true, required: false, submitOnChange: true
+            input name: "invertSwitch", type: "bool", title: "<b>Invert Switched state On<>Off?</b>", defaultValue:false, submitOnChange:true 
+		    input "sendPushMessage", "capability.notification", title: "<b>Enable send a Push notification to?</b> &nbsp &nbsp <small>Optional</small>", multiple: true, required: false, submitOnChange: true
+			if(sendPushMessage) {
+				input name: "messageFail", type: "text", title: "<b>Enter push messege when ping fails</br>", required: false
+                input name: "notifyWhenBack1", type: "bool", title: "Notify when available again", defaultValue:false, submitOnChange:true
+                if(notifyWhenBack1) {
+                    input name: "messageUp", type: "text", title: "<b>Enter push messege when ping is successfull</br>", required: false
+                }
+			}
+		 
+		    label title: "<b>Enter a name for this device child App</b>", required: false
+            input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b> &nbsp &nbsp <small>Will Auto Disable in 30min</small>", defaultValue: false
+			input name: "pauseApp", type: "bool", title: "<b>Pause App?</b>", defaultValue:false, submitOnChange:true            
+            if(pauseApp) {
+                if(app.label) {
+					   if(!app.label.contains(" (Paused)")) {
+                        app.updateLabel(app.label + " (Paused)")
+						}
+                }
+            } else {
+                if(app.label) {
+                    app.updateLabel(app.label - " (Paused)")
+                }
+            }
+			          
+        }
+	}
+}
+
+def installed() {
+	log.debug "Installed with settings: ${settings}"
+	initialize()
+}
+
+def updated() {
+	if(logEnable) log.debug "Updated with settings: ${settings}"
+	unsubscribe()
+	unschedule()
+    if(logEnable) runIn(1800, logsOff)
+	initialize()
+}
+
+def initialize() {
+	if(pauseApp) {log.info "${app.label} is Paused or Disabled"}
+		
+    	else {
+        if(validateURL()) {
+            schedule("0 0/${timeToPing} * * * ?", pollHandler)
+            runIn(5, pollHandler)
+        }
+     }
+}
+
+def validateURL() {
+	if(pauseApp) {log.info "${app.label} is Paused or Disabled"}
+    	else {
+        try {
+            state.website = website.toLowerCase()
+            state.website = state.website.trim()
+			//if(logEnable) log.debug "Website after trim: ${website}" // Test
+            if(state.website.startsWith("http://")) {
+                state.website = state.website.replace("http://", "")
+                state.website = state.website.replace("www.", "")
+            }
+            if(state.website.startsWith("https://")) {
+                state.website = state.website.replace("https://", "")
+                state.website = state.website.replace("www.", "")
+            }
+            if(state.website.startsWith("www.")) {
+                state.website = state.website.replace("www.", "")
+            }
+            if(logEnable) log.debug "In validateURL - (${website}) URL is valid"
+			state.validURL = true
+            return true
+        }
+        catch (e) {
+            if(logEnable) log.error "In validateURL - (${website}) URL is NOT valid"
+            state.validURL = false
+            return false
+        }
+    }
+}
+
+def pollHandler(evt) {
+    if(pauseApp) {log.info "${app.label} is Paused or Disabled"}
+	  	else {
+        def reqParams = [
+            uri: "http://${state.website}",
+            timeout: 30
+        ]
+
+        if(state.validURL) {
+            try {
+                httpGet(reqParams) { resp ->
+                    if(logEnable) log.debug "In pollHandler (${state.version}) - Response was ${resp.status}"
+                    if(resp.status == 200) {
+						if(logEnable) log.debug "Recieved acceptable response (${resp.status}) from ${state.website} - Its Up!"
+							if (invertSwitch) {turnOffHandler()}
+    	  						else {turnOnHandler()}
+						        }
+				}
+			}
+
+			catch (e) {
+				if(logEnable) log.debug "Request failed, (NO status code) from ${state.website}"
+				if (invertSwitch) {turnOnHandler()}
+					else {turnOffHandler()}
+                }
+            }
+        }
+    }
+
+def turnOnHandler() {
+	if(switchSelect) {
+	switchSelect.each { s -> 
+		if (s.currentValue("switch") == 'off') {
+        	s.on()
+			if(logEnable) log.info "In turnOnHandler, Turning (${s}) ON"
+			if (sendPushMessage && invertSwitch) {
+    				if(logEnable) log.warn "In pushNow (${state.version}) - Sending fail push message"
+        			sendPushMessage.deviceNotification(messageFail)
+    				} 
+			else if (sendPushMessage) {
+					if(logEnable) log.warn "In pushNow (${state.version}) - Sending up push message"
+        			sendPushMessage.deviceNotification(messageUp)
+    				}
+		}
+	}
+}
+}
+def turnOffHandler() {
+	if(switchSelect) {
+		switchSelect.each { s -> 
+		if (s.currentValue("switch") == 'on') {
+        	s.off()
+			if(logEnable) log.info "In turnOffandler, Turning (${s}) OFF"
+			if (sendPushMessage && invertSwitch) {
+    				if(logEnable) log.warn "In pushNow (${state.version}) - Sending up push message"
+        			sendPushMessage.deviceNotification(messageUp)
+    				} 
+			else if (sendPushMessage) {
+					if(logEnable) log.warn "In pushNow (${state.version}) - Sending failpush  message"
+        			sendPushMessage.deviceNotification(messageFail)
+    				}
+                }
+		}
+	}
+}
+
+def logsOff() {
+    log.info "${app.label} - Debug logging auto disabled"
+    app?.updateSetting("logEnable",[value:"false",type:"bool"])
+}
+
+def getFormat(type, myText="") {		
+    //if(type == "header-green") return "<div style='color:#ffffff;font-weight: bold;background-color:#81BC00;border: 1px solid;box-shadow: 2px 3px #A9A9A9'>${myText}</div>"
+    //if(type == "line") return "<hr style='background-color:#1A77C9; height: 1px; border: 0;'>"
+    if(type == "title") return "<h2 style='color:#0000ff;font-weight: bold'>${myText}</h2>"
+	if(type == "red") return "<style='color:#ff5349;'>${myText}"
+}
+
+def displayTitle() {
+    setVersion()
+    //getHeaderAndFooter()
+    theName = app.label
+    if(theName == null || theName == "") theName = "New Child App"
+	section (getFormat("title",  "App: ${state.name} - ${state.version}, <br> Child App Name: ${theName}")) {}
+     
+}
