@@ -1,12 +1,7 @@
 /*	Outage Pinger
 *  
 *	Copyright 2020 T. Kamp (kampto)
-*	Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at:
-*            http://www.apache.org/licenses/LICENSE-2.0
-*	Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
-*	OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-*	-If modifying this project, please keep the above header intact and add your comments/credits below - Thank you! -  @kampto
-*
+*	
 *	NOTES:  Monitor if website or IP address is online or not. Attach to a virtual switch. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
 *
 *	Change Revision History:  
@@ -82,19 +77,14 @@ def installCheck(){
 }
 
 def getFormat(type, myText="") {		
-    if(type == "title") return "<h2 style='color:#0000ff;font-weight: bold'>${myText}</h2>"
+    if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
 	if(type == "red") return "<style='color:#ff5349;'>${myText}"
 	}
 
-def getImage(type) {				
-	//def loc = "<img src=https://github.com/kampto/Hubitat/Images/"
-    def loc = "<img src=https://github.com/kampto/Hubitat/tree/main/Images/"
-    if(type == "InternetOn") return "${loc}InternetOn.png height=60 width=60>"
-	}
 
 def displayTitle() {
     setVersion()
     theName = app.label
     if(theName == null || theName == "") theName = "New Child App"
-	section (getFormat("title",  "${getImage("InternetOn")}" + "App: ${state.name} - ${state.version}")) {}
-	}
+	section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
+    }
