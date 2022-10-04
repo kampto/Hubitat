@@ -1,0 +1,89 @@
+/* Time On Tracker Parent
+*  
+*	2022 T. Kamp (kampto)
+*	NOTES:  Track the time a device is on. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
+*
+*	Change Revision History:  
+*	Ver		Date:		Who:		What:
+* 	1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Changed to Generic device instead of only lights. Origin from Bruce Ravenel - Hubitat
+*/
+
+def setVersion(){
+  state.name = "Device Time On Tracker"
+	state.version = "1.0.0"
+}
+
+definition(
+	name: "Device Time On Tracker", namespace: "kampto", author: "T. Kamp",
+	description: "Track the time a device or thing is on. Attach to a variable",
+	category: "Convenience",
+	iconUrl: "",
+	iconX2Url: "",
+	iconX3Url: "",
+)
+
+preferences {
+	page(name: "Config")
+}
+
+def Config() {
+    dynamicPage(name: "", title: "", install: true, uninstall: true) {
+		displayTitle()
+    	installCheck()
+		if(state.appInstalled == 'COMPLETE'){
+			section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
+			paragraph "Purpose: Track the time a switch device or thing is ON."
+			paragraph "-Use this Parent App to install one or more child apps.<br>-Then configure the child app; select devices, name it, hit done." 	
+            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable connector in Settings/Hub Variables as String and link to in the child app"
+            }
+			section("") {
+				app(name: "anyOpenApp", appName: "Device Time On Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Time Tracker' child</b>", multiple: true)
+			}
+  			
+			section("") {
+       		label title: "<b>Change name for parent app (optional)</b>", required: false
+ 			}
+			
+		}
+	}
+}
+
+def installed() {
+    log.debug "Installed with settings: ${settings}"
+    initialize()
+}
+
+def updated() {
+    log.debug "Updated with settings: ${settings}"
+    unsubscribe()
+    initialize()
+}
+
+def initialize() {
+    log.info "There are ${childApps.size()} child apps"
+    childApps.each {child ->
+    log.info "Child app: ${child.label}"
+    }
+}
+
+def installCheck(){  
+    state.appInstalled = app.getInstallationState() 
+	if(state.appInstalled != 'COMPLETE'){
+		section{paragraph "Please hit 'Done' to install '${app.label}' parent app "}
+  	}
+  	else{
+    	log.info "Parent Installed OK"
+  	}
+}
+
+def getFormat(type, myText="") {		
+    if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
+	if(type == "red") return "<style='color:#ff5349;'>${myText}"
+	}
+
+def displayTitle() {
+    setVersion()
+    theName = app.label
+    if(theName == null || theName == "") theName = "New Child App"
+	section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
+    }
