@@ -39,19 +39,18 @@ def mainPage() {
         
 	section {
        input name: "capabilitySelect", type: "enum", title: "<b>Select which capability you want to track then hit Refresh</b>", description: "Default = switch On", defaultValue: "1", required: true, multiple: false, options:[["1":"switch On"], ["2":"contact Open"], ["3":"contact Closed"]], width: 6, displayDuringSetup: false
-       if (capabilitySelect == "1") {input "lights", "capability.switch", title: "Select Switch Devices to Track Switch On Time", multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Open Time", multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Closed Time", multiple: true, submitOnChange: true, width: 5}
+       if (capabilitySelect == "1") {input "lights", "capability.switch", title: "Select Switch Devices to Track Switch On Time", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Open Time", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Closed Time", required: true, multiple: true, submitOnChange: true, width: 5}
         else {input "lights", "capability.switch", title: "Select Switch Devices to Track Switch On Time", multiple: true, submitOnChange: true, width: 5}
         
-			 lights.each {dev ->
+          lights.each {dev ->
 			    if(!state.lights["$dev.id"]) {
                     if (capabilitySelect == "1") {state.lights["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", time: ""]}
-                    if (capabilitySelect == "2") {state.lights["$dev.id"] = [start: dev.currentSwitch == "open" ? now() : 0, total: 0, var: "", time: ""]}
-                    if (capabilitySelect == "3") {state.lights["$dev.id"] = [start: dev.currentSwitch == "closed" ? now() : 0, total: 0, var: "", time: ""]}
+                    else if (capabilitySelect == "2") {state.lights["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", time: ""]}
+                    else if (capabilitySelect == "3") {state.lights["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", time: ""]}
 				    state.lightsList += dev.id   
-                    
-				    }
+                    }
 			    }
                            
             if(lights) {
@@ -81,7 +80,7 @@ def mainPage() {
 				//input "refresh", "button", title: "Refresh Table Times", width: 3
 				input "reset", "button", title: "Reset Table All", width: 3
 			}
-            input "refresh", "button", title: "Refresh Table Times", width: 3
+            input "refresh", "button", title: "Refresh Table", width: 3
 			//input "reset", "button", title: "Reset Table All", width: 3
         }
         
@@ -98,8 +97,9 @@ String displayTable() {
 	if(state.reset) {
 		def dev = lights.find{"$it.id" == state.reset}
         if (capabilitySelect == "1") {state.lights[state.reset].start = dev.currentSwitch == "on" ? now() : 0}
-        if (capabilitySelect == "2") {state.lights[state.reset].start = dev.currentSwitch == "open" ? now() : 0}
-        if (capabilitySelect == "3") {state.lights[state.reset].start = dev.currentSwitch == "closed" ? now() : 0}
+        else if (capabilitySelect == "2") {state.lights[state.reset].start = dev.currentContact == "open" ? now() : 0}
+        else if (capabilitySelect == "3") {state.lights[state.reset].start = dev.currentContact == "closed" ? now() : 0}
+        endif
 		state.lights[state.reset].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[state.reset].total = 0
       	state.remove("reset")
@@ -109,7 +109,8 @@ String displayTable() {
 	str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td,.tstat-col th { padding:8px 8px;text-align:center;font-size:12px} .tstat-col td {font-size:15px }" +
 		"</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:2px solid black'>" +
 		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
-		"<th>Total On Time</th>" +
+		"<th>Total Active Time</th>" +
+        "<th>State</th>" +  
 		"<th>Reset</th>" +
 		"<th>Last Reset</th>" +
 		"<th>Variable</th></tr></thead>"
@@ -125,29 +126,16 @@ String displayTable() {
 		String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "20px")
 		String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
-        
-       if (capabilitySelect == "1") {
-        str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" +
-			"<td style='color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +
-			"<td title='Reset Total for $dev' style='padding:0px 0px'>$reset</td>" +
-			"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
-			"<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td></tr>"
-        }
-       if (capabilitySelect == "2") {
-        str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" +
-			"<td style='color:${dev.currentSwitch == "open" ? "green" : "red"}'>$time</td>" +
-			"<td title='Reset Total for $dev' style='padding:0px 0px'>$reset</td>" +
-			"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
-			"<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td></tr>"
-        }
-       if (capabilitySelect == "3") {
-        str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" +
-			"<td style='color:${dev.currentSwitch == "closed" ? "green" : "red"}'>$time</td>" +
-			"<td title='Reset Total for $dev' style='padding:0px 0px'>$reset</td>" +
-			"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
-			"<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td></tr>"
-        }
-     }
+        str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" 
+			
+           if (capabilitySelect == "1") { str += "<td style='color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentSwitch</td>"}
+           else if (capabilitySelect == "2") {str += "<td style='color:${dev.currentContact == "open" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentContact</td>" }
+           else if (capabilitySelect == "3") {str += "<td style='color:${dev.currentContact == "closed" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentContact</td>"} 
+                                              
+        str += "<td title='Reset Total for $dev' style='padding:0px 0px'>$reset</td>" +
+		"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
+        "<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td></tr>"
+      }
         
 	str += "</table></div>"
 	str
@@ -162,18 +150,18 @@ void appButtonHandler(btn) {
     else if(btn == "refresh") state.lights.each {k, v ->
 		def dev = lights.find{"$it.id" == k}
         
-        if(capabilitySelect == "1" && dev.currentSwitch == "on") {
+        if (capabilitySelect == "1" && dev.currentSwitch == "on") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
                    
-        else if(capabilitySelect == "2" && dev.currentSwitch == "open") {
+        else if (capabilitySelect == "2" && dev.currentContact == "open") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
            
         
-        else if(capabilitySelect == "3" && dev.currentSwitch == "closed") {
+        else if (capabilitySelect == "3" && dev.currentContact == "closed") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
@@ -200,7 +188,7 @@ void initialize() {
     }
     else if (capabilitySelect == "2") {
 	subscribe(lights, "contact.open", onHandler)
-	subscribe(lights, "contact.closed", offHandler)
+    subscribe(lights, "contact.closed", offHandler)
     }
     else if (capabilitySelect == "3") {
 	subscribe(lights, "contact.open", offHandler)
@@ -230,31 +218,13 @@ void offHandler(evt) {
 		setGlobalVar(thisVar, "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs")
 	}
 }
-/*
-void openHandler(evt) {
-	state.lights[evt.device.id].start += now()
-        }
-
-void closedHandler(evt) {
-	state.lights[evt.device.id].total = now() - state.lights[evt.device.id].start
-	String thisVar = state.lights[evt.device.id].var
-	if(thisVar) {
-		int total = state.lights[evt.device.id].total / 1000
-		int hours = total / 3600
-		total = total % 3600
-		int mins = total / 60
-		int secs = total % 60
-		setGlobalVar(thisVar, "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs")
-	}
-}
-*/
 
 void resetTimers(evt = null) {
 	state.lights.each{k, v ->
 		def dev = lights.find{"$it.id" == k}
         if (capabilitySelect == "1") {state.lights[k].start = dev.currentSwitch == "on" ? now() : 0}
-        if (capabilitySelect == "2") {state.lights[k].start = dev.currentSwitch == "open" ? now() : 0}
-        if (capabilitySelect == "3") {state.lights[k].start = dev.currentSwitch == "closed" ? now() : 0}
+        else if (capabilitySelect == "2") {state.lights[k].start = dev.currentSwitch == "open" ? now() : 0}
+        else if (capabilitySelect == "3") {state.lights[k].start = dev.currentSwitch == "closed" ? now() : 0}
 		state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[k].total = 0
 	}
