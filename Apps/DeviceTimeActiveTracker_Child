@@ -1,47 +1,48 @@
-/* Time Tracker Child
+/* Time Active Tracker (Child)
 *  
 *	2022 T. Kamp (kampto)
-*	NOTES:  Track the time a is Active. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
+*	NOTES:  Track the time a device is Active. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
 *
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
-* 	1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities. Origin from Bruce Ravenel - Hubitat
+*   1.0.1	2022-10-10	kampto		Added Auto Reset timers, added state to table.  
+* 	1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities and features. Origin from Bruce Ravenel - Hubitat
 */
 
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def setVersion() {
-    state.name = "Device Time On Tracker Child"
-	state.version = "1.0.0"
+    state.name = "Device Time Active Tracker (Child)"
+	state.version = "1.0.1"
 }
 
 definition(
-	name: "Device Time On Tracker Child", namespace: "kampto", author: "T. Kamp",
+	name: "Device Time Active Tracker Child", namespace: "kampto", author: "T. Kamp",
 	description: "Track Time a device is active. Attach to a variable",
 	category: "Convenience",
-	parent: "kampto:Device Time On Tracker",
+	parent: "kampto:Device Time Active Tracker",
 	iconUrl: "",
 	iconX2Url: "",
-	iconX3Url: "",
-)
+	)
 
 preferences {
     page(name: "mainPage")
 }
 
 def mainPage() {
-	if(state.lights == null) state.lights = [:]
-	if(state.lightsList == null) state.lightsList = []
+	if (state.lights == null) state.lights = [:]
+	if (state.lightsList == null) state.lightsList = []
+    if (resetHour == null) {resetHour = 0}
+    if (capabilitySelect == null) {capabilitySelect = 1}
 
     dynamicPage(name: "", title: "", install: true, uninstall: true) {
     displayTitle() 
-        
-	section {
-       input name: "capabilitySelect", type: "enum", title: "<b>Select which capability you want to track then hit Refresh</b>", description: "Default = switch On", defaultValue: "1", required: true, multiple: false, options:[["1":"switch On"], ["2":"contact Open"], ["3":"contact Closed"]], width: 6, displayDuringSetup: false
-       if (capabilitySelect == "1") {input "lights", "capability.switch", title: "Select Switch Devices to Track Switch On Time", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Open Time", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "Select Contact Devices to Track Contact Closed Time", required: true, multiple: true, submitOnChange: true, width: 5}
+    section {
+       input name: "capabilitySelect", type: "enum", title: "<b>1. Select which capability you want to track then hit Refresh</b>", description: "Default = SWITCH On", defaultValue: "1", required: true, multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"]], width: 6, displayDuringSetup: false
+       if (capabilitySelect == "1") {input "lights", "capability.switch", title: "2. Select Switch Devices to Track Switch On Time", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "2. Select Contact Devices to Track Contact Open Time", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "2. Select Contact Devices to Track Contact Closed Time", required: true, multiple: true, submitOnChange: true, width: 5}
         else {input "lights", "capability.switch", title: "Select Switch Devices to Track Switch On Time", multiple: true, submitOnChange: true, width: 5}
         
           lights.each {dev ->
@@ -49,6 +50,7 @@ def mainPage() {
                     if (capabilitySelect == "1") {state.lights["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", time: ""]}
                     else if (capabilitySelect == "2") {state.lights["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", time: ""]}
                     else if (capabilitySelect == "3") {state.lights["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", time: ""]}
+                    endif
 				    state.lightsList += dev.id   
                     }
 			    }
@@ -65,14 +67,15 @@ def mainPage() {
 				paragraph displayTable()
 				if(state.newVar) {
 					List vars = getAllGlobalVars().findAll{it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
-					input "newVar", "enum", title: "Select Variable to link results (optional)", submitOnChange: true, width: 4, options: vars, newLineAfter: true
+					input "newVar", "enum", title: "(Optional) Select String Hub Variable to link results. Must make a variable first in Settings/Hub Variables. If you dont make a variable the only way to access this data is to open this App.", submitOnChange: true, width: 8, options: vars, newLineAfter: true
 					if(newVar) {
 						state.lights[state.newVar].var = newVar
                         state.remove("newVar")
 						app.removeSetting("newVar")
 						paragraph "<script>{changeSubmit(this)}</script>"
 					}
-				} else if(state.remVar) {
+				} 
+                else if(state.remVar) {
 					state.lights[state.remVar].var = ""
                     state.remove("remVar")
 					paragraph "<script>{changeSubmit(this)}</script>"
@@ -85,16 +88,20 @@ def mainPage() {
         }
         
       section {
-            input "resetVar", "enum", title: "Select Boolean Variable to Reset Timers, Must make a variable first (optional)", submitOnChange: true, width: 4, style: 'margin-left:10px',
+           input "resetVar", "enum", title: "(Optional) Select Boolean Hub Variable to Reset all Timers, Must make a variable first in Settings/Hub Variables. Allows Rule Machine access.", submitOnChange: true, width: 6, style: 'margin-left:10px',
 				options: getAllGlobalVars().findAll{it.value.type == "boolean"}.keySet().collect().sort{it.capitalize()}
-            label title: "<b>Enter a name for this child App</b>", required: false
+           input name: "autoReset", type: "bool", title: "<b>Auto Reset all Timers at a specific Hour?</b>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+           if (autoReset) {
+             input name: "resetHour", type: "enum", title: "<b>Select an Hour for Auto Reset everyday, 0 to 23. </b> &nbsp &nbsp <small>Default = 0 (Midnight)</small>", defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], width: 6, required: false, style: 'margin-left:10px'
+             }
+           label title: "<b>Enter a name for this child App</b>", required: false, style: 'margin-left:10px'
             }
 	}
 }
 
-//**************************************************************************************************************************//
+//****************************************************  TABLE Start  ******************************************************//
 String displayTable() {
-	if(state.reset) {
+  	if(state.reset) {
 		def dev = lights.find{"$it.id" == state.reset}
         if (capabilitySelect == "1") {state.lights[state.reset].start = dev.currentSwitch == "on" ? now() : 0}
         else if (capabilitySelect == "2") {state.lights[state.reset].start = dev.currentContact == "open" ? now() : 0}
@@ -111,9 +118,9 @@ String displayTable() {
 		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
 		"<th>Total Active Time</th>" +
         "<th>State</th>" +  
-		"<th>Reset</th>" +
+        "<th>Reset</th>" +
 		"<th>Last Reset</th>" +
-		"<th>Variable</th></tr></thead>"
+		"<th>Linked Variable</th></tr></thead>"
 	    lights.sort{it.displayName.toLowerCase()}.each {dev ->
 		int total = state.lights["$dev.id"].total / 1000
 		String thisVar = state.lights["$dev.id"].var
@@ -131,7 +138,8 @@ String displayTable() {
            if (capabilitySelect == "1") { str += "<td style='color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentSwitch</td>"}
            else if (capabilitySelect == "2") {str += "<td style='color:${dev.currentContact == "open" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentContact</td>" }
            else if (capabilitySelect == "3") {str += "<td style='color:${dev.currentContact == "closed" ? "green" : "red"}'>$time</td>" + "<td title='State $dev'>$dev.currentContact</td>"} 
-                                              
+           endif 
+            
         str += "<td title='Reset Total for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
         "<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td></tr>"
@@ -140,42 +148,41 @@ String displayTable() {
 	str += "</table></div>"
 	str
 }
+//***************************************************  TABLE End ******************************************************//
 
 String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "15px") {
 	"<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
 }
 
 void appButtonHandler(btn) {
-	if(btn == "reset") resetTimers()
-    else if(btn == "refresh") state.lights.each {k, v ->
+	if (btn == "reset") resetTimers()
+    else if (btn == "refresh") state.lights.each {k, v ->
 		def dev = lights.find{"$it.id" == k}
         
         if (capabilitySelect == "1" && dev.currentSwitch == "on") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
-                   
         else if (capabilitySelect == "2" && dev.currentContact == "open") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
-           
-        
-        else if (capabilitySelect == "3" && dev.currentContact == "closed") {
+       else if (capabilitySelect == "3" && dev.currentContact == "closed") {
         	state.lights[k].total += now() - state.lights[k].start
 			state.lights[k].start = now()
 		    }
-        }
+       endif
+       }
         
       else if (btn.startsWith("n")) state.newVar = btn.minus("n")
 	  else if (btn.startsWith("r")) state.remVar = btn.minus("r")
 	  else state.reset = btn.minus("d")
-               		
-	}
+    }
 
 def updated() {
 	unsubscribe()
-	initialize()
+	unschedule()
+    initialize()
 }
 
 def installed() {
@@ -194,9 +201,13 @@ void initialize() {
 	subscribe(lights, "contact.open", offHandler)
 	subscribe(lights, "contact.closed", onHandler)
     }
+    endif
     
-    
-	if(resetVar) {
+    if (autoReset) { 
+        schedule("0 0 ${resetHour} ? * * *", resetTimers) //CRON  "<second> <minute> <hour> <day-of-month> <month> <day-of-week> <Year optional>", <command>
+       }
+        
+    if(resetVar) {
 		subscribe(location, "variable:${resetVar}.true", resetTimers)
 		setGlobalVar(resetVar, false)
 	}
@@ -220,24 +231,27 @@ void offHandler(evt) {
 }
 
 void resetTimers(evt = null) {
+    log.debug "App: ${app.label} - Timer Reset Happening ..........."
 	state.lights.each{k, v ->
 		def dev = lights.find{"$it.id" == k}
         if (capabilitySelect == "1") {state.lights[k].start = dev.currentSwitch == "on" ? now() : 0}
         else if (capabilitySelect == "2") {state.lights[k].start = dev.currentSwitch == "open" ? now() : 0}
-        else if (capabilitySelect == "3") {state.lights[k].start = dev.currentSwitch == "closed" ? now() : 0}
+        //else if (capabilitySelect == "3") {state.lights[k].start = dev.currentSwitch == "closed" ? now() : 0}
+        else if (capabilitySelect == "3") {state.lights[k].start = dev.currentSwitch == "closed" ? 0 : now()}  // Invert start time for closed
+        endif
 		state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[k].total = 0
-	}
+    }
 	if(resetVar) setGlobalVar(resetVar, false)
 }
 
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
-	}
+}
 
 def displayTitle() {
     setVersion()
     theName = app.label
     if(theName == null || theName == "") theName = "New Child App"
 	section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
-    }
+}
