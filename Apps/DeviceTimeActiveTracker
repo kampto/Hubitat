@@ -5,17 +5,17 @@
 *
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
-* 	1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Changed to Generic device instead of only lights. Origin from Bruce Ravenel - Hubitat
+* 	1.0.0	2022-10-02	kampto		First instance of Parent/Child apps. 
 */
 
 def setVersion(){
-  state.name = "Device Time On Tracker"
+    state.name = "Device Time Active Tracker"
 	state.version = "1.0.0"
 }
 
 definition(
-	name: "Device Time On Tracker", namespace: "kampto", author: "T. Kamp",
-	description: "Track the time a device or thing is on. Attach to a variable",
+	name: "Device Time Active Tracker", namespace: "kampto", author: "T. Kamp",
+	description: "Track the time a device or thing is active. Attach to a variable",
 	category: "Convenience",
 	iconUrl: "",
 	iconX2Url: "",
@@ -32,12 +32,12 @@ def Config() {
     	installCheck()
 		if(state.appInstalled == 'COMPLETE'){
 			section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
-			paragraph "Purpose: Track the time a switch device or thing is ON."
+			paragraph "Purpose: Track the time a device or thing is On, Open, Active."
 			paragraph "-Use this Parent App to install one or more child apps.<br>-Then configure the child app; select devices, name it, hit done." 	
-            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable connector in Settings/Hub Variables as String and link to in the child app"
+            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String and link to in the child app"
             }
 			section("") {
-				app(name: "anyOpenApp", appName: "Device Time On Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Time Tracker' child</b>", multiple: true)
+				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Time Tracker' child</b>", multiple: true)
 			}
   			
 			section("") {
