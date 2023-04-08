@@ -5,12 +5,13 @@
 *
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
+*   	1.0.2	2023-04-07	kampto		Added Power monitoring capability  
 * 	1.0.0	2022-10-02	kampto		First instance of Parent/Child apps. 
 */
 
 def setVersion(){
     state.name = "Device Time Active Tracker"
-	state.version = "1.0.0"
+	state.version = "1.0.2"
 }
 
 definition(
