@@ -75,7 +75,7 @@ def mainPage() {
                 updated()
 				paragraph displayTable()
 				if(state.newVar) {
-					input name: "inSecondsBool", type: "bool", title: "<b>Store Variable as DataType Integer(Number) in Total Seconds? &nbsp <small> Applys to All</b> &nbsp &nbsp Default = No (String Time format)</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+					input name: "inSecondsBool", type: "bool", title: "<b>Store Variable as DataType Integer(Number) in Total Seconds? &nbsp <small> Applys to All</b> &nbsp &nbsp Default = No (String Time format)</small>", defaultValue:false, submitOnChange:true, style:'margin-left:10px'
                     List vars = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
                     input "newVar", "enum", title: "(Optional) Select Hub Variable to link timer results. First Make a variable in Settings/Hub Variables, String variable for Time Format or a Number variable for Integer total seconds format. Must select a variable that matches DataType you want, String or Number. If you dont make a variable the only way to see this data is in Time Format by opening this App.", submitOnChange: true, width: 8, options: vars, newLineAfter: true
 					                    
@@ -141,20 +141,25 @@ String displayTable() {
 		"<th>Last Reset</th>" +
 		"<th>Linked Variable</th>"+
         "<th>Var DataType</th></tr></thead>"  //// Added ver1.1.0
-	    lights.sort{it.displayName.toLowerCase()}.each {dev ->
-            
-            
-		int total = state.lights["$dev.id"].total / 1000
+	   
+        lights.sort{it.displayName.toLowerCase()}.each {dev ->
+        int total = state.lights["$dev.id"].total / 1000
 		String thisVar = state.lights["$dev.id"].var
-		int hours = total / 3600
-		total = total % 3600
-		int mins = total / 60
-		int secs = total % 60
-		String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-        if(thisVar) setGlobalVar(thisVar, time)
-        log.info "App: ${app.label} - Updateing in App Table & Variable, Dveie ID ${dev.id}, *${thisVar}* to ${time} string Time Format"    
-                 
-		String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
+        int intTime = total  //// Added ver1.1.0
+        int hours = total / 3600
+	    total = total % 3600
+	    int mins = total / 60
+	    int secs = total % 60
+	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
+                                    
+        if (inSecondsBool) {if(thisVar) setGlobalVar(thisVar, intTime) //// Added ver1.1.0
+            log.info "App: ${app.label} - Updateing App Table Device ID ${dev.id} Variable *${thisVar}* to ${intTime}seconds"
+            } 
+        else {if(thisVar) setGlobalVar(thisVar, time)
+            log.info "App: ${app.label} - Updateing App Table Device ID ${dev.id} Variable *${thisVar}* to ${time} string Format"
+            }
+               
+        String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "20px")
 		String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
         str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" 
@@ -208,7 +213,7 @@ void initialize() {
         schedule("0 0 ${resetHour} ? * * *", resetTimers) //CRON  "<second> <minute> <hour> <day-of-month> <month> <day-of-week> <Year optional>", <command>
         }
     if (autoRefreshBool) { 
-        schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) 
+        schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) //// Added ver 1.0.3
         }
     if(resetVar) {
 		subscribe(location, "variable:${resetVar}.true", resetTimers)
@@ -219,13 +224,13 @@ void initialize() {
 //******************************************************  Handlers / Functions ************************************************************//
 void appButtonHandler(btn) {
 	if (btn == "reset") resetTimers()
-    else if (btn == "refresh") refreshHandler()  /// Added ver 1.0.3
+    else if (btn == "refresh") refreshHandler()  //// Added ver 1.0.3
     else if (btn.startsWith("n")) state.newVar = btn.minus("n")
 	else if (btn.startsWith("r")) state.remVar = btn.minus("r")
 	else state.reset = btn.minus("d")
     }
 
-def refreshHandler() {   /// Added ver 1.0.3
+def refreshHandler() {   //// Added ver 1.0.3
     state.lights.each {k, v ->
 		def dev = lights.find{"$it.id" == k}
         if (capabilitySelect == "1" && dev.currentSwitch == "on") {
@@ -250,21 +255,22 @@ def refreshHandler() {   /// Added ver 1.0.3
     int total = state.lights["$dev.id"].total / 1000
     String thisVar = state.lights["$dev.id"].var    
    
-    if (inSecondsBool) {time = total  /// Added ver 1.1.0 
-        log.info "App: ${app.label} - Updateing Device ID ${dev.id} Variable *${thisVar}* to ${time}seconds"
+    if (inSecondsBool) {int intTime = total  //// Added ver 1.1.0 
+        log.info "App: ${app.label} - Updateing Device ID ${dev.id} Variable *${thisVar}* to ${intTime}seconds"
+        if(thisVar) setGlobalVar(thisVar, intTime)                
         }
+        
     else {    
         int hours = total / 3600
 	    total = total % 3600
 	    int mins = total / 60
 	    int secs = total % 60
 	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-        log.info "App: ${app.label} - Updateing Device ID ${dev.id} Variable *${thisVar}* to ${time} string Time Format" //////////////
+        log.info "App: ${app.label} - Updateing Device ID ${dev.id} Variable *${thisVar}* to ${time} string Format"
+        if(thisVar) setGlobalVar(thisVar, time)
         }  
-            
-	if(thisVar) setGlobalVar(thisVar, time)
-    }
- }
+     }
+   }
   
 void onHandler(evt) {
 	state.lights[evt.device.id].start = now()
@@ -277,9 +283,9 @@ void offHandler(evt) {
 	if(thisVar) {
         int total = state.lights[evt.device.id].total / 1000
         
-        if (inSecondsBool) {time = total  /// Added ver 1.1.0 
-        setGlobalVar(thisVar, time)
-        log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, updateing Variable *${thisVar}* to ${time}seconds"
+        if (inSecondsBool) {int intTime = total  //// Added ver 1.1.0 
+        setGlobalVar(thisVar, intTime)
+        log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, updateing Variable *${thisVar}* to ${intTime}seconds"
         }
     else {    
         int hours = total / 3600
@@ -288,7 +294,7 @@ void offHandler(evt) {
 	    int secs = total % 60
 	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
         setGlobalVar(thisVar, "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs")
-        log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, updateing Variable *${thisVar}* to ${time} string Time Format"
+        log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, updateing Variable *${thisVar}* to ${time} string Format"
         }  
     }
 }
