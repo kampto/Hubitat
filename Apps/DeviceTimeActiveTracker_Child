@@ -178,10 +178,8 @@ String displayTable() {
 		"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""}</td>" +
         "<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td>"+
         "<td title='This DataType must match DataType of Variable'>${varType}</td></tr>"  //// Added ver1.1.0  
-            
-      }
-        
-	str += "</table></div>"
+     }
+   	str += "</table></div>"
 	str
 }
 
@@ -262,12 +260,14 @@ def refreshHandler() {   //// Added ver 1.0.3
 	int secs = total % 60
 	String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
                                     
-    if (inSecondsBool) {if(thisVar) setGlobalVar(thisVar, intTime) //// Added ver1.1.0
+    if (inSecondsBool) {if(thisVar) {setGlobalVar(thisVar, intTime) //// Added ver1.1.0
         log.info "App: ${app.label} - Device ID ${dev.id} Variable *${thisVar}* to ${intTime}sec"
-        } 
-    else {if(thisVar) setGlobalVar(thisVar, time)
+         } 
+        }
+    else {if(thisVar) {setGlobalVar(thisVar, time)
         log.info "App: ${app.label} - Device ID ${dev.id} Variable *${thisVar}* to ${time} string Format"
-        }     
+        }
+       }   
      }
    }
   
@@ -289,10 +289,10 @@ void offHandler(evt) {
 	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
                                     
         if (inSecondsBool) {setGlobalVar(thisVar, intTime) //// Added ver1.1.0
-            log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Variable *${thisVar}* to ${intTime}sec"
+            log.info "App: ${app.label} - Device ID ${evt.device.id} now Inactive/Off, Variable *${thisVar}* to ${intTime}sec"
             } 
         else {setGlobalVar(thisVar, time)
-            log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Variable *${thisVar}* to ${time} string Format"
+            log.info "App: ${app.label} - Device ID ${evt.device.id} now Inactive/Off, Variable *${thisVar}* to ${time} string Format"
             }     
         }
     }
@@ -318,14 +318,11 @@ def updated() {
 	unschedule()
     initialize()
 }
-
 def installed() {
 }
-
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
 }
-
 def displayTitle() {
     setVersion()
     theName = app.label
