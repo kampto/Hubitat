@@ -214,7 +214,7 @@ void initialize() {
     endif
     
     if (autoResetBool) { //// Added ver 1.0.1
-        schedule("0 0 ${resetHour} ? * * *", resetTimers) //CRON  "<second> <minute> <hour> <day-of-month> <month> <day-of-week> <Year optional>", <command>
+        schedule("2 0 ${resetHour} ? * * *", resetTimers) // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time
         }
     if(resetVar) {
 		subscribe(location, "variable:${resetVar}.true", resetTimers)
