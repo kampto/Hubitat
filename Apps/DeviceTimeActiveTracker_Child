@@ -5,7 +5,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.1.3	2023-04-27	kampto		Add total time in table. Table Check Boxes. Option to disable App based logging. Added Seconds Update frequency.
+*   1.1.3	2023-04-27	kampto		Add total time in table. Table Check Boxes. Option to disable App based logging. Added Seconds Update. Added On counts.
 *   1.1.0	2023-04-15	kampto		Updated page format, option for variables as an int for use in RM. Option to reset when active. Enhanced logs. Power reset bug fix.
 *   1.0.3	2023-04-12	kampto		Added Time/Variable refresh time entry, fixed variable refresh at reset, Bug fixes 
 *   1.0.2	2023-04-07	kampto		Added Power monitoring capability  
@@ -56,10 +56,10 @@ def mainPage() {
         
     lights.each {dev ->
 	    if(!state.lights["$dev.id"]) {
-             if (capabilitySelect == "1") {state.lights["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", time: "", allTime: 0, checkBox1: false, checkBox2: true]}  
-             else if (capabilitySelect == "2") {state.lights["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", time: "", allTime: 0, checkBox1: false, checkBox2: true]}
-             else if (capabilitySelect == "3") {state.lights["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", time: "", allTime: 0, checkBox1: false, checkBox2: true]}
-             else if (capabilitySelect == "4") {state.lights["$dev.id"] = [start: dev.currentPower >= powerThreshold ? now() : 0, total: 0, var: "", time: "", allTime: 0, checkBox1: false, checkBox2: true]}
+             if (capabilitySelect == "1") {state.lights["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true]}  
+             else if (capabilitySelect == "2") {state.lights["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true]}
+             else if (capabilitySelect == "3") {state.lights["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true]}
+             else if (capabilitySelect == "4") {state.lights["$dev.id"] = [start: dev.currentPower >= powerThreshold ? now() : 0, total: 0, var: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true]}
              endif
 	         state.lightsList += dev.id   
              }
@@ -128,6 +128,7 @@ String displayTable() {
         state.lights[state.reset].start = now()
         state.lights[state.reset].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[state.reset].total = 0
+        state.lights[state.reset].counts = 0   //// Added ver 1.1.3
       	state.remove("reset")
 	}
     
@@ -166,7 +167,8 @@ String displayTable() {
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:2.5px solid black'>" +
 		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
 		"<th>Active or <br>On Time</th>" +
-        "<th>State</th>" +  
+        "<th>State</th>" +
+        "<th>On<br>Counts</th>" +
         "<th>Reset</th>" +
 		"<th>Last<br>Reset</th>" +
 		"<th>Linked<br>Variable</th>"+
@@ -213,7 +215,8 @@ String displayTable() {
         else if (capabilitySelect == "4") {str += "<td style='font-weight:bold; color:${dev.currentPower >= powerThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentPower >= powerThreshold ? "green" : "red"}'title='State $dev'>$dev.currentPower</td>"} 
         endif 
                    
-        str += "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
+        str += "<td title='On Counts' >${state.lights["$dev.id"].counts}</td>" +
+        "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""} </td>" +  
         "<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td>" + 
         "<td title='Check Box to update variable in total seconds time Integer, otherwise String time format variable'>$checkedBox1T</td>" +     //// Added ver 1.1.3
@@ -325,6 +328,7 @@ def refreshHandler() {   //// Added ver 1.0.3
  
 void onHandler(evt) {
 	state.lights[evt.device.id].start = now()
+    state.lights[evt.device.id].counts += 1  //// Added ver 1.1.3
     if (resetWhenOnBool) {byPassResetTimers()} //// Added ver 1.1.0
 }
 
@@ -353,9 +357,10 @@ void resetTimers(evt = null) {
     if (logEnableBool) {log.debug "App: ${app.label} - All Active/On Timers Reset to 0 Happening ..........."}
 	state.lights.each{k, v ->
 		def dev = lights.find{"$it.id" == k}
-        state.lights[k].start = now()  ///////
+        state.lights[k].start = now()   
         state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[k].total = 0
+        state.lights[k].counts = 0  //////
     }
 	if(resetVar) setGlobalVar(resetVar, false)
     refreshHandler() //// Added ver 1.0.3
