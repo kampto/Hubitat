@@ -5,13 +5,13 @@
 *
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
-*   	1.0.2	2023-04-07	kampto		Added Power monitoring capability  
-* 	1.0.0	2022-10-02	kampto		First instance of Parent/Child apps. 
+* 	1.1.X	2023-4-12	kampto		Refernce Child App for revisions
+* 	1.0.1	2022-10-02	kampto		First instance of Parent/Child apps. 
 */
 
 def setVersion(){
     state.name = "Device Time Active Tracker"
-	state.version = "1.0.2"
+	state.version = "1.1.X"
 }
 
 definition(
@@ -33,9 +33,9 @@ def Config() {
     	installCheck()
 		if(state.appInstalled == 'COMPLETE'){
 			section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
-			paragraph "Purpose: Track the time a device or thing is On, Open, Active."
+			paragraph "Purpose: Track the time a device or thing is On, Open, Active. Link varibales to moniotr on dashboard or rule machine"
 			paragraph "-Use this Parent App to install one or more child apps.<br>-Then configure the child app; select devices, name it, hit done." 	
-            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String and link to in the child app"
+            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String or Number and link to in the child app"
             }
 			section("") {
 				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Time Tracker' child</b>", multiple: true)
