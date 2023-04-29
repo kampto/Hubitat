@@ -221,7 +221,7 @@ String displayTable() {
 	   
     lights.sort{it.displayName.toLowerCase()}.each {dev ->
         String thisVar = state.lights["$dev.id"].var
-        String thisVarC = state.lights["$dev.id"].varC  /////////////////////////
+        String thisVarC = state.lights["$dev.id"].varC   //// Added ver1.1.4
          
          ////////// Active/On Time Calc   
          int total = state.lights["$dev.id"].total / 1000    
@@ -249,7 +249,7 @@ String displayTable() {
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")
         String resetTotal = buttonLink("t$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")  //// Added ver1.1.3
         String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
-        String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  ////////////////////
+        String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// Added ver1.1.4
         
         String checkedBox1T = (state.lights["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
         String checkedBox2T = (state.lights["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
@@ -265,13 +265,13 @@ String displayTable() {
         str += "<td title='On Counts' >${state.lights["$dev.id"].counts}</td>" +
         "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td style='width: 100px' title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""} </td>" +  
-        "<td title='${thisVar ? "Deselect $thisVar" : "Select String Hub Variable"}'>$var</td>" + 
+        "<td title='${thisVar ? "Deselect $thisVar" : "Select Hub Variable"}'>$var</td>" + 
         "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// Added ver1.1.4    
         "<td title='Check Box to update variable in total seconds time Integer, otherwise String time format variable'>$checkedBox1T</td>" +     //// Added ver1.1.3
         "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// Added ver1.1.3  
         "<td title='Total Cumulative Time on'>$allTime</td>" +   //// Added ver1.1.3  
         "<td title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>" +  //// Added ver1.1.0
-        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select String Hub Variable"}'>$varC</td></tr>"    //// Added ver1.1.4
+        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// Added ver1.1.4
      }
    	str += "</table></div>"
 	str
@@ -434,6 +434,7 @@ void offHandler(evt) {
 	
   }
 
+//************************************************* Reset Functions ********************************************************//
 void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour rest to save counts or not  //// Added ver1.1.4
     if (dayCountsReset) {state.byPassBool = false}
     else state.byPassBool = true  
@@ -455,7 +456,7 @@ void remoteReset(evt = null) {   //// Added ver1.1.4
 		    state.lights[k].total = 0
             if (state.byPassBool == false) {state.lights[k].counts = 0}  //// Added ver1.1.3
             //if (resetVarAllBool && resetVar && state.lights[k].checkBox3) {state.lights[k].allTime = 0}
-            else if (resetVarC && state.lights[k].checkBox3) {state.lights[k].allTime = 0 } 
+            if (resetVarC && state.lights[k].checkBox3) {state.lights[k].allTime = 0 } 
             endif
             }
      }
