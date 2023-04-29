@@ -130,7 +130,7 @@ def mainPage() {
 					paragraph "<script>{changeSubmit(this)}</script>"
 				    } 
          
-               input "reset", "button", title: "RESET Periodic Times, States, Counts, & Update Variables", width: 5
+               input "reset", "button", title: "RESET Periodic Times, Counts, & Update Variables", width: 5
                input "refresh", "button", title: "REFRESH All Table & Update Variables", width: 5
 			}
   }
@@ -161,7 +161,16 @@ def mainPage() {
                }
           input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates? &nbsp <small>Applys to All</small></b>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
       }
- }
+      
+      section("<b>Notes:</b>", hideable: true, hidden: true) {
+            paragraph "-App Page will not auto refresh itself, you need to hit Refresh to see the latest timers, counts, and states."
+			paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
+            paragraph "-Set up variables to trigger things in RM (maybe webcore to?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
+            paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
+            paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
+            paragraph "-Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh."
+       	}
+  }
 }
 //****************************************************  App Page TABLE  ******************************************************//
 String displayTable() {
@@ -272,7 +281,7 @@ String displayTable() {
         String resetTotal = buttonLink("t$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")  //// Added ver1.1.3
         String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
         String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// Added ver1.1.4
-        String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// Added ver1.1.4
+        String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// Added ver1.1.5
         
         String checkedBox1T = (state.lights["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
         String checkedBox2T = (state.lights["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
@@ -289,7 +298,7 @@ String displayTable() {
         "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td style='width: 100px' title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""} </td>" +  
         "<td title='${thisVar ? "Deselect $thisVar" : "Select Hub Variable"}'>$var</td>" +
-        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +    
+        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +    //// Added ver1.1.5
         "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// Added ver1.1.4    
         "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +     //// Added ver1.1.3
         "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// Added ver1.1.3  
