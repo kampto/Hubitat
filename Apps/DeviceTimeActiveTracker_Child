@@ -435,7 +435,7 @@ void offHandler(evt) {
     state.lights[evt.device.id].allTime = state.lights[evt.device.id].allTime + (now() - state.lights[evt.device.id].start) //// Added ver 1.1.3
 	      String thisVar = state.lights[evt.device.id].var
           String thisVarC = state.lights[evt.device.id].varC   //// Added ver1.1.4
-          String thisVarCT = state.lights["$dev.id"].varCT   //// Added ver1.1.5
+          String thisVarCT = state.lights[evt.device.id].varCT   //// Added ver1.1.5
     
             ////////// Active/On Time Calc   
             int counts = state.lights[evt.device.id].counts    //// Added ver1.1.5   
