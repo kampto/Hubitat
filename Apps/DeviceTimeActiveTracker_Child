@@ -48,13 +48,13 @@ def mainPage() {
   dynamicPage(name: "", title: "", install: true, uninstall: true) {
   displayTitle() 
   section {
-        label title: "<b>1. Enter a name for this child App</b>", required: true, submitOnChange: true, width: 4
-        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability you want to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"]], width: 6, submitOnChange: true, displayDuringSetup: false
-        if (capabilitySelect == "1") {input "lights", "capability.switch", title: "<b>3. Select Switch Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 6}
-        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "<b>3. Select Contact Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 6}
-        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "<b>3. Select Contact Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 6}
-        else if (capabilitySelect == "4") {input "lights", "capability.powerMeter", title: "<b>3. Select Power Meter Devices to Track On Time</b>", required: true, multiple: true, submitOnChange: true, width: 6}
-        else {input "lights", "capability.switch", title: "<b>3. Select Switch Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 6}
+        label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
+        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"]], width: 3, submitOnChange: true, displayDuringSetup: false
+        if (capabilitySelect == "1") {input "lights", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "2") {input "lights", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "3") {input "lights", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "4") {input "lights", "capability.powerMeter", title: "<b>3. Select Power Meter Devices to Track On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else {input "lights", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
         
     lights.each {dev ->
 	    if(!state.lights["$dev.id"]) {
@@ -163,8 +163,8 @@ def mainPage() {
       }
       
       section("<b>Notes:</b>", hideable: true, hidden: true) {
-            paragraph "-App Page will not refresh itself, you need to hit Refresh to see latest timers, counts, and states. Variables/Timers will update in background."
-	    paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
+            paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
+			paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
             paragraph "-Set up variables to trigger things in RM (maybe webcore to?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
             paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
             paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
@@ -233,7 +233,7 @@ String displayTable() {
 	str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
 		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
-		"<th>Periodic<br>Active<br>On Time</th>" +
+		"<th>Periodic<br>Active<br>OnTime</th>" +
         "<th>State</th>" +
         "<th>On<br>Counts</th>" +
         "<th>Reset</th>" +
