@@ -163,8 +163,8 @@ def mainPage() {
       }
       
       section("<b>Notes:</b>", hideable: true, hidden: true) {
-            paragraph "-App Page will not auto refresh itself, you need to hit Refresh to see the latest timers, counts, and states."
-			paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
+            paragraph "-App Page will not refresh itself, you need to hit Refresh to see latest timers, counts, and states. Variables/Timers will update in background."
+	    paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
             paragraph "-Set up variables to trigger things in RM (maybe webcore to?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
             paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
             paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
