@@ -1,7 +1,7 @@
 /* Devcie Active Time and Counter Tracker (Child App)
 *  
 *	2022 T. K. (kampto)
-*	NOTES:  Track the time and counts a device is Active/On. Assign to a variable if needed. Refresh/Reset/Update variable various ways. Use variable in RM to trigger things. Apps/Drivers @ https://github.com/kampto/Hubitat/
+*	NOTES:  Track the time and counts a device is Active/On. Assign to a variable if needed. Refresh/Reset/Update variable various ways. Use variable in RM to trigger things. 
 *   
 *    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 *    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
@@ -9,13 +9,13 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.1.5	2023-04-28	kampto		Added 2nd varible per device to reset cumulative time. More more variable and reset options. Added Counts variable and reset
+*   1.1.6	2023-04-30	kampto		Added 'Days' option for table display. Fixed remote reset bug
+*   1.1.5	2023-04-28	kampto		Added 2nd varible per device to reset cumulative time. More variable and reset options. Added On Counts variable and reset
 *   1.1.3	2023-04-27	kampto		Add total time in table. Table Check Boxes. Option to disable App based logging. Added Seconds Update. Added On counts.
 *   1.1.0	2023-04-15	kampto		Updated page format, option for variables as an int for use in RM. Option to reset when active. Enhanced logs. Power reset bug fix.
-*   1.0.3	2023-04-12	kampto		Added Time/Variable refresh time entry, fixed variable refresh at reset, Bug fixes 
-*   1.0.2	2023-04-07	kampto		Added Power monitoring capability  
+*   1.0.3	2023-04-12	kampto		Added Power monitoring capability, Added Time/Variable refresh time entry, fixed variable refresh at reset, Bug fixes 
 *   1.0.1	2022-10-10	kampto		Added Auto Reset timers, added state to table.  
-*   1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities and features. Origin from B.Ravenel - Hubitat
+*   1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities and features. Origin from "Lights Usage App" B.Ravenel - Hubitat
 */
 
 import groovy.time.TimeCategory
@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Time Active Tracker Child"
-	state.version = "1.1.5"
+	state.version = "1.1.6"
     }
 
 definition (
@@ -33,6 +33,8 @@ definition (
 	parent: "kampto:Device Time Active Tracker",
 	iconUrl: "",
 	iconX2Url: "",
+    importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/DeviceTimeActiveTracker_Child",
+    documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896"
 	)
 
 preferences {page(name: "mainPage")}
@@ -85,8 +87,7 @@ def mainPage() {
 			  if(state.newVar) {
 				List vars = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
                 input "newVar", "enum", title: "(Optional) Select Hub Variable to recieve timer results. Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format to use in Rule Machine. Variables can also be viewed in a dashboard tile. Set table 'Variable Type' checkbox to match the variable type. If you dont make a variable the only way to see this data is in Time Format by opening this App.", submitOnChange: true, width: 9, options: vars, newLineAfter: true
-					                     
-                  if(newVar) {
+				   if(newVar) {
 					 state.lights[state.newVar].var = newVar
                      state.remove("newVar")
 					 app.removeSetting("newVar")
@@ -101,10 +102,9 @@ def mainPage() {
          
               ///////////////////////// Cumulative Variable Select
               if(state.newVarC) {
-					List varsC = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
-                    input "newVarC", "enum", title: "(Optional) Select Hub Variable to recieve timer results. Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format to use in Rule Machine. Variables can also be viewed in a dashboard tile. Set table 'Variable Type' checkbox to match the variable type. If you dont make a variable the only way to see this data is in Time Format by opening this App.", submitOnChange: true, width: 9, options: varsC, newLineAfter: true
-					                     
-                  if(newVarC) {
+				List varsC = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
+                input "newVarC", "enum", title: "(Optional) Select Hub Variable to recieve timer results. Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format to use in Rule Machine. Variables can also be viewed in a dashboard tile. Set table 'Variable Type' checkbox to match the variable type. If you dont make a variable the only way to see this data is in Time Format by opening this App.", submitOnChange: true, width: 9, options: varsC, newLineAfter: true
+				   if(newVarC) {
 					  state.lights[state.newVarC].varC = newVarC
                       state.remove("newVarC")
 					  app.removeSetting("newVarC")
@@ -112,17 +112,16 @@ def mainPage() {
 					  }
 				 } 
               else if(state.remVarC) {
-					state.lights[state.remVarC].varC = ""
-                    state.remove("remVarC")
-					paragraph "<script>{changeSubmit(this)}</script>"
-				    } 
+			    state.lights[state.remVarC].varC = ""
+                state.remove("remVarC")
+				paragraph "<script>{changeSubmit(this)}</script>"
+				} 
          
               ///////////////////////// Device On Counts Number type Variable Select
               if(state.newVarCT) {
-					List varsCT = getAllGlobalVars().findAll{it.value.type == "integer"}.keySet().collect().sort{it.capitalize()}
-                    input "newVarCT", "enum", title: "(Optional) Select Hub Variable to recieve Device on counter results. Variables must first be made in Settings/Hub Variables as NUMBER variable. Use in Rule Machine or view on dashboard tile. If you dont make a variable the only way to see this data opening this App.", submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
-					                     
-                  if(newVarCT) {
+				List varsCT = getAllGlobalVars().findAll{it.value.type == "integer"}.keySet().collect().sort{it.capitalize()}
+                input "newVarCT", "enum", title: "(Optional) Select Hub Variable to recieve Device on counter results. Variables must first be made in Settings/Hub Variables as NUMBER variable. Use in Rule Machine or view on dashboard tile. If you dont make a variable the only way to see this data opening this App.", submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
+				   if(newVarCT) {
 					  state.lights[state.newVarCT].varCT = newVarCT
                       state.remove("newVarCT")
 					  app.removeSetting("newVarCT")
@@ -130,19 +129,20 @@ def mainPage() {
 					  }
 				 } 
               else if(state.remVarCT) {
-					state.lights[state.remVarCT].varCT = ""
-                    state.remove("remVarCT")
-					paragraph "<script>{changeSubmit(this)}</script>"
-				    } 
+				state.lights[state.remVarCT].varCT = ""
+                state.remove("remVarCT")
+				paragraph "<script>{changeSubmit(this)}</script>"
+				} 
          
           input "reset", "button", title: "RESET Periodic Times, Counts, & Update Variables", width: 5
-          input "refresh", "button", title: "REFRESH All Table & Update Variables", width: 5
+          input "refresh", "button", title: "REFRESH All Table & Update Variables", width: 4
+          input name: "inDaysC", type: "bool", title: "Display Cumulative in Days?", defaultValue:false, submitOnChange:true, width: 3   //// Added ver1.1.6
 		}
   }
 //******************************************************* Input Section 2 *******************************************************//        
       section {
           if (capabilitySelect == "4") {
-             input name: "powerThreshold", type: "number", title:"<b>Enter minimum Power(w) to start tracking (Default = 1), &nbsp <small>Applys to All</small>", defaultValue: "1", required: false,  style: 'margin-left:10px'
+             input name: "powerThreshold", type: "number", title:"<b>Enter minimum Power(w) to start tracking (Default = 1), &nbsp <small>Applys to All</small>", defaultValue: "1", required: false,  width: 7, newLineAfter: true, style: 'margin-left:10px'
               }
           input name: "autoRefresh", type: "enum", title: "<b>Auto Update Variables every XX Minuites or Seconds after the hour?  &nbsp <small>Applys to Auto Update Checked Box(s) in Table only</small></b>", defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:10px'
                if (autoRefresh == "Seconds") {input name: "refreshSeconds", type: "enum", title: ">> Select Variables Update interval in Seconds for On/Active devices only. &nbsp &nbsp <small>Default = 30sec &nbsp &nbsp Example:7:00:00, 7:00:30, 7:01:00,... NOTE: Faster updates will increase hub load. </small>", defaultValue: "30", submitOnChange: true,  options: ["5","10","15","20","30"], required: false, style: 'margin-left:70px'
@@ -167,15 +167,15 @@ def mainPage() {
           input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates? &nbsp <small>Applys to All</small></b>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
       }
 //********************************************************  Notes Section ******************************************************//        
-   section("<b>User Notes:</b>", hideable: true, hidden: true) {
-            paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
-			paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format depending on CheckBox."
-            paragraph "-Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability."
-            paragraph "-Set up variables to trigger things in RM (maybe webcore to?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
-            paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
-            paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
-            paragraph "-Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh."
-       	}
+   section("<b>Usage Notes:</b>", hideable: true, hidden: true) {
+      paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
+	  paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on CheckBox."
+      paragraph "-Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability."
+      paragraph "-Set up variables to trigger things in RM (maybe webcore?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
+      paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
+      paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
+      paragraph "-Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh."
+      }
   }
 }
 //********************************************************  App Page TABLE  ******************************************************//
@@ -187,7 +187,7 @@ String displayTable() {
 		state.lights[state.reset].total = 0
         state.lights[state.reset].counts = 0   //// Added ver1.1.3
       	state.remove("reset")
-	}
+	    }
     
     if(state.resetTotal) {  //// Reset Cumulative and Periodic timers per device      //// Added ver1.1.3       
 		def dev = lights.find{"$it.id" == state.resetTotal}
@@ -197,18 +197,18 @@ String displayTable() {
         state.lights[state.resetTotal].counts = 0
         state.lights[state.resetTotal].allTime = 0
         state.remove("resetTotal")
-	}
+	    }
     ////////////// Variable String or Number Check Box
     if(state.checkedBox1) {       //// Added ver1.1.3
-      def dev = lights.find{"$it.id" == state.checkedBox1}  
-	  state.lights[state.checkedBox1].checkBox1 = true
-      state.remove("checkedBox1")
-	  }
+        def dev = lights.find{"$it.id" == state.checkedBox1}  
+	    state.lights[state.checkedBox1].checkBox1 = true
+        state.remove("checkedBox1")
+	    }
 	else if(state.uncheckedBox1) {
-      def dev = lights.find{"$it.id" == state.uncheckedBox1}  
-	  state.lights[state.uncheckedBox1].checkBox1 = false
-      state.remove("uncheckedBox1")
-	  }
+       def dev = lights.find{"$it.id" == state.uncheckedBox1}  
+	   state.lights[state.uncheckedBox1].checkBox1 = false
+       state.remove("uncheckedBox1")
+	   }
     endif
     ////////////// Variable Auto Refresh Check Box
     if(state.checkedBox2) {      //// Added ver1.1.3
@@ -249,7 +249,7 @@ String displayTable() {
         "<th>Allow<br>Remote<br>Reset?</th>"+      //// Added ver1.1.4 
         "<th>Variable<br>Data<br>Type?</th>"+    //// Added ver1.1.3
         "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>"+     //// Added ver1.1.3
-        "<th>Cumulative<br>Total Time</th>"+    //// Added ver1.1.3
+        "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>"+    //// Added ver1.1.6
         "<th>Reset<br>Total</th>"+   //// Added ver1.1.0
         "<th>Cumulative<br>Linked<br>Variable</th></tr></thead>"     //// Added ver1.1.4
 	   
@@ -274,14 +274,17 @@ String displayTable() {
         int allHours = allTotal / 3600  
 	    allTotal = allTotal % 3600
 	    int allMins = allTotal / 60
-	    int allSecs = allTotal % 60    
+	    int allSecs = allTotal % 60
         String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"
-        
+            float AllTimeDays = (intAllTime / 86400) as float //// Added ver1.1.6
+            if (inDaysC) {allTimeT = String.format("%.3f", AllTimeDays)} // For table Only  //// Added ver1.1.6
+            else {allTimeT = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"}  // For table Only
+                       
         if (thisVar) {state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time)}
         if (thisVarC) {state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)}  //// Added ver1.1.4 
         if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// Added ver1.1.5 
-        if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, Device ${dev.id}, Var *${thisVar}* to ${time} or ${intTime}sec, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts Var *${thisVarC}* Counts=${counts}"}  //// Added ver1.1.3
-        
+        if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, Device ${dev.id}, Var *${thisVar}* to ${time} or ${intTime}sec, Cumulative Var *${thisVarC}* ${allTime}time, ${AllTimeDays}days, ${intAllTime}sec, Counts Var *${thisVarC}* Counts=${counts}"}  //// Added ver1.1.3
+                
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")
         String resetTotal = buttonLink("t$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")  //// Added ver1.1.3
@@ -308,7 +311,7 @@ String displayTable() {
         "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// Added ver1.1.4    
         "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +     //// Added ver1.1.3
         "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// Added ver1.1.3  
-        "<td style='font-weight:bold' title='Total Cumulative Time on'>$allTime</td>" +   //// Added ver1.1.3  
+        "<td style='font-weight:bold' title='${inDaysC ? "Total Cumulative Time in Days" : "Total Cumulative Time"}'>$allTimeT</td>" +   //// Added ver1.1.6     
         "<td title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>" +  //// Added ver1.1.0
         "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// Added ver1.1.4
      }
@@ -317,7 +320,7 @@ String displayTable() {
 }
 
 String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "13px") {
-	"<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
+   "<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
 }
 
 //***************************************************  Schedules and Subscribes ******************************************************//
@@ -340,13 +343,15 @@ void initialize() {
     }
     endif
     
-    if (remoteResetVarBool && resetVar) { 
+    if (remoteResetVarBool && resetVar) {
         subscribe(location, "variable:${resetVar}.true", remoteReset)
-    }
-    if (remoteResetVarBool && resetVarC) { //// Added ver1.1.4
+        setGlobalVar(resetVar, false)
+        }
+    if (remoteResetVarBool && resetVarC) {  //// Added ver1.1.4
         subscribe(location, "variable:${resetVarC}.true", remoteReset)
-    }     
-    
+        setGlobalVar(resetVarC, false) 
+        }   
+       
     if (autoResetBool) { schedule("2 0 ${resetHour} ? * * *", dailySaveCountsReset) } // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time  //// Added ver1.0.1
    
   	if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// Added ver1.0.3
@@ -364,13 +369,13 @@ void appButtonHandler(btn) {
 	else if (btn.startsWith("y")) state.remVarC = btn.minus("y")   //// Added ver1.1.4 
     else if (btn.startsWith("w")) state.newVarCT = btn.minus("w")   //// Added ver1.1.5
 	else if (btn.startsWith("v")) state.remVarCT = btn.minus("v")   //// Added ver1.1.5     
-    else if (btn.startsWith("t")) state.resetTotal = btn.minus("t")  //// Added ver1.1.3 
+    else if (btn.startsWith("t")) state.resetTotal = btn.minus("t")   //// Added ver1.1.3 
     else if (btn.startsWith("a")) state.uncheckedBox1 = btn.minus("a")  //// Added ver1.1.3   
-    else if (btn.startsWith("b")) state.checkedBox1 = btn.minus("b")  //// Added ver1.1.3 
+    else if (btn.startsWith("b")) state.checkedBox1 = btn.minus("b")    //// Added ver1.1.3 
     else if (btn.startsWith("e")) state.uncheckedBox2 = btn.minus("e")  //// Added ver1.1.3  
-    else if (btn.startsWith("f")) state.checkedBox2 = btn.minus("f")  //// Added ver1.1.3 
-    else if (btn.startsWith("g")) state.uncheckedBox3 = btn.minus("g")  //// Added ver1.1.4  
-    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")  //// Added ver1.1.4       
+    else if (btn.startsWith("f")) state.checkedBox2 = btn.minus("f")    //// Added ver1.1.3 
+    else if (btn.startsWith("g")) state.uncheckedBox3 = btn.minus("g")   //// Added ver1.1.4  
+    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")   //// Added ver1.1.4       
     else state.reset = btn.minus("d")
     }
 
@@ -502,9 +507,8 @@ void remoteReset(evt = null) {   //// Added ver1.1.4
             state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		    state.lights[k].total = 0
             if (state.byPassBool == false) {state.lights[k].counts = 0}  //// Added ver1.1.3
-            //if (resetVarAllBool && resetVar && state.lights[k].checkBox3) {state.lights[k].allTime = 0}
+            //if (resetVarAllBool && resetVar && state.lights[k].checkBox3) {state.lights[k].allTime = 0}  
             if (resetVarC && state.lights[k].checkBox3) {state.lights[k].allTime = 0 } 
-            endif
             }
      }
     if (logEnableBool) {log.debug "App: ${app.label} - Remote Reset Selected Timers to 0 Happening ..........."}
