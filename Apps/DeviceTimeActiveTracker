@@ -1,31 +1,35 @@
-/* Time On Tracker Parent
+/* Device Time On Tracker (Parent)
 *  
 *	2022 T. K. (kampto)
-*	NOTES:  Track the time a device is on. Other Apps/Drivers @ https://github.com/kampto/Hubitat/
+*	NOTES:  Track the time and counts a device is Active/On. Assign to a variable if needed. Refresh/Reset/Update variable various ways. Use variable in RM to trigger things. 
+* 
+*    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+*    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+*    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 *
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
-* 	1.1.X	2023-4-12	kampto		Refernce Child App for revisions
+* 	1.X.X	2023-4-12	kampto		Refernce Child App for revisions
 * 	1.0.1	2022-10-02	kampto		First instance of Parent/Child apps. 
 */
 
 def setVersion(){
     state.name = "Device Time Active Tracker"
-	state.version = "1.1.X"
+	state.version = "1.X.X"
 }
 
 definition(
-	name: "Device Time Active Tracker", namespace: "kampto", author: "T. Kamp",
+	name: "Device Time Active Tracker", namespace: "kampto", author: "T. K.",
 	description: "Track the time a device or thing is active. Attach to a variable",
-	category: "Convenience",
+	category: "General",
 	iconUrl: "",
 	iconX2Url: "",
 	iconX3Url: "",
+    importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/DeviceTimeActiveTracker",
+    documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896"
 )
 
-preferences {
-	page(name: "Config")
-}
+preferences { page(name: "Config") }
 
 def Config() {
     dynamicPage(name: "", title: "", install: true, uninstall: true) {
@@ -38,7 +42,7 @@ def Config() {
             paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String or Number and link to in the child app"
             }
 			section("") {
-				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Time Tracker' child</b>", multiple: true)
+				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Device Time Tracker' child</b>", multiple: true)
 			}
   			
 			section("") {
