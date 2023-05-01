@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.1.6	2023-04-30	kampto		Added 'Days' option for table display. Fixed remote reset bug
+*   1.1.6	2023-05-01	kampto		Added 'Days' option for table display-only. Fixed remote reset bug and powerHandler bug
 *   1.1.5	2023-04-28	kampto		Added 2nd varible per device to reset cumulative time. More variable and reset options. Added On Counts variable and reset
 *   1.1.3	2023-04-27	kampto		Add total time in table. Table Check Boxes. Option to disable App based logging. Added Seconds Update. Added On counts.
 *   1.1.0	2023-04-15	kampto		Updated page format, option for variables as an int for use in RM. Option to reset when active. Enhanced logs. Power reset bug fix.
@@ -44,12 +44,12 @@ def mainPage() {
     if (state.lights == null) state.lights = [:]
     if (state.lightsList == null) state.lightsList = []
     if (resetHour == null) {resetHour = 0}
-    if (refreshMinutes == null) {refreshMinutes = 10}    //// Added ver1.1.3
-    if (refreshSeconds == null) {refreshSeconds = 30}    //// Added ver1.1.3
+    if (refreshMinutes == null) {refreshMinutes = 10}    //// ver1.1.3
+    if (refreshSeconds == null) {refreshSeconds = 30}    //// ver1.1.3
     if (powerThreshold == null) {powerThreshold = 1} 
     if (capabilitySelect == null) {capabilitySelect = 1}
-    if (allTotal == null) {allTotal = 0}   //// Added ver1.1.3
-    state.byPassBool = false  //// Added ver1.1.4
+    if (allTotal == null) {allTotal = 0}   //// ver1.1.3
+    state.byPassBool = false  //// ver1.1.4
                 
   dynamicPage(name: "", title: "", install: true, uninstall: true) {
   displayTitle() 
@@ -100,7 +100,7 @@ def mainPage() {
 				 paragraph "<script>{changeSubmit(this)}</script>"
 				 }
          
-              ///////////////////////// Cumulative Variable Select
+              ///////////////////////// Cumulative Variable Select  //// ver1.1.5
               if(state.newVarC) {
 				List varsC = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
                 input "newVarC", "enum", title: "(Optional) Select Hub Variable to recieve timer results. Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format to use in Rule Machine. Variables can also be viewed in a dashboard tile. Set table 'Variable Type' checkbox to match the variable type. If you dont make a variable the only way to see this data is in Time Format by opening this App.", submitOnChange: true, width: 9, options: varsC, newLineAfter: true
@@ -117,7 +117,7 @@ def mainPage() {
 				paragraph "<script>{changeSubmit(this)}</script>"
 				} 
          
-              ///////////////////////// Device On Counts Number type Variable Select
+              ///////////////////////// Device On Counts Number type Variable Select  //// ver1.1.5  
               if(state.newVarCT) {
 				List varsCT = getAllGlobalVars().findAll{it.value.type == "integer"}.keySet().collect().sort{it.capitalize()}
                 input "newVarCT", "enum", title: "(Optional) Select Hub Variable to recieve Device on counter results. Variables must first be made in Settings/Hub Variables as NUMBER variable. Use in Rule Machine or view on dashboard tile. If you dont make a variable the only way to see this data opening this App.", submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
@@ -167,7 +167,7 @@ def mainPage() {
           input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates? &nbsp <small>Applys to All</small></b>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
       }
 //********************************************************  Notes Section ******************************************************//        
-   section("<b>Usage Notes:</b>", hideable: true, hidden: true) {
+   section("<b>Usage Notes:</b>", hideable: true, hidden: true) {  //// ver1.1.5
       paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
 	  paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on CheckBox."
       paragraph "-Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability."
@@ -185,13 +185,13 @@ String displayTable() {
         state.lights[state.reset].start = now()
         state.lights[state.reset].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		state.lights[state.reset].total = 0
-        state.lights[state.reset].counts = 0   //// Added ver1.1.3
+        state.lights[state.reset].counts = 0   //// ver1.1.3
       	state.remove("reset")
 	    }
     
-    if(state.resetTotal) {  //// Reset Cumulative and Periodic timers per device      //// Added ver1.1.3       
+    if(state.resetTotal) {  //// Reset Cumulative and Periodic timers per device      //// ver1.1.3       
 		def dev = lights.find{"$it.id" == state.resetTotal}
-        state.lights[state.resetTotal].start = now()    //// Added ver1.1.4  
+        state.lights[state.resetTotal].start = now()    //// ver1.1.4  
         state.lights[state.resetTotal].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
         state.lights[state.resetTotal].total = 0
         state.lights[state.resetTotal].counts = 0
@@ -199,7 +199,7 @@ String displayTable() {
         state.remove("resetTotal")
 	    }
     ////////////// Variable String or Number Check Box
-    if(state.checkedBox1) {       //// Added ver1.1.3
+    if(state.checkedBox1) {       //// ver1.1.3
         def dev = lights.find{"$it.id" == state.checkedBox1}  
 	    state.lights[state.checkedBox1].checkBox1 = true
         state.remove("checkedBox1")
@@ -211,7 +211,7 @@ String displayTable() {
 	   }
     endif
     ////////////// Variable Auto Refresh Check Box
-    if(state.checkedBox2) {      //// Added ver1.1.3
+    if(state.checkedBox2) {      //// ver1.1.3
       def dev = lights.find{"$it.id" == state.checkedBox2}  
 	  state.lights[state.checkedBox2].checkBox2 = true
       state.remove("checkedBox2")
@@ -223,7 +223,7 @@ String displayTable() {
 	  }
     endif
     ////////////// Remote Variable Reset Check Box
-    if(state.checkedBox3) {      //// Added ver1.1.4
+    if(state.checkedBox3) {      //// ver1.1.4
       def dev = lights.find{"$it.id" == state.checkedBox3}  
 	  state.lights[state.checkedBox3].checkBox3 = true
       state.remove("checkedBox3")
@@ -246,20 +246,20 @@ String displayTable() {
 		"<th>Last<br>Reset</th>" +
 		"<th>Periodic<br>Linked<br>Variable</th>"+
         "<th>Counts<br>Linked<br>Variable</th>"+ 
-        "<th>Allow<br>Remote<br>Reset?</th>"+      //// Added ver1.1.4 
-        "<th>Variable<br>Data<br>Type?</th>"+    //// Added ver1.1.3
-        "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>"+     //// Added ver1.1.3
-        "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>"+    //// Added ver1.1.6
-        "<th>Reset<br>Total</th>"+   //// Added ver1.1.0
-        "<th>Cumulative<br>Linked<br>Variable</th></tr></thead>"     //// Added ver1.1.4
+        "<th>Allow<br>Remote<br>Reset?</th>"+      //// ver1.1.4 
+        "<th>Variable<br>Data<br>Type?</th>"+    //// ver1.1.3
+        "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>"+     //// ver1.1.3
+        "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>"+    //// ver1.1.6
+        "<th>Reset<br>Total</th>"+   //// ver1.1.0
+        "<th>Cumulative<br>Linked<br>Variable</th></tr></thead>"     //// ver1.1.4
 	   
     lights.sort{it.displayName.toLowerCase()}.each {dev ->
         String thisVar = state.lights["$dev.id"].var
-        String thisVarC = state.lights["$dev.id"].varC   //// Added ver1.1.4
-        String thisVarCT = state.lights["$dev.id"].varCT   //// Added ver1.1.5
+        String thisVarC = state.lights["$dev.id"].varC   //// ver1.1.4
+        String thisVarCT = state.lights["$dev.id"].varCT   //// ver1.1.5
          
         ////////// Active/On Time Calc
-        int counts = state.lights["$dev.id"].counts   //// Added ver1.1.5 
+        int counts = state.lights["$dev.id"].counts   //// ver1.1.5 
         int total = state.lights["$dev.id"].total / 1000    
         int intTime = total  //// Added ver1.1.0
         int hours = total / 3600
@@ -268,7 +268,7 @@ String displayTable() {
 	    int secs = total % 60
 	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
             
-        ////////// Total All Cumalative Time Calc   //// Added ver1.1.3
+        ////////// Total All Cumalative Time Calc   //// ver1.1.3
         int allTotal = state.lights["$dev.id"].allTime /1000
         int intAllTime = allTotal
         int allHours = allTotal / 3600  
@@ -276,25 +276,25 @@ String displayTable() {
 	    int allMins = allTotal / 60
 	    int allSecs = allTotal % 60
         String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"
-            float AllTimeDays = (intAllTime / 86400) as float //// Added ver1.1.6
-            if (inDaysC) {allTimeT = String.format("%.3f", AllTimeDays)} // For table Only  //// Added ver1.1.6
+            float AllTimeDays = (intAllTime / 86400) as float //// ver1.1.6
+            if (inDaysC) {allTimeT = String.format("%.3f", AllTimeDays)} // For table Only  //// ver1.1.6
             else {allTimeT = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"}  // For table Only
                        
         if (thisVar) {state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time)}
-        if (thisVarC) {state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)}  //// Added ver1.1.4 
+        if (thisVarC) {state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)}  //// ver1.1.4 
         if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// Added ver1.1.5 
         if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, Device ${dev.id}, Var *${thisVar}* to ${time} or ${intTime}sec, Cumulative Var *${thisVarC}* ${allTime}time, ${AllTimeDays}days, ${intAllTime}sec, Counts Var *${thisVarC}* Counts=${counts}"}  //// Added ver1.1.3
                 
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")
-        String resetTotal = buttonLink("t$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")  //// Added ver1.1.3
+        String resetTotal = buttonLink("t$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")  //// ver1.1.3
         String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
-        String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// Added ver1.1.4
-        String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// Added ver1.1.5
+        String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// ver1.1.4
+        String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// ver1.1.5
         
-        String checkedBox1T = (state.lights["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
-        String checkedBox2T = (state.lights["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.3
-        String checkedBox3T = (state.lights["$dev.id"].checkBox3) ? buttonLink("g$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("h$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// Added ver1.1.4
+        String checkedBox1T = (state.lights["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
+        String checkedBox2T = (state.lights["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
+        String checkedBox3T = (state.lights["$dev.id"].checkBox3) ? buttonLink("g$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("h$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.4
                               
         str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" 
 		if (capabilitySelect == "1") { str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"}
@@ -307,13 +307,13 @@ String displayTable() {
         "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td style='width: 100px' title='Time of last Reset for $dev'>${state.lights["$dev.id"].time ?: ""} </td>" +  
         "<td title='${thisVar ? "Deselect $thisVar" : "Select Hub Variable"}'>$var</td>" +
-        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +    //// Added ver1.1.5
-        "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// Added ver1.1.4    
-        "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +     //// Added ver1.1.3
-        "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// Added ver1.1.3  
-        "<td style='font-weight:bold' title='${inDaysC ? "Total Cumulative Time in Days" : "Total Cumulative Time"}'>$allTimeT</td>" +   //// Added ver1.1.6     
-        "<td title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>" +  //// Added ver1.1.0
-        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// Added ver1.1.4
+        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +    //// ver1.1.5
+        "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// ver1.1.4    
+        "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +     //// ver1.1.3
+        "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// ver1.1.3  
+        "<td style='font-weight:bold' title='${inDaysC ? "Total Cumulative Time in Days" : "Total Cumulative Time"}'>$allTimeT</td>" +   //// ver1.1.6     
+        "<td title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>" +  //// ver1.1.0
+        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// ver1.1.4
      }
    	str += "</table></div>"
 	str
@@ -337,137 +337,58 @@ void initialize() {
 	subscribe(lights, "contact.open", offHandler)
 	subscribe(lights, "contact.closed", onHandler)
     }
-    else if (capabilitySelect == "4") { //// Added ver1.0.2
-	subscribe(lights, "power.< powerThreshold", offHandler)
-	subscribe(lights, "power.>= powerThreshold", onHandler)
-    }
-    endif
-    
+    else if (capabilitySelect == "4") { //// ver1.0.2
+        subscribe(lights, "power", powerHandler) 
+    }    
+    endif  
+        
     if (remoteResetVarBool && resetVar) {
         subscribe(location, "variable:${resetVar}.true", remoteReset)
         setGlobalVar(resetVar, false)
         }
-    if (remoteResetVarBool && resetVarC) {  //// Added ver1.1.4
+    if (remoteResetVarBool && resetVarC) {  //// ver1.1.4
         subscribe(location, "variable:${resetVarC}.true", remoteReset)
         setGlobalVar(resetVarC, false) 
         }   
        
     if (autoResetBool) { schedule("2 0 ${resetHour} ? * * *", dailySaveCountsReset) } // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time  //// Added ver1.0.1
    
-  	if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// Added ver1.0.3
-    else if (autoRefresh == "Seconds") { schedule("*/${refreshSeconds} * * ? * * *", refreshHandler) }   //// Added ver1.1.2
+  	if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// ver1.0.3
+    else if (autoRefresh == "Seconds") { schedule("*/${refreshSeconds} * * ? * * *", refreshHandler) }   //// ver1.1.2
     endif
 }
 
 //******************************************************  Handlers / Functions ************************************************************//
-void appButtonHandler(btn) {
-    if (btn == "reset") resetTimers() //// Added ver1.0.1
-    else if (btn == "refresh") refreshHandler()  //// Added ver1.0.3
-    else if (btn.startsWith("n")) state.newVar = btn.minus("n")
-	else if (btn.startsWith("r")) state.remVar = btn.minus("r")
-    else if (btn.startsWith("z")) state.newVarC = btn.minus("z")   //// Added ver1.1.4
-	else if (btn.startsWith("y")) state.remVarC = btn.minus("y")   //// Added ver1.1.4 
-    else if (btn.startsWith("w")) state.newVarCT = btn.minus("w")   //// Added ver1.1.5
-	else if (btn.startsWith("v")) state.remVarCT = btn.minus("v")   //// Added ver1.1.5     
-    else if (btn.startsWith("t")) state.resetTotal = btn.minus("t")   //// Added ver1.1.3 
-    else if (btn.startsWith("a")) state.uncheckedBox1 = btn.minus("a")  //// Added ver1.1.3   
-    else if (btn.startsWith("b")) state.checkedBox1 = btn.minus("b")    //// Added ver1.1.3 
-    else if (btn.startsWith("e")) state.uncheckedBox2 = btn.minus("e")  //// Added ver1.1.3  
-    else if (btn.startsWith("f")) state.checkedBox2 = btn.minus("f")    //// Added ver1.1.3 
-    else if (btn.startsWith("g")) state.uncheckedBox3 = btn.minus("g")   //// Added ver1.1.4  
-    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")   //// Added ver1.1.4       
-    else state.reset = btn.minus("d")
-    }
-
-def refreshHandler() {   //// Added ver 1.0.3
-    state.lights.each {k, v ->
-        def dev = lights.find{"$it.id" == k}
-        ///////////// Update Times if Active/On
-        if (capabilitySelect == "1" && dev.currentSwitch == "on") {
-           	state.lights[k].total += now() - state.lights[k].start
-			state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start) //// Added ver1.1.3
-            state.lights[k].start = now()
-            }
-        else if (capabilitySelect == "2" && dev.currentContact == "open") {
-        	state.lights[k].total += now() - state.lights[k].start
-            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// Added ver1.1.3
-			state.lights[k].start = now()
-            }
-        else if (capabilitySelect == "3" && dev.currentContact == "closed") {
-        	state.lights[k].total += now() - state.lights[k].start
-            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// Added ver1.1.3
-			state.lights[k].start = now()
-		    }
-        else if (capabilitySelect == "4" && dev.currentPower >= powerThreshold) { //// Added ver1.0.2
-        	state.lights[k].total += now() - state.lights[k].start
-            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// Added ver1.1.3
-			state.lights[k].start = now()
-		    } 
-        endif
-      }
-        //////////// Update Variables if Active/On  
-        lights.sort{it.displayName.toLowerCase()}.each {dev ->
-          String thisVar = state.lights["$dev.id"].var
-          String thisVarC = state.lights["$dev.id"].varC    //// Added ver1.1.4
-          String thisVarCT = state.lights["$dev.id"].varCT   //// Added ver1.1.5
-            
-            ////////// Active/On Time Calc   
-            int counts = state.lights["$dev.id"].counts   //// Added ver1.1.5
-            int total = state.lights["$dev.id"].total /1000    
-            int intTime = total  //// Added ver1.1.0
-            int hours = total / 3600
-	        total = total % 3600
-	        int mins = total / 60
-	        int secs = total % 60
-	        String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-            
-            ////////// Total All Cumalative Time Calc   //// Added ver1.1.3
-            int allTotal = state.lights["$dev.id"].allTime /1000      
-            int intAllTime = allTotal
-            int allHours = allTotal / 3600  
-	        allTotal = allTotal % 3600
-	        int allMins = allTotal / 60
-	        int allSecs = allTotal % 60    
-            String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"   
-               
-             if ((thisVar && state.lights["$dev.id"].checkBox2) || (thisVar && state.byPassBool)) {  //// Added ver1.1.3 
-               state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time) 
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// Added ver1.1.3                  
-             }
-             if ((thisVarC && state.lights["$dev.id"].checkBox2) || (thisVarC && state.byPassBool)) {  //// Added ver1.1.4 
-               state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
-             }
-             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// Added ver1.1.5 
-                                                     
-         }
-    state.byPassBool = false  // Reset the bypass  //// Added ver1.1.3
- }
- 
+def powerHandler(evt) {  //// ver1.1.6
+    if (evt.device.currentPower >= powerThreshold) { onHandler(evt) }                          
+    else if (evt.device.currentPower < powerThreshold) { offHandler(evt) }
+   } 
+    
 void onHandler(evt) {
-	state.lights[evt.device.id].start = now()
-    state.lights[evt.device.id].counts += 1  //// Added ver1.1.3
-    if (resetWhenOnBool) {deviceOnSaveCountsReset()} //// Added ver1.1.0
+    state.lights[evt.device.id].start = now()
+    state.lights[evt.device.id].counts += 1  //// ver1.1.3
+    if (resetWhenOnBool) {deviceOnSaveCountsReset()} //// ver1.1.0
 }
 
 void offHandler(evt) {
+    //log.debug "TEST...offHandler() called: ${evt.name} = ${evt.device.currentPower}....... evt.device.id: ${evt.device.id}"
     state.lights[evt.device.id].total += now() - state.lights[evt.device.id].start
-    state.lights[evt.device.id].allTime = state.lights[evt.device.id].allTime + (now() - state.lights[evt.device.id].start) //// Added ver 1.1.3
+    state.lights[evt.device.id].allTime = state.lights[evt.device.id].allTime + (now() - state.lights[evt.device.id].start) //// ver 1.1.3
 	      String thisVar = state.lights[evt.device.id].var
-          String thisVarC = state.lights[evt.device.id].varC   //// Added ver1.1.4
-          String thisVarCT = state.lights[evt.device.id].varCT   //// Added ver1.1.5
+          String thisVarC = state.lights[evt.device.id].varC   //// ver1.1.4
+          String thisVarCT = state.lights[evt.device.id].varCT   //// ver1.1.5
     
             ////////// Active/On Time Calc   
-            int counts = state.lights[evt.device.id].counts    //// Added ver1.1.5   
+            int counts = state.lights[evt.device.id].counts    //// ver1.1.5   
             int total = state.lights[evt.device.id].total /1000    
-            int intTime = total  //// Added ver1.1.0
+            int intTime = total  //// ver1.1.0
             int hours = total / 3600
 	        total = total % 3600
 	        int mins = total / 60
 	        int secs = total % 60
 	        String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
             
-            ////////// Total All Cumalative Time Calc   //// Added ver1.1.3
+            ////////// Total All Cumalative Time Calc   //// ver1.1.3
             int allTotal = state.lights[evt.device.id].allTime /1000      
             int intAllTime = allTotal
             int allHours = allTotal / 3600  
@@ -477,36 +398,119 @@ void offHandler(evt) {
             String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"   
                
              if (thisVar) {state.lights[evt.device.id].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time) 
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// Added ver1.1.3                  
+               if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
              }
-             if (thisVarC) {state.lights[evt.device.id].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)   //// Added ver1.1.4 
+             if (thisVarC) {state.lights[evt.device.id].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)   //// ver1.1.4 
                if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
              }
-             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// Added ver1.1.5   
-	
+             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5   
   }
 
+void appButtonHandler(btn) {
+    if (btn == "reset") resetTimers() //// ver1.0.1
+    else if (btn == "refresh") refreshHandler()  //// ver1.0.3
+    else if (btn.startsWith("n")) state.newVar = btn.minus("n")
+	else if (btn.startsWith("r")) state.remVar = btn.minus("r")
+    else if (btn.startsWith("z")) state.newVarC = btn.minus("z")   //// ver1.1.4
+	else if (btn.startsWith("y")) state.remVarC = btn.minus("y")   //// ver1.1.4 
+    else if (btn.startsWith("w")) state.newVarCT = btn.minus("w")   //// ver1.1.5
+	else if (btn.startsWith("v")) state.remVarCT = btn.minus("v")   //// ver1.1.5     
+    else if (btn.startsWith("t")) state.resetTotal = btn.minus("t")   //// ver1.1.3 
+    else if (btn.startsWith("a")) state.uncheckedBox1 = btn.minus("a")  //// ver1.1.3   
+    else if (btn.startsWith("b")) state.checkedBox1 = btn.minus("b")    //// ver1.1.3 
+    else if (btn.startsWith("e")) state.uncheckedBox2 = btn.minus("e")  //// ver1.1.3  
+    else if (btn.startsWith("f")) state.checkedBox2 = btn.minus("f")    //// ver1.1.3 
+    else if (btn.startsWith("g")) state.uncheckedBox3 = btn.minus("g")   //// ver1.1.4  
+    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")   //// ver1.1.4       
+    else state.reset = btn.minus("d")
+    }
+
+def refreshHandler() {   //// Added ver 1.0.3
+    state.lights.each {k, v ->
+        def dev = lights.find{"$it.id" == k}
+        ///////////// Update Times if Active/On
+        if (capabilitySelect == "1" && dev.currentSwitch == "on") {
+           	state.lights[k].total += now() - state.lights[k].start
+			state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start) //// ver1.1.3
+            state.lights[k].start = now()
+            }
+        else if (capabilitySelect == "2" && dev.currentContact == "open") {
+        	state.lights[k].total += now() - state.lights[k].start
+            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// ver1.1.3
+			state.lights[k].start = now()
+            }
+        else if (capabilitySelect == "3" && dev.currentContact == "closed") {
+        	state.lights[k].total += now() - state.lights[k].start
+            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// ver1.1.3
+			state.lights[k].start = now()
+		    }
+        else if (capabilitySelect == "4" && dev.currentPower >= powerThreshold) { //// ver1.0.2
+        	state.lights[k].total += now() - state.lights[k].start
+            state.lights[k].allTime = state.lights[k].allTime + (now() - state.lights[k].start)  //// ver1.1.3
+			state.lights[k].start = now()
+		    } 
+        endif
+      }
+        //////////// Update Variables if Active/On  
+        lights.sort{it.displayName.toLowerCase()}.each {dev ->
+          String thisVar = state.lights["$dev.id"].var
+          String thisVarC = state.lights["$dev.id"].varC    //// ver1.1.4
+          String thisVarCT = state.lights["$dev.id"].varCT   //// ver1.1.5
+            
+            ////////// Active/On Time Calc   
+            int counts = state.lights["$dev.id"].counts   //// ver1.1.5
+            int total = state.lights["$dev.id"].total /1000    
+            int intTime = total  //// Added ver1.1.0
+            int hours = total / 3600
+	        total = total % 3600
+	        int mins = total / 60
+	        int secs = total % 60
+	        String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
+            
+            ////////// Total All Cumalative Time Calc   //// ver1.1.3
+            int allTotal = state.lights["$dev.id"].allTime /1000      
+            int intAllTime = allTotal
+            int allHours = allTotal / 3600  
+	        allTotal = allTotal % 3600
+	        int allMins = allTotal / 60
+	        int allSecs = allTotal % 60    
+            String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"   
+               
+             if ((thisVar && state.lights["$dev.id"].checkBox2) || (thisVar && state.byPassBool)) {  //// ver1.1.3 
+               state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time) 
+               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
+             }
+             if ((thisVarC && state.lights["$dev.id"].checkBox2) || (thisVarC && state.byPassBool)) {  //// ver1.1.4 
+               state.lights["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)
+               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
+             }
+             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5 
+                                                     
+         }
+    state.byPassBool = false  // Reset the bypass  //// ver1.1.3
+ }
+
 //************************************************* Reset Functions ********************************************************//
-void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour rest to save counts or not  //// Added ver1.1.4
+void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour rest to save counts or not  //// ver1.1.4
     if (dayCountsReset) {state.byPassBool = false}
     else state.byPassBool = true  
     resetTimers()
 }
 
-void deviceOnSaveCountsReset(evt = null) { //// Device On reset options to prevent counter reset  //// Added ver1.1.3
+void deviceOnSaveCountsReset(evt = null) { //// Device On reset options to prevent counter reset  //// ver1.1.3
     state.byPassBool = true  
     resetTimers()
 }
 
 /////////////////// Remote Reset Timers and Variables  
-void remoteReset(evt = null) {   //// Added ver1.1.4 
+void remoteReset(evt = null) {   //// ver1.1.4 
     state.lights.each{k, v ->
 		def dev = lights.find{"$it.id" == k}
         if (state.lights[k].checkBox3) {
             state.lights[k].start = now()   
             state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		    state.lights[k].total = 0
-            if (state.byPassBool == false) {state.lights[k].counts = 0}  //// Added ver1.1.3
+            if (state.byPassBool == false) {state.lights[k].counts = 0}  //// ver1.1.3
             //if (resetVarAllBool && resetVar && state.lights[k].checkBox3) {state.lights[k].allTime = 0}  
             if (resetVarC && state.lights[k].checkBox3) {state.lights[k].allTime = 0 } 
             }
@@ -524,10 +528,10 @@ void resetTimers(evt = null) {
             state.lights[k].start = now()   
             state.lights[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		    state.lights[k].total = 0
-            if (state.byPassBool == false) {state.lights[k].counts = 0}  //// Added ver1.1.3
+            if (state.byPassBool == false) {state.lights[k].counts = 0}  //// ver1.1.3
         }
     if (logEnableBool) {log.debug "App: ${app.label} - App Periodic Active/On All Timers Reset to 0 Happening ..........."}
-    refreshHandler() //// Added ver 1.0.3
+    refreshHandler() //// ver1.0.3
 }
 //****************************************************** Other Stuff ********************************************************//
 def updated() {
