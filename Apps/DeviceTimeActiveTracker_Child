@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.1.7	2023-05-02	kampto		Added Temperature capability. Added temp and power below threshold tracking
+*   1.1.7	2023-05-02	kampto		Added Temperature and Voltage capability. Added temp, voltage and power below threshold tracking
 *   1.1.6	2023-05-01	kampto		Added 'Days' option for table display-only. Fixed remote reset bug and powerHandler bug
 *   1.1.5	2023-04-28	kampto		Added 2nd variable per device to reset cumulative time. More variable and reset options. Added On Counts variable and reset
 *   1.1.3	2023-04-27	kampto		Add total time in table. Table Check Boxes. Option to disable App based logging. Added Seconds Update. Added On counts.
@@ -56,12 +56,13 @@ def mainPage() {
   displayTitle() 
   section {
         label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
-        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"]], width: 3, submitOnChange: true, displayDuringSetup: false
+        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"], ["6":"VOLTAGE Monitor"]], width: 3, submitOnChange: true, displayDuringSetup: false
         if (capabilitySelect == "1") {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
         else if (capabilitySelect == "2") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
         else if (capabilitySelect == "3") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: "<b>3. Select Power Meter Devices to Track On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: "<b>3. Select Power Meter Devices to Track On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}    
+        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: "<b>3. Select Power reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: "<b>3. Select Temperature reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   
         else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
         
     DeVices.each {dev ->
@@ -71,8 +72,9 @@ def mainPage() {
              else if (capabilitySelect == "3") {state.DeVices["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}
              else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= powerThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}
              else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= tempThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]} 
-             endif
-	         state.DeVicesList += dev.id   
+             else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= voltThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]} 
+             endif    
+             state.DeVicesList += dev.id   
              }
 	    }
                            
@@ -145,25 +147,34 @@ def mainPage() {
 //******************************************************* Input Section 2 *******************************************************//        
       section {
           if (capabilitySelect == "4") {
-             input name: "powerThreshold", type: "number", title:"<b>Enter Power(w) threshold to call On/Active.</b> &nbsp<small>(Default = 1),&nbsp Applys to All</small>", defaultValue: "1", required: false,  submitOnChange:true, width: 6, style: 'margin-left:10px'
+             input name: "powerThreshold", type: "number", title:"<b>Enter Power(W) threshold to call On/Active.</b> &nbsp<small>(Default = 1),&nbsp Applys to All</small>", defaultValue: "1", required: false,  submitOnChange:true, width: 6, style: 'margin-left:10px'
              input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7   
           }
-          if (capabilitySelect == "5") {
+          else if (capabilitySelect == "5") {
              input name: "tempThreshold", type: "number", title:"<b>Enter Temperature threshold to call On/Active.</b> &nbsp<small>(Default = 50),&nbsp Applys to All</small>", defaultValue: "50", required: false, submitOnChange:true, width: 6, style: 'margin-left:10px'
              input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7     
           }
+          else if (capabilitySelect == "6") {
+             input name: "voltThreshold", type: "number", title:"<b>Enter Voltage(V) threshold to call On/Active.</b> &nbsp<small>(Default = 12),&nbsp Applys to All</small>", defaultValue: "12", required: false, submitOnChange:true, width: 6, style: 'margin-left:10px'
+             input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7     
+          }
+          endif
+          
           input name: "autoRefresh", type: "enum", title: "<b>Auto Update Variables every XX Minuites or Seconds after the hour?</b>  &nbsp <small>Applys to Auto Update Checked Box(s) in Table only</small>", defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:10px'
                if (autoRefresh == "Seconds") {input name: "refreshSeconds", type: "enum", title: ">> Select Variables Update interval in Seconds for On/Active devices only. &nbsp &nbsp <small>Default = 30sec &nbsp &nbsp Example:7:00:00, 7:00:30, 7:01:00,... NOTE: Faster updates will increase hub load. </small>", defaultValue: "30", submitOnChange: true,  options: ["5","10","15","20","30"], required: false, style: 'margin-left:70px'
                  }
                else if (autoRefresh == "Minutes") {input name: "refreshMinutes", type: "enum", title: ">> Select Variables Update interval in Minutes for On/Active devices only. &nbsp &nbsp <small>Default = 10min &nbsp &nbsp Example:7:00, 7:10, 7:20,...</small>", defaultValue: "10", submitOnChange: true,  options: ["1","2","3","4","5","10","15","20","30"], required: false, style: 'margin-left:70px'
                  }
                endif
+          
           input name: "autoResetBool", type: "bool", title: "<b>Daily Reset all Timers & Update Variables at a specific Hour?</b> (Does not Reset Cumulative Timer) &nbsp <small>Applys to All</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (autoResetBool) {
              input name: "dayCountsReset", type: "bool", title: "Also Reset All On Counters?", defaultValue:true, submitOnChange:true, style: 'margin-left:70px'   
              input name: "resetHour", type: "enum", title: ">> Select an Hour for Auto Reset Everyday, 0 to 23. &nbsp &nbsp <small>Default = 0 (Midnight)</small>", defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], required: false, style: 'margin-left:70px'
              }
+          
           input name: "resetWhenOnBool", type: "bool", title: "<b>Reset & Restart all Timers & Update Variables when any Device becomes On/Active?</b> (Does not Reset Cumulative Times or Counts) &nbsp <small>Applys to All</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+          
           input name: "remoteResetVarBool", type: "bool", title: "<b>Remote Reset Times & Counts by Hub Variable outside of App, For Optional Rule Machine access.</b> &nbsp <small>Applys to Remote Resest Checked Box(s) in Table only</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (remoteResetVarBool) {
             //input name: "resetVarAllBool", type: "bool", title: "Also Reset Cumulative total also with same variable?", defaultValue:false, submitOnChange:true, style: 'margin-left:70px'  
@@ -172,6 +183,7 @@ def mainPage() {
             input "resetVarC", "enum", title: "Select Boolean Hub Variable to Reset checkboxed CUMULATIVE & PERIODIC Timers/Counts", submitOnChange: true, style: 'margin-left:70px',
 				options: getAllGlobalVars().findAll{it.value.type == "boolean"}.keySet().collect().sort{it.capitalize()}  
                }
+          
           input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates?</b> &nbsp <small>Applys to All</small>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
       }
 //********************************************************  Notes Section ******************************************************//        
@@ -312,8 +324,10 @@ String displayTable() {
         else if (capabilitySelect == "4" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentPower >= powerThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentPower >= powerThreshold ? "red" : "green"}'title='State $dev'>$dev.currentPower</td>"} 
         else if (capabilitySelect == "5" && dataDirection) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= tempThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= tempThreshold ? "green" : "red"}'title='State $dev'>$dev.currentTemperature</td>"} 
         else if (capabilitySelect == "5" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= tempThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= tempThreshold ? "red" : "green"}'title='State $dev'>$dev.currentTemperature</td>"} 
+        else if (capabilitySelect == "6" && dataDirection) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= voltThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= voltThreshold ? "green" : "red"}'title='State $dev'>$dev.currentVoltage</td>"} 
+        else if (capabilitySelect == "6" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= voltThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= voltThreshold ? "red" : "green"}'title='State $dev'>$dev.currentVoltage</td>"} 
         endif 
-                   
+                           
         str += "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
 		"<td style='width: 100px' title='Time of last Reset for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>" +  
@@ -353,6 +367,9 @@ void initialize() {
     }    
     else if (capabilitySelect == "5") { //// ver1.1.7
         subscribe(DeVices, "temperature", tempHandler) 
+    }
+    else if (capabilitySelect == "6") { //// ver1.1.7
+        subscribe(DeVices, "voltage", voltHandler) 
     }    
     endif  
         
@@ -372,7 +389,7 @@ void initialize() {
     endif
 }
 
-//******************************************************  Handlers / Functions ************************************************************//
+//********************************************************  Handlers *************************************************************//
 def powerHandler(evt) {  //// ver1.1.6
     //log.debug "TESTpower1...powerHandler() called: ${evt.name} = ${evt.device.currentPower}...state.power = ${state.DeVices[evt.device.id].state}... evt.device.id: ${evt.device.id}"
     if (dataDirection && evt.device.currentPower >= powerThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
@@ -388,6 +405,14 @@ def tempHandler(evt) {  //// ver1.1.7
     else if (dataDirection && evt.device.currentTemperature < tempThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     else if (dataDirection == false && evt.device.currentTemperature < tempThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
     else if (dataDirection == false && evt.device.currentTemperature >= tempThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    endif
+} 
+
+def voltHandler(evt) {  //// ver1.1.7
+    if (dataDirection && evt.device.currentVoltage >= voltThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (dataDirection && evt.device.currentVoltage < voltThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    else if (dataDirection == false && evt.device.currentVoltage < voltThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (dataDirection == false && evt.device.currentVoltage >= voltThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     endif
 } 
     
@@ -451,6 +476,7 @@ void appButtonHandler(btn) {
     else state.reset = btn.minus("d")
     }
 
+//************************************************* Refresh Functions ********************************************************//
 def refreshHandler() {   //// Added ver 1.0.3
     state.DeVices.each {k, v ->
         def dev = DeVices.find{"$it.id" == k}
@@ -476,6 +502,11 @@ def refreshHandler() {   //// Added ver 1.0.3
 			state.DeVices[k].start = now()
 		    }
         else if ((capabilitySelect == "5" && dev.currentTemperature >= tempThreshold && dataDirection) || (capabilitySelect == "5" && dev.currentTemperature < tempThreshold && dataDirection == false)) { //// ver1.1.7
+        	state.DeVices[k].total += now() - state.DeVices[k].start
+            state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
+			state.DeVices[k].start = now()
+		    } 
+        else if ((capabilitySelect == "6" && dev.currentVoltage >= voltThreshold && dataDirection) || (capabilitySelect == "5" && dev.currentVoltage < voltThreshold && dataDirection == false)) { //// ver1.1.7
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
