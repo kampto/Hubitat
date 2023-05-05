@@ -544,7 +544,7 @@ def refreshHandler() {   //// Added ver 1.0.3
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
 		    } 
-        else if ((capabilitySelect == "6" && dev.currentVoltage >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "5" && dev.currentVoltage < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
+        else if ((capabilitySelect == "6" && dev.currentVoltage >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "6" && dev.currentVoltage < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
