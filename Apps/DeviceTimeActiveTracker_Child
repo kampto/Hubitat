@@ -9,6 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.1.8	2023-05-05	kampto		Add option to see last On-time vs last reset. Added per device power, temp, or voltage tracking thresholds in table
 *   1.1.7	2023-05-02	kampto		Added Temperature and Voltage capability. Added temp, voltage and power below threshold tracking
 *   1.1.6	2023-05-01	kampto		Added 'Days' option for table display-only. Fixed remote reset bug and powerHandler bug
 *   1.1.5	2023-04-28	kampto		Added 2nd variable per device to reset cumulative time. More variable and reset options. Added On Counts variable and reset
@@ -23,13 +24,13 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def setVersion() {
-    state.name = "Device Time Active Tracker Child"
-	state.version = "1.1.7"
+    state.name = "Device Active Tracker, Times and Counts (Child)"
+	state.version = "1.1.8"
     }
 
 definition (
 	name: "Device Time Active Tracker Child", namespace: "kampto", author: "T. K.",
-	description: "Track Time a device is active. Attach to a variable",
+	description: "Track Time a device is active, On Counts, and attach data to variables",
 	category: "General",
 	parent: "kampto:Device Time Active Tracker",
 	iconUrl: "",
@@ -47,7 +48,6 @@ def mainPage() {
     if (resetHour == null) {resetHour = 0}
     if (refreshMinutes == null) {refreshMinutes = 10}    //// ver1.1.3
     if (refreshSeconds == null) {refreshSeconds = 30}    //// ver1.1.3
-    if (powerThreshold == null) {powerThreshold = 1} 
     if (capabilitySelect == null) {capabilitySelect = 1}
     if (allTotal == null) {allTotal = 0}   //// ver1.1.3
     state.byPassBool = false  //// ver1.1.4
@@ -60,9 +60,9 @@ def mainPage() {
         if (capabilitySelect == "1") {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
         else if (capabilitySelect == "2") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
         else if (capabilitySelect == "3") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: "<b>3. Select Power reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: "<b>3. Select Temperature reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}
-        else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track Active Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   
+        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: "<b>3. Select Power reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: "<b>3. Select Temperature reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}
+        else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   
         else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
         
     DeVices.each {dev ->
@@ -70,9 +70,9 @@ def mainPage() {
              if (capabilitySelect == "1") {state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}  
              else if (capabilitySelect == "2") {state.DeVices["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}
              else if (capabilitySelect == "3") {state.DeVices["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}
-             else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= powerThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}
-             else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= tempThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]} 
-             else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= voltThreshold ? now() : 0, total: 0, var: "", varC: "", varCT: "", state: "off", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]} 
+             else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0]}   ///////////////////////
+             else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0]} 
+             else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0]} 
              endif    
              state.DeVicesList += dev.id   
              }
@@ -122,7 +122,7 @@ def mainPage() {
 				paragraph "<script>{changeSubmit(this)}</script>"
 				} 
          
-              ///////////////////////// Device On Counts Number type Variable Select  //// ver1.1.5  
+              ///////////////////////// Device On Counts Variable Select  //// ver1.1.5  
               if(state.newVarCT) {
 				List varsCT = getAllGlobalVars().findAll{it.value.type == "integer"}.keySet().collect().sort{it.capitalize()}
                 input "newVarCT", "enum", title: "(Optional) Select Hub Variable to recieve Device on counter results. Variables must first be made in Settings/Hub Variables as NUMBER variable. Use in Rule Machine or view on dashboard tile. If you dont make a variable the only way to see this data opening this App.", submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
@@ -139,6 +139,22 @@ def mainPage() {
 				paragraph "<script>{changeSubmit(this)}</script>"
 				} 
          
+             ///////////////////////// Enter Threshold for Power, Temp, Voltage //// ver1.1.8 
+              if(state.newThresh) {
+                 input name: "newThresh", type: "number", title:"<b>Enter Threshold number to call On/Active.</b> &nbsp<small>Hit Enter</small>", defaultValue: "", required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
+                   if(newThresh) {
+                      state.DeVices[state.newThresh].thresh = newThresh
+                      state.remove("newThresh")
+					  app.removeSetting("newThresh")
+                      paragraph "<script>{changeSubmit(this)}</script>"
+					  }
+				 } 
+              else if(state.remThresh) {
+				state.DeVices[state.remThresh].thresh = ""
+                state.remove("remThresh")  
+				paragraph "<script>{changeSubmit(this)}</script>"
+				} 
+         
           input "reset", "button", title: "RESET Periodic Times, Counts, & Update Variables", width: 5
           input "refresh", "button", title: "REFRESH All Table & Update Variables", width: 4
           input name: "inDaysC", type: "bool", title: "Display Cumulative in Days?", defaultValue:false, submitOnChange:true, width: 3   //// Added ver1.1.6
@@ -146,27 +162,15 @@ def mainPage() {
   }
 //******************************************************* Input Section 2 *******************************************************//        
       section {
-          if (capabilitySelect == "4") {
-             input name: "powerThreshold", type: "number", title:"<b>Enter Power(W) threshold to call On/Active.</b> &nbsp<small>(Default = 1),&nbsp Applys to All</small>", defaultValue: "1", required: false,  submitOnChange:true, width: 6, style: 'margin-left:10px'
-             input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7   
-          }
-          else if (capabilitySelect == "5") {
-             input name: "tempThreshold", type: "number", title:"<b>Enter Temperature threshold to call On/Active.</b> &nbsp<small>(Default = 50),&nbsp Applys to All</small>", defaultValue: "50", required: false, submitOnChange:true, width: 6, style: 'margin-left:10px'
-             input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7     
-          }
-          else if (capabilitySelect == "6") {
-             input name: "voltThreshold", type: "number", title:"<b>Enter Voltage(V) threshold to call On/Active.</b> &nbsp<small>(Default = 12),&nbsp Applys to All</small>", defaultValue: "12", required: false, submitOnChange:true, width: 6, style: 'margin-left:10px'
-             input name: "dataDirection", type: "bool", title: "Track Above Threshold? Or below (unchecked).", defaultValue:true, submitOnChange:true, width: 5   //// Added ver1.1.7     
-          }
-          endif
-          
-          input name: "autoRefresh", type: "enum", title: "<b>Auto Update Variables every XX Minuites or Seconds after the hour?</b>  &nbsp <small>Applys to Auto Update Checked Box(s) in Table only</small>", defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:10px'
+          input name: "viewResfreshBool", type: "bool", title: "<b>View or Change Auto variable Update details?</b> (Default is every 10min, for Devices with box checked in table)", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+              if (viewResfreshBool) {
+              input name: "autoRefresh", type: "enum", title: "<b>Auto Update Variables every XX Minuites or Seconds after the hour?</b>  &nbsp <small>Applys to Auto Update Checked Box(s) in Table only</small>", defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:10px'
                if (autoRefresh == "Seconds") {input name: "refreshSeconds", type: "enum", title: ">> Select Variables Update interval in Seconds for On/Active devices only. &nbsp &nbsp <small>Default = 30sec &nbsp &nbsp Example:7:00:00, 7:00:30, 7:01:00,... NOTE: Faster updates will increase hub load. </small>", defaultValue: "30", submitOnChange: true,  options: ["5","10","15","20","30"], required: false, style: 'margin-left:70px'
                  }
                else if (autoRefresh == "Minutes") {input name: "refreshMinutes", type: "enum", title: ">> Select Variables Update interval in Minutes for On/Active devices only. &nbsp &nbsp <small>Default = 10min &nbsp &nbsp Example:7:00, 7:10, 7:20,...</small>", defaultValue: "10", submitOnChange: true,  options: ["1","2","3","4","5","10","15","20","30"], required: false, style: 'margin-left:70px'
                  }
                endif
-          
+              }
           input name: "autoResetBool", type: "bool", title: "<b>Daily Reset all Timers & Update Variables at a specific Hour?</b> (Does not Reset Cumulative Timer) &nbsp <small>Applys to All</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (autoResetBool) {
              input name: "dayCountsReset", type: "bool", title: "Also Reset All On Counters?", defaultValue:true, submitOnChange:true, style: 'margin-left:70px'   
@@ -183,7 +187,7 @@ def mainPage() {
             input "resetVarC", "enum", title: "Select Boolean Hub Variable to Reset checkboxed CUMULATIVE & PERIODIC Timers/Counts", submitOnChange: true, style: 'margin-left:70px',
 				options: getAllGlobalVars().findAll{it.value.type == "boolean"}.keySet().collect().sort{it.capitalize()}  
                }
-          
+          input name: "lastResetTimeBool", type: "bool", title: "<b>Table Display Last Reset Time? Otherwise Last On-Time.</b> &nbsp <small>Applys to All</small>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
           input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates?</b> &nbsp <small>Applys to All</small>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
       }
 //********************************************************  Notes Section ******************************************************//        
@@ -191,6 +195,7 @@ def mainPage() {
       paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
 	  paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on CheckBox."
       paragraph "-Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability."
+      paragraph "-For Power, Temp, or voltage you must click on the Tracker threshold number and enter a new number for each device"
       paragraph "-Set up variables to trigger things in RM (maybe webcore?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
       paragraph "-Variables values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
       paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
@@ -203,7 +208,7 @@ String displayTable() {
     if(state.reset) {  //// Reset Periodic only timer/counts per device
 		def dev = DeVices.find{"$it.id" == state.reset}
         state.DeVices[state.reset].start = now()
-        state.DeVices[state.reset].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
+        if (lastResetTimeBool) {state.DeVices[state.reset].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")}
 		state.DeVices[state.reset].total = 0
         state.DeVices[state.reset].counts = 0   //// ver1.1.3
       	state.remove("reset")
@@ -212,7 +217,7 @@ String displayTable() {
     if(state.resetTotal) {  //// Reset Cumulative and Periodic timers per device      //// ver1.1.3       
 		def dev = DeVices.find{"$it.id" == state.resetTotal}
         state.DeVices[state.resetTotal].start = now()    //// ver1.1.4  
-        state.DeVices[state.resetTotal].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
+        if (lastResetTimeBool) {state.DeVices[state.resetTotal].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")}
         state.DeVices[state.resetTotal].total = 0
         state.DeVices[state.resetTotal].counts = 0
         state.DeVices[state.resetTotal].allTime = 0
@@ -225,34 +230,46 @@ String displayTable() {
         state.remove("checkedBox1")
 	    }
 	else if(state.uncheckedBox1) {
-       def dev = DeVices.find{"$it.id" == state.uncheckedBox1}  
-	   state.DeVices[state.uncheckedBox1].checkBox1 = false
-       state.remove("uncheckedBox1")
-	   }
+        def dev = DeVices.find{"$it.id" == state.uncheckedBox1}  
+	    state.DeVices[state.uncheckedBox1].checkBox1 = false
+        state.remove("uncheckedBox1")
+	    }
     endif
     ////////////// Variable Auto Refresh Check Box
     if(state.checkedBox2) {      //// ver1.1.3
-      def dev = DeVices.find{"$it.id" == state.checkedBox2}  
-	  state.DeVices[state.checkedBox2].checkBox2 = true
-      state.remove("checkedBox2")
-	  }
+        def dev = DeVices.find{"$it.id" == state.checkedBox2}  
+	    state.DeVices[state.checkedBox2].checkBox2 = true
+        state.remove("checkedBox2")
+	    }
 	else if(state.uncheckedBox2) {
-      def dev = DeVices.find{"$it.id" == state.uncheckedBox2}  
-	  state.DeVices[state.uncheckedBox2].checkBox2 = false
-      state.remove("uncheckedBox2")
-	  }
+        def dev = DeVices.find{"$it.id" == state.uncheckedBox2}  
+	    state.DeVices[state.uncheckedBox2].checkBox2 = false
+        state.remove("uncheckedBox2")
+	    }
     endif
     ////////////// Remote Variable Reset Check Box
     if(state.checkedBox3) {      //// ver1.1.4
-      def dev = DeVices.find{"$it.id" == state.checkedBox3}  
-	  state.DeVices[state.checkedBox3].checkBox3 = true
-      state.remove("checkedBox3")
-	  }
+        def dev = DeVices.find{"$it.id" == state.checkedBox3}  
+	    state.DeVices[state.checkedBox3].checkBox3 = true
+        state.remove("checkedBox3")
+	    }
 	else if(state.uncheckedBox3) {
-      def dev = DeVices.find{"$it.id" == state.uncheckedBox3}  
-	  state.DeVices[state.uncheckedBox3].checkBox3 = false
-      state.remove("uncheckedBox3")
-	  }
+        def dev = DeVices.find{"$it.id" == state.uncheckedBox3}  
+	    state.DeVices[state.uncheckedBox3].checkBox3 = false
+        state.remove("uncheckedBox3")
+	    }
+    endif
+    ////////////// Track above or below threshold, Power, Temp, Volts only
+    if(state.checkedBox4) {      //// ver1.1.4
+        def dev = DeVices.find{"$it.id" == state.checkedBox4}  
+	    state.DeVices[state.checkedBox4].checkBox4 = true
+        state.remove("checkedBox4")
+	    }
+	else if(state.uncheckedBox4) {
+        def dev = DeVices.find{"$it.id" == state.uncheckedBox4}  
+	    state.DeVices[state.uncheckedBox4].checkBox4 = false
+        state.remove("uncheckedBox4")
+	    }
     endif
     
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
@@ -263,13 +280,20 @@ String displayTable() {
         "<th>State</th>" +
         "<th>On<br>Counts</th>" +
         "<th>Reset</th>" +
-		"<th>Last<br>Reset</th>" +
-		"<th>Periodic<br>Linked<br>Variable</th>"+
-        "<th>Counts<br>Linked<br>Variable</th>"+ 
-        "<th>Allow<br>Remote<br>Reset?</th>"+      //// ver1.1.4 
-        "<th>Variable<br>Data<br>Type?</th>"+    //// ver1.1.3
-        "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>"+     //// ver1.1.3
-        "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>"+    //// ver1.1.6
+		"<th style='width: 100px !important'>${lastResetTimeBool ? "Last<br>Reset" : "Last<br>On<br>Time"}</th>" +   //// ver1.1.8  /////////////
+		"<th>Periodic<br>Linked<br>Variable</th>" +
+        "<th>Counts<br>Linked<br>Variable</th>" 
+            
+        if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6") { str +=    //// ver1.1.8 
+            "<th>Tracker<br>Threshold </th>" + 
+            "<th>Track<br>Above<br>Threshold? </th>"
+            }     
+               
+        str += 
+        "<th>Allow<br>Remote<br>Reset?</th>" +      //// ver1.1.4 
+        "<th>Variable<br>Data<br>Type?</th>" +    //// ver1.1.3
+        "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>" +     //// ver1.1.3
+        "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>" +    //// ver1.1.6
         "<th>Reset<br>Total</th>"+   //// ver1.1.0
         "<th>Cumulative<br>Linked<br>Variable</th></tr></thead>"   //// ver1.1.4
 	   
@@ -277,6 +301,7 @@ String displayTable() {
         String thisVar = state.DeVices["$dev.id"].var
         String thisVarC = state.DeVices["$dev.id"].varC   //// ver1.1.4
         String thisVarCT = state.DeVices["$dev.id"].varCT   //// ver1.1.5
+        String thisThresh = state.DeVices["$dev.id"].thresh   //// ver1.1.8
          
         ////////// Active/On Time Calc
         int counts = state.DeVices["$dev.id"].counts   //// ver1.1.5 
@@ -311,38 +336,47 @@ String displayTable() {
         String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
         String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// ver1.1.4
         String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// ver1.1.5
+        String varThresh = thisThresh ? buttonLink("q$dev.id", thisThresh, "purple") : buttonLink("u$dev.id", "Select", "green")  //// ver1.1.8
         
         String checkedBox1T = (state.DeVices["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
         String checkedBox2T = (state.DeVices["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
         String checkedBox3T = (state.DeVices["$dev.id"].checkBox3) ? buttonLink("g$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("h$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.4
+        String checkedBox4T = (state.DeVices["$dev.id"].checkBox4) ? buttonLink("o$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.8
                               
+        
         str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" 
 		if (capabilitySelect == "1") { str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"}
         else if (capabilitySelect == "2") {str += "<td style='font-weight:bold; color:${dev.currentContact == "open" ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentContact == "open" ? "green" : "red"}'title='State $dev'>$dev.currentContact</td>" }
         else if (capabilitySelect == "3") {str += "<td style='font-weight:bold; color:${dev.currentContact == "closed" ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.dev.currentContact == "closed" ? "green" : "red"}'title='State $dev'>$dev.currentContact</td>"} 
-        else if (capabilitySelect == "4" && dataDirection) {str += "<td style='font-weight:bold; color:${dev.currentPower >= powerThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentPower >= powerThreshold ? "green" : "red"}'title='State $dev'>$dev.currentPower</td>"} 
-        else if (capabilitySelect == "4" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentPower >= powerThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentPower >= powerThreshold ? "red" : "green"}'title='State $dev'>$dev.currentPower</td>"} 
-        else if (capabilitySelect == "5" && dataDirection) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= tempThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= tempThreshold ? "green" : "red"}'title='State $dev'>$dev.currentTemperature</td>"} 
-        else if (capabilitySelect == "5" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= tempThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= tempThreshold ? "red" : "green"}'title='State $dev'>$dev.currentTemperature</td>"} 
-        else if (capabilitySelect == "6" && dataDirection) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= voltThreshold ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= voltThreshold ? "green" : "red"}'title='State $dev'>$dev.currentVoltage</td>"} 
-        else if (capabilitySelect == "6" && dataDirection == false) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= voltThreshold ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= voltThreshold ? "red" : "green"}'title='State $dev'>$dev.currentVoltage</td>"} 
+        else if (capabilitySelect == "4" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentPower >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentPower >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentPower</td>"} 
+        else if (capabilitySelect == "4" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentPower >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentPower >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'title='State $dev'>$dev.currentPower</td>"} 
+        else if (capabilitySelect == "5" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentTemperature</td>"} 
+        else if (capabilitySelect == "5" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentTemperature >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentTemperature >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'title='State $dev'>$dev.currentTemperature</td>"} 
+        else if (capabilitySelect == "6" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentVoltage</td>"} 
+        else if (capabilitySelect == "6" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentVoltage >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'>$time</td>" + "<td style='color:${dev.currentVoltage >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'title='State $dev'>$dev.currentVoltage</td>"} 
         endif 
                            
         str += "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td title='Reset for $dev' style='padding:0px 0px'>$reset</td>" +
-		"<td style='width: 100px' title='Time of last Reset for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>" +  
+		"<td title='Time of last Reset for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>" +  
         "<td title='${thisVar ? "Deselect $thisVar" : "Select Hub Variable"}'>$var</td>" +
-        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +    //// ver1.1.5
+        "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>"    //// ver1.1.5
+            
+        if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6") { str +=    //// ver1.1.8
+            "<td title='${thisThresh ? "Click to Change Threshold Number" : "Select Threshold"}'>$varThresh</td>" +       
+            "<td title='Check Box to Track Above threhold number, otherwise Track below. DO NOT change after initial set-up.'>$checkedBox4T</td>"           
+             }
+        str += 
         "<td title='Allow Remote reset for this device'>$checkedBox3T</td>" +     //// ver1.1.4    
         "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +     //// ver1.1.3
         "<td style='border-right:3px solid black' title='Check Box to Apply Auto Variable refresh Update interval from below'>$checkedBox2T</td>" +   //// ver1.1.3  
         "<td style='font-weight:bold' title='${inDaysC ? "Total Cumulative Time in Days" : "Total Cumulative Time"}'>$allTimeT</td>" +   //// ver1.1.6     
         "<td title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>" +  //// ver1.1.0
         "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// ver1.1.4
-     }
+        }
    	str += "</table></div>"
 	str
-}
+ }
 
 String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "13px") {
    "<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
@@ -351,16 +385,16 @@ String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "13
 //***************************************************  Schedules and Subscribes ******************************************************//
 void initialize() {
     if (capabilitySelect == "1") {
-	subscribe(DeVices, "switch.on", onHandler)
-	subscribe(DeVices, "switch.off", offHandler)
+	    subscribe(DeVices, "switch.on", onHandler)
+	    subscribe(DeVices, "switch.off", offHandler)
     }
     else if (capabilitySelect == "2") {
-	subscribe(DeVices, "contact.open", onHandler)
-    subscribe(DeVices, "contact.closed", offHandler)
+	    subscribe(DeVices, "contact.open", onHandler)
+        subscribe(DeVices, "contact.closed", offHandler)
     }
     else if (capabilitySelect == "3") {
-	subscribe(DeVices, "contact.open", offHandler)
-	subscribe(DeVices, "contact.closed", onHandler)
+	    subscribe(DeVices, "contact.open", offHandler)
+	    subscribe(DeVices, "contact.closed", onHandler)
     }
     else if (capabilitySelect == "4") { //// ver1.0.2
         subscribe(DeVices, "power", powerHandler) 
@@ -391,36 +425,36 @@ void initialize() {
 
 //********************************************************  Handlers *************************************************************//
 def powerHandler(evt) {  //// ver1.1.6
-    //log.debug "TESTpower1...powerHandler() called: ${evt.name} = ${evt.device.currentPower}...state.power = ${state.DeVices[evt.device.id].state}... evt.device.id: ${evt.device.id}"
-    if (dataDirection && evt.device.currentPower >= powerThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection && evt.device.currentPower < powerThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
-    else if (dataDirection == false && evt.device.currentPower < powerThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection == false && evt.device.currentPower >= powerThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentPower >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentPower < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentPower < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentPower >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     endif
-    //log.debug "TESTpower2...powerHandler() called: ${evt.name} = ${evt.device.currentPower}...state.power = ${state.DeVices[evt.device.id].state}... evt.device.id: ${evt.device.id}"
 }
   
 def tempHandler(evt) {  //// ver1.1.7
-    if (dataDirection && evt.device.currentTemperature >= tempThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection && evt.device.currentTemperature < tempThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
-    else if (dataDirection == false && evt.device.currentTemperature < tempThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection == false && evt.device.currentTemperature >= tempThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentTemperature >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentTemperature < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.currentTemperature < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.currentTemperature >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     endif
 } 
 
 def voltHandler(evt) {  //// ver1.1.7
-    if (dataDirection && evt.device.currentVoltage >= voltThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection && evt.device.currentVoltage < voltThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
-    else if (dataDirection == false && evt.device.currentVoltage < voltThreshold && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
-    else if (dataDirection == false && evt.device.currentVoltage >= voltThreshold && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentVoltage >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentVoltage < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.currentVoltage < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.currentVoltage >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     endif
 } 
     
 void onHandler(evt) {
     state.DeVices[evt.device.id].start = now()
     state.DeVices[evt.device.id].counts += 1  //// ver1.1.3
+    if (lastResetTimeBool == false) {state.DeVices[evt.device.id].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")} //// ver1.1.8  ///////////////
     if (resetWhenOnBool) {deviceOnSaveCountsReset()} //// ver1.1.0
 }
+
 
 void offHandler(evt) {
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
@@ -454,8 +488,8 @@ void offHandler(evt) {
              if (thisVarC) {state.DeVices[evt.device.id].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)   //// ver1.1.4 
                if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
              }
-             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5   
-  }
+             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5 
+}
 
 void appButtonHandler(btn) {
     if (btn == "reset") resetTimers() //// ver1.0.1
@@ -472,7 +506,11 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("e")) state.uncheckedBox2 = btn.minus("e")  //// ver1.1.3  
     else if (btn.startsWith("f")) state.checkedBox2 = btn.minus("f")    //// ver1.1.3 
     else if (btn.startsWith("g")) state.uncheckedBox3 = btn.minus("g")   //// ver1.1.4  
-    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")   //// ver1.1.4       
+    else if (btn.startsWith("h")) state.checkedBox3 = btn.minus("h")   //// ver1.1.4
+    else if (btn.startsWith("o")) state.uncheckedBox4 = btn.minus("o")   //// ver1.1.8  
+    else if (btn.startsWith("p")) state.checkedBox4 = btn.minus("p")   //// ver1.1.8       
+    else if (btn.startsWith("q")) state.newThresh = btn.minus("q")   //// ver1.1.8
+	else if (btn.startsWith("u")) state.remThresh = btn.minus("u")   //// ver1.1.8     
     else state.reset = btn.minus("d")
     }
 
@@ -496,17 +534,17 @@ def refreshHandler() {   //// Added ver 1.0.3
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)  //// ver1.1.3
 			state.DeVices[k].start = now()
 		    }
-        else if ((capabilitySelect == "4" && dev.currentPower >= powerThreshold && dataDirection) || (capabilitySelect == "4" && dev.currentPower < powerThreshold && dataDirection == false)) { //// ver1.0.2
+        else if ((capabilitySelect == "4" && dev.currentPower >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "4" && dev.currentPower < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.0.2
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)  //// ver1.1.3
 			state.DeVices[k].start = now()
 		    }
-        else if ((capabilitySelect == "5" && dev.currentTemperature >= tempThreshold && dataDirection) || (capabilitySelect == "5" && dev.currentTemperature < tempThreshold && dataDirection == false)) { //// ver1.1.7
+        else if ((capabilitySelect == "5" && dev.currentTemperature >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "5" && dev.currentTemperature < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
 		    } 
-        else if ((capabilitySelect == "6" && dev.currentVoltage >= voltThreshold && dataDirection) || (capabilitySelect == "5" && dev.currentVoltage < voltThreshold && dataDirection == false)) { //// ver1.1.7
+        else if ((capabilitySelect == "6" && dev.currentVoltage >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "5" && dev.currentVoltage < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
@@ -516,7 +554,7 @@ def refreshHandler() {   //// Added ver 1.0.3
         //////////// Update Variables if Active/On  
         DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
           String thisVar = state.DeVices["$dev.id"].var
-          String thisVarC = state.DeVices["$dev.id"].varC    //// ver1.1.4
+          String thisVarC = state.DeVices["$dev.id"].varC   //// ver1.1.4
           String thisVarCT = state.DeVices["$dev.id"].varCT   //// ver1.1.5
             
             ////////// Active/On Time Calc   
@@ -570,7 +608,7 @@ void remoteReset(evt = null) {   //// ver1.1.4
 		def dev = DeVices.find{"$it.id" == k}
         if (state.DeVices[k].checkBox3) {
             state.DeVices[k].start = now()   
-            state.DeVices[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
+            if (lastResetTimeBool) {state.DeVices[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")}
 		    state.DeVices[k].total = 0
             if (state.byPassBool == false) {state.DeVices[k].counts = 0}  //// ver1.1.3
             //if (resetVarAllBool && resetVar && state.DeVices[k].checkBox3) {state.DeVices[k].allTime = 0}  
@@ -588,7 +626,7 @@ void resetTimers(evt = null) {
     state.DeVices.each{k, v ->
         def dev = DeVices.find{"$it.id" == k}
             state.DeVices[k].start = now()   
-            state.DeVices[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
+        if (lastResetTimeBool) {state.DeVices[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")}
 		    state.DeVices[k].total = 0
             if (state.byPassBool == false) {state.DeVices[k].counts = 0}  //// ver1.1.3
         }
@@ -612,4 +650,3 @@ def displayTitle() {
     if(theName == null || theName == "") theName = "New Child App"
 	section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
 }
-
