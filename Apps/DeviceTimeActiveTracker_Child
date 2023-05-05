@@ -9,6 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.2.0   2023-05-05  FriedCheese Several formatting updates. Added displayTables to add search/sort features to the main table.
 *   1.1.8	2023-05-05	kampto		Add option to see last On-time vs last reset. Added per device power, temp, or voltage tracking thresholds in table. Add Thermostat Heeting or Cooling modes.
 *   1.1.7	2023-05-02	kampto		Added Temperature and Voltage capability. Added temp, voltage and power below threshold tracking
 *   1.1.6	2023-05-01	kampto		Added 'Days' option for table display-only. Fixed remote reset bug and powerHandler bug
@@ -25,7 +26,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Active Tracker, Times and Counts (Child)"
-	state.version = "1.1.8"
+	state.version = "1.2.0"
     }
 
 definition (
@@ -43,6 +44,7 @@ preferences {page(name: "mainPage")}
 
 //******************************************************  Page/Input Set-Up  ******************************************************//
 def mainPage() {
+    if(app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
     if (resetHour == null) {resetHour = 0}   //// ver1.0.1
@@ -54,18 +56,22 @@ def mainPage() {
                     
   dynamicPage(name: "", title: "", install: true, uninstall: true) {
   displayTitle() 
-  section {
-        label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
-        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"], ["6":"VOLTAGE Monitor"], ["7":"THERMOSTAT State"]], width: 3, submitOnChange: true, displayDuringSetup: false
-        if (capabilitySelect == "1") {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}    
-        else if (capabilitySelect == "2") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.0.1
-        else if (capabilitySelect == "3") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.0.1
-        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: "<b>3. Select Power reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.0.3
-        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: "<b>3. Select Temperature reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.7
-        else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.7
-       // else if (capabilitySelect == "7") {input "DeVices", "capability.thermostatOperatingState", title: "<b>3. Select Thermostat to Track Heat/Cool state</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.8    
-        else if (capabilitySelect == "7") {input "DeVices", "capability.thermostat", title: "<b>3. Select Thermostat to Track Heat/Cool state</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.8       
-        else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
+  section(getFormat("header","1. App Name"),hideable: true, hidden: hide) {
+        label title: getFormat("important","Enter a name for this child app"), required: true, submitOnChange: true, width: 4
+  }
+  section(getFormat("header","2. Capability Selection"),hideable: true, hidden: hide) {
+        input name: "capabilitySelect", type: "enum", title: getFormat("important","Select a capability to track"), required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"], ["6":"VOLTAGE Monitor"], ["7":"THERMOSTAT State"]], width: 4, submitOnChange: true, displayDuringSetup: false
+  }
+  section(getFormat("header","3. Device Selection"),hideable: true, hidden: hide) {
+        if (capabilitySelect == "1") {input "DeVices", "capability.switch", title: getFormat("important","Select Devices to Track Switch On Time"), required: true, multiple: true, submitOnChange: true, width: 6}    
+        else if (capabilitySelect == "2") {input "DeVices", "capability.contactSensor", title: getFormat("important","Select Devices to Track Contact Open Time"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.0.1
+        else if (capabilitySelect == "3") {input "DeVices", "capability.contactSensor", title: getFormat("important","Select Devices to Track Contact Closed Time"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.0.1
+        else if (capabilitySelect == "4") {input "DeVices", "capability.powerMeter", title: getFormat("important","Select Power reporting Devices to Track"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.0.3
+        else if (capabilitySelect == "5") {input "DeVices", "capability.temperatureMeasurement", title: getFormat("important","Select Temperature reporting Devices to Track"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.1.7
+        else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: getFormat("important","Select Voltage reporting Devices to Track"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.1.7
+       // else if (capabilitySelect == "7") {input "DeVices", "capability.thermostatOperatingState", title: "Select Thermostat to Track Heat/Cool state", required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.1.8    
+        else if (capabilitySelect == "7") {input "DeVices", "capability.thermostat", title: getFormat("important","Select Thermostat to Track Heat/Cool state"), required: true, multiple: true, submitOnChange: true, width: 6}   //// ver1.1.8       
+        else {input "DeVices", "capability.switch", title: getFormat("important","Select Devices to Track Switch On Time"), multiple: true, submitOnChange: true, width: 6}
         
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
@@ -80,7 +86,8 @@ def mainPage() {
              state.DeVicesList += dev.id   
              }
 	    }
-                           
+  }
+  section{                         
      if(DeVices) {
            	if(DeVices.id.sort() != state.DeVicesList.sort()) { 
 				state.DeVicesList = DeVices.id
@@ -158,52 +165,54 @@ def mainPage() {
 				paragraph "<script>{changeSubmit(this)}</script>"
 				} 
          
-          input "reset", "button", title: "RESET Periodic Times, Counts, & Update Variables", width: 5   //// ver1.0.1
-          input "refresh", "button", title: "REFRESH All Table & Update Variables", width: 4    //// ver1.0.3
-          input name: "inDaysC", type: "bool", title: "Display Cumulative in Days?", defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6
+          input "reset", "button", title: getFormat("important2","RESET Periodic Times, Counts,<br>& Update Variables"), width: 4   //// ver1.0.1
+          input "refresh", "button", title: getFormat("important2","REFRESH Table<br>& Update Variables"), width: 4    //// ver1.0.3
+          input name: "inDaysC", type: "bool", title:getFormat("important2","Display Cumulative in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6
 		}
   }
 //********************************************************* Input Section 2 *******************************************************//        
-      section {
-          input name: "viewResfreshBool", type: "bool", title: "<b>View or Change Auto variable Update details?</b> (Default is every 10min, for Devices with a variable and box checked in table)", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver1.1.8
+      section(getFormat("header","Advanced Options"),hideable: true, hidden: false) {
+          input name: "viewResfreshBool", type: "bool", title: getFormat("important2","View or Change Auto variable Update details? (Default is every 10min, for Devices with a variable and box checked in table)"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver1.1.8
               if (viewResfreshBool) {
-              input name: "autoRefresh", type: "enum", title: "<b>Auto Update Variables every XX Minuites or Seconds after the hour?</b>  &nbsp <small>Applys to Auto Update Checked Box(s) in Table only</small>", defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:10px'
-               if (autoRefresh == "Seconds") {input name: "refreshSeconds", type: "enum", title: ">> Select Variables Update interval in Seconds for On/Active devices only. &nbsp &nbsp <small>Default = 30sec &nbsp &nbsp Example:7:00:00, 7:00:30, 7:01:00,... NOTE: Faster updates will increase hub load. </small>", defaultValue: "30", submitOnChange: true,  options: ["5","10","15","20","30"], required: false, style: 'margin-left:70px'
+              input name: "autoRefresh", type: "enum", title: getFormat("important","Auto Update Variables every XX Minutes or Seconds after the hour?</b><br><small>Applies to Auto Update Checked Box(s) in Table only</small>"), defaultValue:"Minutes", submitOnChange:true, options: ["Don't Update", "Minutes","Seconds"], required: false, style: 'margin-left:60px'
+               if (autoRefresh == "Seconds") {input name: "refreshSeconds", type: "enum", title: getFormat("lessImportant",">> Select Variables Update interval in Seconds for On/Active devices only.<br><small>Default = 30sec<br>Example:7:00:00, 7:00:30, 7:01:00,...<br>NOTE: Faster updates will increase hub load.</small>"), defaultValue: "30", submitOnChange: true,  options: ["5","10","15","20","30"], required: false, style: 'margin-left:110px'
                  }
-               else if (autoRefresh == "Minutes") {input name: "refreshMinutes", type: "enum", title: ">> Select Variables Update interval in Minutes for On/Active devices only. &nbsp &nbsp <small>Default = 10min &nbsp &nbsp Example:7:00, 7:10, 7:20,...</small>", defaultValue: "10", submitOnChange: true,  options: ["1","2","3","4","5","10","15","20","30"], required: false, style: 'margin-left:70px'
+               else if (autoRefresh == "Minutes") {input name: "refreshMinutes", type: "enum", title: getFormat("lessImportant",">> Select Variables Update interval in Minutes for On/Active devices only.<br><small>Default = 10min<br>Example:7:00, 7:10, 7:20,...</small>"), defaultValue: "10", submitOnChange: true,  options: ["1","2","3","4","5","10","15","20","30"], required: false, style: 'margin-left:110px'
                  }
                endif
               }
-          input name: "autoResetBool", type: "bool", title: "<b>Daily Reset all Timers & Update Variables at a specific Hour?</b> (Does not Reset Cumulative Timer) &nbsp <small>Applys to All</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+          input name: "autoResetBool", type: "bool", title: getFormat("important2","Daily Reset all Timers & Update Variables at a specific Hour?<br>(Does not Reset Cumulative Timer)<br><small>Applies to All</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (autoResetBool) {
-             input name: "dayCountsReset", type: "bool", title: "Also Reset All On Counters?", defaultValue:true, submitOnChange:true, style: 'margin-left:70px'   
-             input name: "resetHour", type: "enum", title: ">> Select an Hour for Auto Reset Everyday, 0 to 23. &nbsp &nbsp <small>Default = 0 (Midnight)</small>", defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], required: false, style: 'margin-left:70px'
+             input name: "dayCountsReset", type: "bool", title: getFormat("important","Also Reset All On Counters?"), defaultValue:true, submitOnChange:true, style: 'margin-left:60px'   
+             input name: "resetHour", type: "enum", title: getFormat("lessImportant",">> Select an Hour for Auto Reset Everyday, 0 to 23.<br><small>Default = 0 (Midnight)</small>"), defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], required: false, style: 'margin-left:110px'
              }
           
-          input name: "resetWhenOnBool", type: "bool", title: "<b>Reset & Restart all Timers & Update Variables when any Device becomes On/Active?</b> (Does not Reset Cumulative Times or Counts) &nbsp <small>Applys to All</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+          input name: "resetWhenOnBool", type: "bool", title: getFormat("important2","Reset & Restart all Timers & Update Variables when any Device becomes On/Active?<br>(Does not Reset Cumulative Times or Counts)<br><small>Applies to All</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           
-          input name: "remoteResetVarBool", type: "bool", title: "<b>Remote Reset Times & Counts by Hub Variable outside of App, For Optional Rule Machine access.</b> &nbsp <small>Applys to Remote Resest Checked Box(s) in Table only</small>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+          input name: "remoteResetVarBool", type: "bool", title: getFormat("important2","Remote Reset Times & Counts by Hub Variable outside of App<br>(For Optional Rule Machine access.)<br><small>Applies to Remote Resest Checked Box(s) in Table only</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (remoteResetVarBool) {
             //input name: "resetVarAllBool", type: "bool", title: "Also Reset Cumulative total also with same variable?", defaultValue:false, submitOnChange:true, style: 'margin-left:70px'  
-            input "resetVar", "enum", title: "Select Boolean Hub Variable to Reset checkboxed PERIODIC only Timers/Counts, Must make a Boolean variable first in Settings/Hub Variables. In Rule Machine set variable 'true' to trigger.", submitOnChange: true, style: 'margin-left:70px',
+            input "resetVar", "enum", title: getFormat("important","Select Boolean Hub Variable to Reset checkboxed PERIODIC only Timers/Counts.<br>Must make a Boolean variable first in Settings/Hub Variables.<br>In Rule Machine set variable 'true' to trigger."), submitOnChange: true, style: 'margin-left:60px',
 				options: getAllGlobalVars().findAll{it.value.type == "boolean"}.keySet().collect().sort{it.capitalize()}
-            input "resetVarC", "enum", title: "Select Boolean Hub Variable to Reset checkboxed CUMULATIVE & PERIODIC Timers/Counts", submitOnChange: true, style: 'margin-left:70px',
+            input "resetVarC", "enum", title: getFormat("important","Select Boolean Hub Variable to Reset checkboxed CUMULATIVE & PERIODIC Timers/Counts"), submitOnChange: true, style: 'margin-left:60px',
 				options: getAllGlobalVars().findAll{it.value.type == "boolean"}.keySet().collect().sort{it.capitalize()}  
                }
-          input name: "lastResetTimeBool", type: "bool", title: "<b>Table Display Last Reset Time? Otherwise Last On-Time.</b> &nbsp <small>Applys to All</small>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
-          input name: "logEnableBool", type: "bool", title: "<b>Enable Logging of App based Resets and Variable Refresh/Updates?</b> &nbsp <small>Applys to All</small>", defaultValue:true, submitOnChange:true, style: 'margin-left:10px'  //// ver1.1.3
+          input name: "lastResetTimeBool", type: "bool", title: getFormat("important2","Table Display Last Reset Time?<br>(Otherwise Last On-Time.)<br><small>Applies to All</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
+          input name: "logEnableBool", type: "bool", title: getFormat("important2","Enable Logging of App based Resets and Variable Refresh/Updates?<br><small>Applies to All</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'  //// ver1.1.3
       }
 //**********************************************************  Notes Section ******************************************************//        
-   section("<b>Usage Notes:</b>", hideable: true, hidden: true) {  //// ver1.1.5
-      paragraph "-App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background."
-	  paragraph "-Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on Check Box."
-      paragraph "-Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability."
-      paragraph "-For Power, Temp, or Voltage you must click on the Tracker threshold number and enter new number for each device. Then above or below Chack Box"
-      paragraph "-For Thermostat operation mode tracking, you can track 'heating' or 'cooling' modes depnding on in table Check Box." 
-      paragraph "-Set up variables to trigger things in RM (maybe webcore?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc.."
-      paragraph "-Variable values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts."
-      paragraph "-Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM."
-      paragraph "-Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh."
+   section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {  //// ver1.1.5
+      paragraph getFormat("lessImportant","<ul>"+
+      "<li>App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background.</li>"+
+	  "<li>Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on Check Box.</li>"+
+      "<li>Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability.</li>"+
+      "<li>For Power, Temp, or Voltage you must click on the Tracker threshold number and enter new number for each device. Then above or below Chack Box</li>"+
+      "<li>For Thermostat operation mode tracking, you can track 'heating' or 'cooling' modes depnding on in table Check Box.</li>"+ 
+      "<li>Set up variables to trigger things in RM (maybe webcore?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc..</li>"+
+      "<li>Variable values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts.</li>"+
+      "<li>Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM.</li>"+
+      "<li>Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh.</li>"+
+      "</ul>")
       }
   }
 }
@@ -277,8 +286,10 @@ String displayTable() {
     endif
     
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
-	str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
-        "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
+	str += "<link rel='stylesheet' type='text/css' href='https://cdn.datatables.net/v/bs/dt-1.11.3/datatables.min.css'/>" //Add datatables to support search/sort of table
+	str += "<script type='text/javascript' src='https://cdn.datatables.net/v/bs/dt-1.11.3/datatables.min.js'></script>"
+    str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
+        "</style><div style='overflow-x:auto'><table id='main-table' class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
 		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
 		"<th>Periodic<br>Active<br>OnTime</th>" +
         "<th>State</th>" +
@@ -387,6 +398,7 @@ String displayTable() {
         "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td></tr>"    //// ver1.1.4
         }
    	str += "</table></div>"
+    str += "<script type='text/javascript'>\$(document).ready(function() { \$('#main-table').DataTable( {paging: false} ); } );</script>"
 	str
  }
 
@@ -396,6 +408,8 @@ String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "13
 
 //*****************************************************  Schedules and Subscribes ******************************************************//
 void initialize() {
+    log.debug "intialized"
+    
     if (capabilitySelect == "1") {
 	    subscribe(DeVices, "switch.on", onHandler)
 	    subscribe(DeVices, "switch.off", offHandler)
@@ -667,10 +681,19 @@ def updated() {
     unschedule()
     initialize()
 }
+
 def installed() {
 }
+
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
+    if(type == "header") return "<div style='color:#660000;font-weight: bold'>${myText}</div>"
+	if(type == "red") return "<div style='color:#660000'>${myText}</div>"
+	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
+	if(type == "important") return "<div style='color:#32a4be'>${myText}</div>"
+	if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
+	if(type == "important2Bold") return "<div style='color:#5a8200;font-weight: bold'>${myText}</div>"
+	if(type == "lessImportant") return "<div style='color:green'>${myText}</div>"
 }
 def displayTitle() {
     setVersion()
