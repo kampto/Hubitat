@@ -10,12 +10,13 @@
 *	Change Revision History:  
 *	Ver		Date:		Who:		What:
 * 	1.X.X	2023-4-12	kampto		Refernce Child App for revisions
-* 	1.0.1	2022-10-02	kampto		First instance of Parent/Child apps. 
+* 	1.0.1	2022-10-02	kampto		First instance of Parent/Child apps.
+
 */
 
 def setVersion(){
-    state.name = "Device Time Active Tracker"
-	state.version = "1.X.X"
+    state.name = "Device Active Tracker, Times and Counts"
+	state.version = "1.X.X <br>  <small> See Child App for revision history </small>"
 }
 
 definition(
@@ -26,7 +27,8 @@ definition(
 	iconX2Url: "",
 	iconX3Url: "",
     importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/DeviceTimeActiveTracker",
-    documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896"
+    documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896",
+	installOnOpen: true
 )
 
 preferences { page(name: "Config") }
@@ -36,17 +38,26 @@ def Config() {
 		displayTitle()
     	installCheck()
 		if(state.appInstalled == 'COMPLETE'){
-			section("<b>Purpose & Instructions:</b>", hideable: true, hidden: true) {
-			paragraph "Purpose: Track the time a device or thing is On, Open, Active. Link varibales to moniotr on dashboard or rule machine"
-			paragraph "-Use this Parent App to install one or more child apps.<br>-Then configure the child app; select devices, name it, hit done." 	
-            paragraph "-If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String or Number and link to in the child app"
+			section(getFormat("header","Purpose & Instructions:"), hideable: true, hidden: true) {
+			paragraph getFormat("important","Purpose:<br>")+
+			getFormat("important2","<ul>"+
+			"<li>Track the time a device or thing is On, Open, Active.</li>"+
+			"<li>Link variables to monitor on dashboard or rule machine.</li>"+
+			"</ul>")
+
+			paragraph getFormat("important","Instructions:<br>")+
+			getFormat("important2","<ul>"+
+			"<li>Use this Parent App to install one or more child apps.</li>"+
+			"<li>Configure the child app; select devices, name it, hit done."+
+            "<li>If you want to see the device On-time on dashoboard or as a device then first set up a variable in Settings/Hub Variables as String or Number and link to in the child app</li>"+
+			"</ul>")
             }
 			section("") {
-				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: "<b>Click to add a new 'Device Time Tracker' child</b>", multiple: true)
+				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: getFormat("header","<b>Click to add a new 'Device Time Tracker' child"), multiple: true)
 			}
   			
 			section("") {
-       		label title: "<b>Change name for parent app (optional)</b>", required: false
+       		label title: getFormat("importantBold","Change name for parent app (optional)"), required: false
  			}
 			
 		}
@@ -81,14 +92,21 @@ def installCheck(){
   	}
 }
 
-def getFormat(type, myText="") {		
-    if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
-	if(type == "red") return "<style='color:#ff5349;'>${myText}"
-	}
+def getFormat(type, myText="") {
+	if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
+	if(type == "header") return "<div style='color:#660000;font-weight: bold'>${myText}</div>"
+	if(type == "red") return "<div style='color:#660000'>${myText}</div>"
+	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
+	if(type == "important") return "<div style='color:#32a4be'>${myText}</div>"
+	if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
+	if(type == "important2Bold") return "<div style='color:#5a8200;font-weight: bold'>${myText}</div>"
+	if(type == "lessImportant") return "<div style='color:green'>${myText}</div>"
+	if(type == "rateDisplay") return "<div style='color:green; text-align: center;font-weight: bold'>${myText}</div>"
+}
 
 def displayTitle() {
     setVersion()
     theName = app.label
     if(theName == null || theName == "") theName = "New Child App"
-	section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
+	return section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
     }
