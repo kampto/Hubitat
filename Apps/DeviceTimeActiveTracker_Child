@@ -161,8 +161,10 @@ def mainPage() {
 				paragraph "<script>{changeSubmit(this)}</script>"
 				} 
          
-          input "reset", "button", title: getFormat("important2","RESET Periodic Times, Counts & Update Variables"), width: 5   //// ver1.0.1
-          input "refresh", "button", title: getFormat("important2","REFRESH Table & Update Variables"), width: 4    //// ver1.0.3
+          //input "reset", "button", title: getFormat("important2","RESET Periodic Times, Counts & Update Variables"), width: 5   //// ver1.0.1
+          //input "refresh", "button", title: getFormat("important2","REFRESH Table & Update Variables"), width: 4    //// ver1.0.3
+          input "reset", "button", title: "RESET Periodic Times, Counts & Update Variables", width: 5   //// ver1.0.1
+          input "refresh", "button", title: "REFRESH Table & Update Variables", width: 4    //// ver1.0.3
           input name: "inDaysC", type: "bool", title:getFormat("important2","Display Cumulative in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6
 		}
   }
