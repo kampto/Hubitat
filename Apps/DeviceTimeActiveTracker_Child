@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variables to a differnt Table.
+*   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variable to a differnt Table.
 *   1.2.0	2023-05-06	FriedCheese	Pull request: Alternative format Option; App UI page formatting updates, Table sort, search option. 
 *   1.1.8	2023-05-05	kampto		Add option to see last On-time vs last reset. Added per device power, temp, or voltage tracking thresholds in table. Add Thermostat Heating or Cooling modes.
 *   1.1.7	2023-05-02	kampto		Added Temperature and Voltage capability. Added temp, voltage and power below threshold tracking
@@ -384,7 +384,6 @@ String displayTable() {
 		"<td title='Last time went On for $dev'>${state.DeVices["$dev.id"].onTime ?: ""} </td>" +
         "<td title='Last Reset time for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>"
         
-            
         if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6") {    //// ver1.1.8
             str += "<td title='Minumum Value recorded'>${state.DeVices["$dev.id"].min}</td>" + 
             "<td title='Maximum Value recorded'>${state.DeVices["$dev.id"].max}</td>" +
@@ -532,13 +531,19 @@ def voltHandler(evt) {  //// ver1.1.7
     else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentVoltage >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     endif
 } 
-    
-def thermostatHandler(evt) {  //// ver1.1.8
+   
+def thermostatHandler(evt) {  //// ver1.1.8   // tested user2371
     state.DeVices[evt.device.id].state = evt.device.currentThermostatOperatingState
-    if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentThermostatOperatingState == "heating") {onHandler(evt)}
-    else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentThermostatOperatingState != "heating") {offHandler(evt)}
-    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentThermostatOperatingState == "cooling") {onHandler(evt)}
-    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentThermostatOperatingState != "cooling") {offHandler(evt)}
+    if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentThermostatOperatingState == "heating") {
+        state.curTrack = "heat"
+        onHandler(evt)
+    }
+    else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentThermostatOperatingState != "heating" && state.curTrack == "heat") {offHandler(evt)}
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentThermostatOperatingState == "cooling") {
+        state.curTrack = "cool"
+        onHandler(evt)
+    }
+    else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentThermostatOperatingState != "cooling" && state.curTrack =="cool") {offHandler(evt)}
     endif
 } 
     
@@ -755,13 +760,11 @@ def logsOff() {
 }
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
-    if (formatBool) {
-        if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"}  //// ver1.2.0
-        if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
+    if (formatBool) {if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"}  //// ver1.2.0
+                     if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
     }
-    else {
-        if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"
-        if(type == "important2") return "<div style='color:#000000'>${myText}</div>"
+    else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"
+          if(type == "important2") return "<div style='color:#000000'>${myText}</div>"
     }
     //if(type == "red") return "<div style='color:#660000'>${myText}</div>"
 	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
