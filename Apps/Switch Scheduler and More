@@ -15,14 +15,14 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Lights, Outlets, Switches, Relays, Sprinklers,..) ";    state.version = "1.0.0" }
+def titleVersion() { state.name = "Switch Scheduler (Turn On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..) ";    state.version = "1.0.0" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate Switches, Relays, Outlets Sprinklers",
 	category: "General",
    	iconUrl: "",
 	iconX2Url: "",
-    importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch-Sprinkler_Scheduler",
+    importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch%20Scheduler%20and%20More",
     //documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896"
 	)
 preferences { page(name: "mainPage") }
@@ -184,7 +184,7 @@ String displayTable() {
         "<th>State</th>" +     
 		"<th style='width: 80px !important'>Start<br>Time</th>" +
         "<th style='width: 80px !important'>Run Time<br>Minutes</th>" +
-        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thur</th>" + "<th>Fri</th>" + "<th>Sat</th>" +
+        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thur</th>" + "<th>Fri</th>" + "<th style='border-right:2px solid black'>Sat</th>" +
         "<th>On<br>Counts" +    
         "<th>Total<br>On Time</th>"+
         "<th>Reset<br>On Time</th></tr></thead>"
@@ -230,7 +230,7 @@ String displayTable() {
         "<td title='Check Box to select Day'>$wedCheckBoxT</td>" +  
         "<td title='Check Box to select Day'>$thuCheckBoxT</td>" +  
         "<td title='Check Box to select Day'>$friCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$satCheckBoxT</td>" +
+        "<td style='border-right:2px solid black' title='Check Box to select Day'>$satCheckBoxT</td>" +
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +       
         "<td style='border-right:3px solid black' title='Reset Total On Time for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
