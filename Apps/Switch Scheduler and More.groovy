@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.0.0	2023-05-09	kampto    	First Build from scratch, BETA Release.
+*   1.0.0	2023-05-09	kampto    	First Build from scratch, Alpha Release.
 */
 
 import groovy.time.TimeCategory
