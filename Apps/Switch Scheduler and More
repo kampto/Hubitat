@@ -37,7 +37,7 @@ def mainPage() {
   displayTitle() 
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
         label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
-        input "DeVices", "capability.switch", title: "<b>2. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5    
+        input "DeVices", "capability.switch", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
                 
      DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
