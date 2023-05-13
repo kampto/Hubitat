@@ -1,7 +1,7 @@
 /* Switch Scheduler and More
 *  
 *	2023 T. K. (kampto)
-*	NOTES: Generate a schedule to Automate Lights, Outlets, Switches, Relays, Sprinklers,. 
+*	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers,. 
 *   
 *    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 *    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
@@ -9,13 +9,14 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.0.1	2023-05-12	kampto    	Sprinkler Options with moisture sensor. More usage notes.
 *   1.0.0	2023-05-09	kampto    	First Build from scratch, Alpha Release.
 */
 
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Turn On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..) ";    state.version = "1.0.0" }
+def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.1" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate Switches, Relays, Outlets Sprinklers",
@@ -23,7 +24,7 @@ definition (
    	iconUrl: "",
 	iconX2Url: "",
     importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch%20Scheduler%20and%20More",
-    //documentationLink: "https://community.hubitat.com/t/beta-device-active-time-tracker-app-device-on-timer-and-on-counter-with-variables-access/102896"
+    documentationLink: "https://community.hubitat.com/t/alpha-switch-scheduler-and-more-control-lights-outlets-switches-relays-sprinklers/118720"
 	)
 preferences { page(name: "mainPage") }
 
@@ -95,22 +96,31 @@ def mainPage() {
   }
 ////////////////////////////////////////////////////////////  Advanced Inputs //////////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
-        input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all upcoming schedules?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-        input "remoteSwitch", "capability.switch", title: "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch</small>", required: false, multiple: false, submitOnChange: true  
-        input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, darks screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+        input "updateButton", "button", title: "Update/Store Schedules without hitting Done exiting App" 
+        input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all upcoming schedules?</b><br><small>Remote sensors if enabled will toggle this</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches? Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+            if (sprinklerBool) {
+                input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Moisture sensor to Pause schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:50px'  
+           
+            }
+        input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off, Pasue/Resume Capability?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+            if (remoteSwitchBool) {
+                input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:50px'   
+            }
+        input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based Resets and Refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
-        input "updateButton", "button", title: "Update/Store Schedules without hitting Done exiting App"   
-    }
+        }
 /////////////////////////////////////////////////////////////  Notes Section  /////////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {   //// ver1.1.5
       paragraph getFormat("lessImportant","<ul>"+    
       "<li>Use for any switch capability; switches, outlets, relays, lights, sprinklers, etc.. Add as many as you want on table.</li>"+
       "<li>For each switch select day(s) check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
-	  "<li>Table will not auto refresh, you must hit refresh button.</li>"+
+	  "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
       "<li>Total On Time and Counts will track all switch activity, from app and outside app.</li>"+ 
       "<li>Select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
       "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+                    
-      "<li>If you change schedules and update any switches while already in a On/Run mode things might get messed up and require manual Off.</li>"+                    
+      "<li>If you change schedules and update any switches while already in a On/Run mode things might get messed up and require manual Off.</li>"+ 
+      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+                      
       "<li>You must hit DONE at page bottom to save App.</li>"+                    
       "</ul>")
       }
@@ -184,7 +194,7 @@ String displayTable() {
         "<th>State</th>" +     
 		"<th style='width: 80px !important'>Start<br>Time</th>" +
         "<th style='width: 80px !important'>Run Time<br>Minutes</th>" +
-        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thur</th>" + "<th>Fri</th>" + "<th style='border-right:2px solid black'>Sat</th>" +
+        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th style='border-right:2px solid black'>Sat</th>" +
         "<th>On<br>Counts" +    
         "<th>Total<br>On Time</th>"+
         "<th>Reset<br>On Time</th></tr></thead>"
@@ -247,6 +257,8 @@ void initialize() {
 	 subscribe(DeVices, "switch.off", offTimeHandler)
      subscribe(remoteSwitch, "switch.on", remoteOffHandler)
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
+     subscribe(moistSensor, "water.wet", remoteOffHandler)
+     subscribe(moistSensor, "water.dry", remoteOffHandler)
     
      DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
          zone = state.DeVices["$dev.id"].zone
@@ -288,9 +300,11 @@ void switchOffHandler(data) {
 def allOffHandler(evt) { DeVices.off() }
 
 def remoteOffHandler(evt) {
-    if (logEnableBool) {log.debug "App: ${app.label} - Remote Off, Pause/Resume Handler....switch ${evt.device} = ${evt.device.currentSwitch}"}
+    if (logEnableBool) {log.debug "App: ${app.label} - Remote Off, Pause/Resume Handler....Device ${evt.device}....Switch=${evt.device.currentSwitch} or Water=${evt.device.currentWater}"}
     if (evt.device.currentSwitch == "on") {DeVices.off();  app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }
+    else if (evt.device.currentWater == "wet") {app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }
     else app?.updateSetting("pauseBool", [value:"false",type:"bool"])
+    endif
 }
 void appButtonHandler(btn) {
     if (btn == "refresh") refreshHandler()   
