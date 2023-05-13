@@ -120,7 +120,8 @@ def mainPage() {
       "<li>Select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
       "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+                    
       "<li>If you change schedules and update any switches while already in a On/Run mode things might get messed up and require manual Off.</li>"+ 
-      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+                      
+      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+ 
+      "<li>Sprinklers: Moisture sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+                       
       "<li>You must hit DONE at page bottom to save App.</li>"+                    
       "</ul>")
       }
