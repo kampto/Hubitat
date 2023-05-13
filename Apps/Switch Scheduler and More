@@ -9,14 +9,14 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.0.1	2023-05-12	kampto    	Sprinkler Options with moisture sensor. More usage notes.
+*   1.0.2	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. More usage notes.
 *   1.0.0	2023-05-09	kampto    	First Build from scratch, Alpha Release.
 */
 
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.1" }
+def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.2" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate Switches, Relays, Outlets Sprinklers",
@@ -42,7 +42,7 @@ def mainPage() {
                 
      DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
-             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, startTime: "00000000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0]  
+             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0]  
              state.DeVicesList += dev.id   
              }
 	 }
@@ -100,12 +100,13 @@ def mainPage() {
         input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all upcoming schedules?</b><br><small>Remote sensors if enabled will toggle this</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
         input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches? Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (sprinklerBool) {
-                input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Moisture sensor to Pause schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:50px'  
-           
+                //input name: "evOtherDayBool", type: "bool", title: getFormat("important2","<b>Run Every Odd day of month starting from 1st?</b><br><small>Applies to all switches, 1st, 3rd, 5th,...29th, if 31st, then 1st...</small>"), defaultValue:false, submitOnChange: true, style: 'margin-left:70px'  
+                input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Remote Moisture sensor to Pause schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'  
+                
             }
         input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off, Pasue/Resume Capability?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (remoteSwitchBool) {
-                input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:50px'   
+                input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'   
             }
         input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based Resets and Refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
@@ -113,14 +114,15 @@ def mainPage() {
 /////////////////////////////////////////////////////////////  Notes Section  /////////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {   //// ver1.1.5
       paragraph getFormat("lessImportant","<ul>"+    
-      "<li>Use for any switch capability; switches, outlets, relays, lights, sprinklers, etc.. Add as many as you want on table.</li>"+
+      "<li>Use for any switch capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
       "<li>For each switch select day(s) check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
 	  "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
       "<li>Total On Time and Counts will track all switch activity, from app and outside app.</li>"+ 
       "<li>Select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
       "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+                    
       "<li>If you change schedules and update any switches while already in a On/Run mode things might get messed up and require manual Off.</li>"+ 
-      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+ 
+      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+
+      "<li>Odd days only will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+
       "<li>Sprinklers: Moisture sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+                       
       "<li>You must hit DONE at page bottom to save App.</li>"+                    
       "</ul>")
@@ -186,7 +188,14 @@ String displayTable() {
 	    state.DeVices[state.satUnCheckedBox].sat = false
         state.remove("satUnCheckedBox") }
     endif
-    /////////////////////////////// Table Build
+   if(state.oddCheckedBox) {def dev = DeVices.find{"$it.id" == state.oddCheckedBox}  //// ver1.0.2
+	    state.DeVices[state.oddCheckedBox].odd = true
+        state.remove("oddCheckedBox") }
+	else if(state.oddUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.oddUnCheckedBox}  
+	    state.DeVices[state.oddUnCheckedBox].odd = false
+        state.remove("oddUnCheckedBox") }
+    endif 
+    /////////////////////////////// Table Header Build
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
@@ -195,7 +204,8 @@ String displayTable() {
         "<th>State</th>" +     
 		"<th style='width: 80px !important'>Start<br>Time</th>" +
         "<th style='width: 80px !important'>Run Time<br>Minutes</th>" +
-        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th style='border-right:2px solid black'>Sat</th>" +
+        "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th>Sat</th>" +       
+        "<th style='border-right:2px solid black'>Odd<br>Days?</th>"+
         "<th>On<br>Counts" +    
         "<th>Total<br>On Time</th>"+
         "<th>Reset<br>On Time</th></tr></thead>"
@@ -229,19 +239,26 @@ String displayTable() {
         String thuCheckBoxT = (state.DeVices["$dev.id"].thu) ? buttonLink("i$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("j$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String friCheckBoxT = (state.DeVices["$dev.id"].fri) ? buttonLink("k$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("l$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String satCheckBoxT = (state.DeVices["$dev.id"].sat) ? buttonLink("m$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("n$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
+        String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "DodgerBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         
         str += "<tr style='color:black'><td>$thisZone</td>" + 
         "<td>$devLink</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>" +    
 		"<td style='font-weight:bold' title='${thisStartTime ? "Click to Change Start Time" : "Select"}'>$startTime</td>" +
-        "<td style='font-weight:bold' title='${thisDurTime ? "Click to Change Run Duration" : "Select"}'>$durTime</td>" + 
-        "<td title='Check Box to select Day'>$sunCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$monCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$tueCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$wedCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$thuCheckBoxT</td>" +  
-        "<td title='Check Box to select Day'>$friCheckBoxT</td>" +  
-        "<td style='border-right:2px solid black' title='Check Box to select Day'>$satCheckBoxT</td>" +
+        "<td style='font-weight:bold' title='${thisDurTime ? "Click to Change Run Duration" : "Select"}'>$durTime</td>" 
+            if (state.DeVices["$dev.id"].odd) {str += "<td colspan=7 title='Run Every Odd Day of Month'>Run Every Odd day of Month</td>"}  //// ver1.0.2
+            else {str +=   
+            "<td title='Check Box to select Day'>$sunCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$monCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$tueCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$wedCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$thuCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$friCheckBoxT</td>" +  
+            "<td title='Check Box to select Day'>$satCheckBoxT</td>" 
+             }
+            endif
+        str +=
+        "<td style='border-right:2px solid black' title='Check Box to select Odd Days only'>$oddCheckBoxT</td>" +    
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +       
         "<td style='border-right:3px solid black' title='Reset Total On Time for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
@@ -258,8 +275,8 @@ void initialize() {
 	 subscribe(DeVices, "switch.off", offTimeHandler)
      subscribe(remoteSwitch, "switch.on", remoteOffHandler)
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
-     subscribe(moistSensor, "water.wet", remoteOffHandler)
-     subscribe(moistSensor, "water.dry", remoteOffHandler)
+     subscribe(moistSensor, "water.wet", remoteOffHandler)  //// ver1.0.1
+     subscribe(moistSensor, "water.dry", remoteOffHandler)  //// ver1.0.1
     
      DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
          zone = state.DeVices["$dev.id"].zone
@@ -303,7 +320,7 @@ def allOffHandler(evt) { DeVices.off() }
 def remoteOffHandler(evt) {
     if (logEnableBool) {log.debug "App: ${app.label} - Remote Off, Pause/Resume Handler....Device ${evt.device}....Switch=${evt.device.currentSwitch} or Water=${evt.device.currentWater}"}
     if (evt.device.currentSwitch == "on") {DeVices.off();  app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }
-    else if (evt.device.currentWater == "wet") {app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }
+    else if (evt.device.currentWater == "wet") {app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }  //// ver1.0.1
     else app?.updateSetting("pauseBool", [value:"false",type:"bool"])
     endif
 }
@@ -329,6 +346,8 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("p")) state.remStartTime = btn.minus("p")  
     else if (btn.startsWith("q")) state.newDurTime = btn.minus("q") 
     else if (btn.startsWith("u")) state.remDurTime = btn.minus("u")
+    else if (btn.startsWith("r")) state.oddUnCheckedBox = btn.minus("r") 
+    else if (btn.startsWith("s")) state.oddCheckedBox = btn.minus("s")    
     else if (btn.startsWith("z")) state.resetTotal = btn.minus("z")  
     endif    
 }
@@ -340,21 +359,26 @@ def buildCron() {
             String formattedTime = state.DeVices[k].startTime.substring(11, state.DeVices[k].startTime.length() - 12)
             String hours = formattedTime.substring(0, formattedTime.length() - 3) // Chop off the last 3 in string
             String minutes = formattedTime.substring(3) // Chop off the first 3 in string
-              
-            String days = ""
-            if (state.DeVices[k].sun) {days = "SUN,"}
-            if (state.DeVices[k].mon) {days += "MON,"}
-            if (state.DeVices[k].tue) {days += "TUE,"}
-            if (state.DeVices[k].wed) {days += "WED,"}
-            if (state.DeVices[k].thu) {days += "THU,"}
-            if (state.DeVices[k].fri) {days += "FRI,"}
-            if (state.DeVices[k].sat) {days += "SAT,"}
-            if (days != "") {
-                days = days.substring(0, days.length() - 1) // Chop off last ","
-                state.DeVices[k].days = days
-                state.DeVices[k].cron = "0 ${minutes} ${hours} ? * ${days} *" 
-                if (logEnableBool) {log.debug "App: ${app.label} - Device ${dev}, BUILD-CRON = ${state.DeVices[k].cron}"} 
-               }       
+            
+            if (state.DeVices[k].odd) { state.DeVices[k].cron = "0 ${minutes} ${hours} 1/2 * ? * "  }
+            else {
+                String days = ""
+                if (state.DeVices[k].sun) {days = "SUN,"}
+                if (state.DeVices[k].mon) {days += "MON,"}
+                if (state.DeVices[k].tue) {days += "TUE,"}
+                if (state.DeVices[k].wed) {days += "WED,"}
+                if (state.DeVices[k].thu) {days += "THU,"}
+                if (state.DeVices[k].fri) {days += "FRI,"}
+                if (state.DeVices[k].sat) {days += "SAT,"}
+                    if (days != "") {
+                    days = days.substring(0, days.length() - 1) // Chop off last ","
+                    state.DeVices[k].days = days
+                    state.DeVices[k].cron = "0 ${minutes} ${hours} ? * ${days} *" 
+                    }   
+            }
+            endif
+            if (logEnableBool) {log.debug "App: ${app.label} - Device ${dev}, BUILD-CRON = ${state.DeVices[k].cron}"} 
+                      
          }
    }
 }
@@ -364,7 +388,7 @@ def refreshHandler() { ///////////// Update Times if Active/On
         if (dev.currentSwitch == "on") {
           state.DeVices[k].total += now() - state.DeVices[k].start
 		  state.DeVices[k].start = now()
-          if (logEnableBool) {log.info "${app.label} -REFRESH Handler, Device ${k}.... state.DeVices[k].total= ${state.DeVices[k].total}"}
+          //if (logEnableBool) {log.info "${app.label} -REFRESH Handler, Device ${k}.... state.DeVices[k].total= ${state.DeVices[k].total}"}
           }
     }
 }
