@@ -9,14 +9,14 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.0.2	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. More usage notes.
+*   1.0.3	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. Added Modes. More usage notes.
 *   1.0.0	2023-05-09	kampto    	First Build from scratch, Alpha Release.
 */
 
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.2" }
+def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.3" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate Switches, Relays, Outlets Sprinklers",
@@ -24,7 +24,7 @@ definition (
    	iconUrl: "",
 	iconX2Url: "",
     importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch%20Scheduler%20and%20More",
-    documentationLink: "https://community.hubitat.com/t/alpha-switch-scheduler-and-more-control-lights-outlets-switches-relays-sprinklers/118720"
+    documentationLink: "https://community.hubitat.com/t/beta-switch-scheduler-and-more-schedule-lights-outlets-switches-relays-sprinklers-and-more/118720"
 	)
 preferences { page(name: "mainPage") }
 
@@ -106,6 +106,10 @@ def mainPage() {
         input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off, Pasue/Resume Capability?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (remoteSwitchBool) {
                 input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'   
+            }
+        input name: "modeBool", type: "bool", title: getFormat("important2","<b>Only run Schedules during a selected mode?</b><br><small>Applies to all Devices</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+            if (modeBool){
+                input name: "mode", type: "mode", title: getFormat("important2","<b>Select Mode for schedules to run.</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:70px'
             }
         input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based Resets and Refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
@@ -249,7 +253,6 @@ String displayTable() {
         String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "DodgerBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "red", "23px") : buttonLink("y$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         
-        
         str += "<tr style='color:black'><td>$thisZone</td>" + 
         "<td>$devLink</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>" +    
@@ -271,7 +274,7 @@ String displayTable() {
         "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule'>$pauseCheckBoxT</td>" +     
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +       
-        "<td style='border-right:3px solid black' title='Reset Total On Time for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
+        "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
         }
    	str += "</table></div>"
     str
@@ -308,6 +311,7 @@ def offTimeHandler(evt) {
 }
 void switchOnHandler(data) { 
     if (pauseBool) {return}
+    if ((modeBool && mode == location.mode) || (!modeBool)) {
     DeVices.each { dev -> 
         if (!state.DeVices["$dev.id"].pause) {
             if (data.value == state.DeVices["$dev.id"].zone ) {
@@ -318,6 +322,9 @@ void switchOnHandler(data) {
             }
         }
      }
+    }
+    else {return}
+    endif
 }
 void switchOffHandler(data) {
     DeVices.each { dev -> 
