@@ -9,18 +9,19 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.1.0	2023-05-18	kampto    	Add sunset/sunrise start options, format changes.
 *   1.0.3	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. Added Modes. More usage notes.
-*   1.0.0	2023-05-09	kampto    	First Build from scratch, Alpha Release.
+*   1.0.0	2023-05-09	kampto    	First Build from scratch.
 */
 
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.0.3" }
+def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.1.0" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
-	description: "Automate Switches, Relays, Outlets Sprinklers",
-	category: "General",
+	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers",
+	category: "Control",
    	iconUrl: "",
 	iconX2Url: "",
     importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch%20Scheduler%20and%20More",
@@ -33,16 +34,17 @@ def mainPage() {
     if (app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}  
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
-                        
+    refreshHandler()  // get latest times at app open    
+     
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle() 
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
-        label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
+        label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
         input "DeVices", "capability.switch", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
-                
+     
      DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
-             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, pause: false]  
+             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, pause: false]  
              state.DeVicesList += dev.id   
              }
 	 }
@@ -52,44 +54,41 @@ def mainPage() {
          if(DeVices.id.sort() != state.DeVicesList.sort()) { 
 		    state.DeVicesList = DeVices.id
 			Map newState = [:]
-			DeVices.each{dev ->  newState["$dev.id"] = state.DeVices["$dev.id"]}   //////////////////
+			DeVices.each{dev ->  newState["$dev.id"] = state.DeVices["$dev.id"]} 
             state.DeVices = newState
 			}
-    //updated()
+    
     paragraph displayTable()
 	  ///////////////////////// Input Start Time 
       if(state.newStartTime) {
-        input name: "newStartTime", type: "time", title:"<b>Enter Start/On Time, Applies to all checked days for Switch. &nbsp <small>Hit Updater</small>", defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
+        input name: "newStartTime", type: "time", title:"<b>Enter Start/On Time, Applies to all checked days for Switch.<br><small>Uses 24hr time, &nbsp Hit Update</small>", defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
           if(newStartTime) {
              state.DeVices[state.newStartTime].startTime = newStartTime
              state.remove("newStartTime")
 		     app.removeSetting("newStartTime")
              paragraph "<script>{changeSubmit(this)}</script>"
 		     }
-		} 
-       else if(state.remStartTime) {
-		  state.DeVices[state.remStartTime].startTime = ""
-          state.remove("remStartTime")  
-		  paragraph "<script>{changeSubmit(this)}</script>"
-		  }
-       endif
+	    } 
        ///////////////////////// Input Run Duration  
        if(state.newDurTime) {
-        input name: "newDurTime", type: "number", title:"<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch. &nbsp <small>Hit Enter</small>", defaultValue: "", required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
+        input name: "newDurTime", type: "number", title:"<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch. &nbsp <small>Hit Enter</small>", defaultValue: 0, required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
           if(newDurTime) {
              state.DeVices[state.newDurTime].durTime = newDurTime
              state.remove("newDurTime")
 		     app.removeSetting("newDurTime")
              paragraph "<script>{changeSubmit(this)}</script>"
 		     }
-		  } 
-       else if(state.remDurTime) {
-		     state.DeVices[state.remDurTime].durTime = ""
-             state.remove("remDurTime")  
-			 paragraph "<script>{changeSubmit(this)}</script>"
-		     } 
-       endif
-        
+		} 
+       ///////////////////////// Sunrise / Sunset Offset time  //// ver1.1.0
+       if(state.newOffsetTime) {
+        input name: "newOffsetTime", type: "number", title:"<b>Enter +/- Offset time from Sunrise or Sunset in minutes, Applies to all checked days for Switch.<br><small>EX: 30, -30, or -90, &nbsp Hit Enter</small>", defaultValue: 0, required: false,  submitOnChange:true, accepts: "-1000 to 1000", range: "-1000..1000", width: 8, style: 'margin-left:10px'
+          if(newOffsetTime) {
+             state.DeVices[state.newOffsetTime].offset = newOffsetTime
+             state.remove("newOffsetTime")
+		     app.removeSetting("newOffsetTime")
+             paragraph "<script>{changeSubmit(this)}</script>"
+		     }
+		} 
        input "refresh", "button", title: "REFRESH Table Times, Counts, & States", width: 5 
        input "allOff", "button", title: "TURN OFF all switches", width: 4 
       }
@@ -100,14 +99,13 @@ def mainPage() {
         input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all Devices upcoming schedules?</b><br><small>Remote sensors if enabled will toggle this</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
         input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches? Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (sprinklerBool) {
-                //input name: "evOtherDayBool", type: "bool", title: getFormat("important2","<b>Run Every Odd day of month starting from 1st?</b><br><small>Applies to all switches, 1st, 3rd, 5th,...29th, if 31st, then 1st...</small>"), defaultValue:false, submitOnChange: true, style: 'margin-left:70px'  
-                input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Remote Moisture sensor to Pause schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'  
+                input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Remote Moisture sensor to Pause all Schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'  
             }
         input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off, Pasue/Resume Capability?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (remoteSwitchBool) {
                 input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'   
             }
-        input name: "modeBool", type: "bool", title: getFormat("important2","<b>Only run Schedules during a selected mode?</b><br><small>Applies to all Devices</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "modeBool", type: "bool", title: getFormat("important2","<b>Only run Schedules during a selected mode?</b><br><small>Home, Away,.. Applies to all Devices</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (modeBool){
                 input name: "mode", type: "mode", title: getFormat("important2","<b>Select Mode for schedules to run.</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:70px'
             }
@@ -118,15 +116,15 @@ def mainPage() {
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
       "<li>Use for any switch capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
-      "<li>For each switch select day(s) check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
-	  "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
+      "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
+      "<li>Select day(s) or odd days check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
+      "<li>Odd days will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
+      "<li>To use Sunset/Sunrise with +/- offset, check box, check sunrise or sunset icon, click number to enter offset.</li>"+                    
+	  "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+                    
       "<li>Total On Time and Counts will track all switch activity, from app and outside app.</li>"+ 
-      "<li>Select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
-      "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+                    
-      "<li>If you change schedules and update any switches while already in a On/Run mode things might get messed up and require manual Off.</li>"+ 
-      "<li>If you make a schedule change it wont take unless you hit Done exiting the App or hitting the Update/Store button.</li>"+
-      "<li>Odd days only will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+
-      "<li>Sprinklers: Moisture sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+                       
+      "<li>Optional: select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
+      "<li>Optional: Sprinklers: Moisture sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+     
+      "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+      
       "<li>You must hit DONE at page bottom to save App.</li>"+                    
       "</ul>")
       }
@@ -205,27 +203,51 @@ String displayTable() {
 	    state.DeVices[state.pauseUnCheckedBox].pause = false
         state.remove("pauseUnCheckedBox") }
     endif 
+    /////////////////////// Sunrise / Sunset //// ver1.1.0
+    if(state.sunTimeCheckedBox) { def dev = DeVices.find{"$it.id" == state.sunTimeCheckedBox}
+        state.DeVices[state.sunTimeCheckedBox].sunTime = true
+        state.remove("sunTimeCheckedBox") }
+	else if(state.sunTimeUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunTimeUnCheckedBox}  
+	    state.DeVices[state.sunTimeUnCheckedBox].sunTime = false
+        state.remove("sunTimeUnCheckedBox") }
+    endif
+    if(state.sunsetCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunsetCheckedBox}  
+	    state.DeVices[state.sunsetCheckedBox].sunset = true
+        state.remove("sunsetCheckedBox") }
+	else if(state.sunsetUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunsetUnCheckedBox}  
+	    state.DeVices[state.sunsetUnCheckedBox].sunset = false
+        state.remove("sunsetUnCheckedBox") }
+    endif
     /////////////////////////////// Table Header Build
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
-        "<thead><tr style='border-bottom:2px solid black'><th>zone</th>" +	
+        "<thead><tr style='border-bottom:2px solid black'><th>#</th>" +	
         "<th>Device</th>" +
-        "<th>State</th>" +     
-		"<th style='width: 80px !important'>Start<br>Time</th>" +
-        "<th style='width: 80px !important'>Run Time<br>Minutes</th>" +
+        "<th style='border-right:2px solid black'>State</th>" +     
+		"<th style='width: 60px !important'>Start<br>Time</th>" +
+        "<th>Use Sun<br>Set/Rise?</th>" +  //// ver1.1.0
+        "<th>Rise or<br>Set?</th>" +  //// ver1.1.0
+        "<th>Offset<br>+/-Min</th>" +  //// ver1.1.0
+        "<th style='width: 50px !important; border-right:2px solid black'>Run<br>Time</th>" +    
         "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th>Sat</th>" +       
-        "<th>Odd<br>Days?</th>"+
-        "<th style='border-right:2px solid black'>Pause<br>Device?</th>"+    
+        "<th>Odd<br>Days?</th>"+  //// ver1.0.3
+        "<th style='border-right:2px solid black'>Pause<br>Sched?</th>"+    //// ver1.0.3
         "<th>On<br>Counts" +    
-        "<th>Total<br>On Time</th>"+
-        "<th>Reset<br>On Time</th></tr></thead>"
+        "<th>Total<br>OnTime</th>"+
+        "<th>Reset<br>OnTime</th></tr></thead>"
         
     int zone = 0
     DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
-        zone += 1 
-        String thisStartTime = state.DeVices["$dev.id"].startTime.substring(11, state.DeVices["$dev.id"].startTime.length() - 12)    
+        zone += 1
+        state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset)  //// ver1.1.0
+        if (state.DeVices["$dev.id"].sunTime) {  //// ver1.0.4
+          if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
+          else {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunrise.toString() }
+          }
+        String thisStartTime = state.DeVices["$dev.id"].startTime.substring(11, state.DeVices["$dev.id"].startTime.length() - 12) 
         String thisDurTime = state.DeVices["$dev.id"].durTime
+        String thisOffsetTime = state.DeVices["$dev.id"].offset
         String thisCron = state.DeVices["$dev.id"].cron
         String thisZone = state.DeVices["$dev.id"].zone = zone
         
@@ -237,12 +259,13 @@ String displayTable() {
 	    int mins = total / 60
 	    int secs = total % 60
 	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-        if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, *${dev}*, StartTime-${thisStartTime}, Duration-${thisDurTime}, Counts-${counts}, Cron-${thisCron}"}
-                
+            if (state.DeVices["$dev.id"].sunTime) {startTime = thisStartTime} //// ver1.1.0
+            else {startTime = buttonLink("o$dev.id", thisStartTime, "MediumBlue")}
+            endif
+        
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String resetTotal = buttonLink("z$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px") 
-        String startTime = thisStartTime ? buttonLink("o$dev.id", thisStartTime, "purple") : buttonLink("p$dev.id", "Select", "green") 
-        String durTime = thisDurTime ? buttonLink("q$dev.id", thisDurTime, "purple") : buttonLink("u$dev.id", "Select", "green") 
+        String durTime = buttonLink("q$dev.id", thisDurTime, "MediumBlue") 
         String sunCheckBoxT = (state.DeVices["$dev.id"].sun) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  
         String monCheckBoxT = (state.DeVices["$dev.id"].mon) ? buttonLink("c$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("d$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String tueCheckBoxT = (state.DeVices["$dev.id"].tue) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
@@ -250,14 +273,26 @@ String displayTable() {
         String thuCheckBoxT = (state.DeVices["$dev.id"].thu) ? buttonLink("i$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("j$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String friCheckBoxT = (state.DeVices["$dev.id"].fri) ? buttonLink("k$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("l$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String satCheckBoxT = (state.DeVices["$dev.id"].sat) ? buttonLink("m$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("n$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
-        String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "DodgerBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
-        String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "red", "23px") : buttonLink("y$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
+        String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "SteelBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.0.3
+        String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", "<iconify-icon icon=ic:sharp-pause-circle-filled></iconify-icon>", "red", "23px") : buttonLink("v$dev.id", "<iconify-icon icon=ic:baseline-play-circle></iconify-icon>", "green", "23px")  //// ver1.0.3
+        String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.1.0
+        String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("y0$dev.id", "<iconify-icon icon=ph:moon-stars-duotone></iconify-icon>", "DodgerBlue", "23px") : buttonLink("y1$dev.id", "<iconify-icon icon='ph:sun-duotone'></iconify-icon>", "orange", "23px")  //// ver1.1.0
+        String offset = buttonLink("y2$dev.id", thisOffsetTime, "MediumBlue")  //// ver1.1.0
+          if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, *${dev}*, StartTime-${thisStartTime}...Duration-${thisDurTime}...Counts-${counts}...Cron-${thisCron}"}
         
+        /////////////////////////////// Table Rows Build
         str += "<tr style='color:black'><td>$thisZone</td>" + 
         "<td>$devLink</td>" +
-        "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>" +    
-		"<td style='font-weight:bold' title='${thisStartTime ? "Click to Change Start Time" : "Select"}'>$startTime</td>" +
-        "<td style='font-weight:bold' title='${thisDurTime ? "Click to Change Run Duration" : "Select"}'>$durTime</td>" 
+        "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"   
+            if (state.DeVices["$dev.id"].sunTime) {str +="<td title='Start Time with Sunset or Sunrise +/- offset'>$startTime</td>"}  //// ver1.1.0
+            else str += "<td style='font-weight:bold !important' title='${thisStartTime ? "Click to Change Start Time" : "Select"}'>$startTime</td>"
+            endif
+        str += "<td title='Use Sunrise or Sunset for Start time'>$sunTimeCheckBoxT</td>"  //// ver1.0.4    
+            if (state.DeVices["$dev.id"].sunTime) {str += "<td title='Sunset start (moon), otherwise Sunrise start(sun)'>$sunsetCheckBoxT</td>" +  //// ver1.1.0
+             "<td style='font-weight:bold' title='${thisOffsetTime ? "Click to set +/- minutes for Sunset or Sunrise start time" : "Select"}'>$offset</td>"  }
+            else {str += "<td colspan=2 title='User Entered time (not sunset/sunrise)'>User Time</td>"}   //// ver1.0.4   
+            endif
+        str += "<td style='font-weight:bold; border-right:2px solid black' title='${thisDurTime ? "Click to Change Run Duration Minutes" : "Select"}'>$durTime</td>" 
             if (state.DeVices["$dev.id"].odd) {str += "<td colspan=7 title='Run Every Odd Day of Month'>Run Every Odd day of Month</td>"}  //// ver1.0.2
             else {str +=   
             "<td title='Check Box to select Day'>$sunCheckBoxT</td>" +  
@@ -270,8 +305,8 @@ String displayTable() {
              }
             endif
         str +=
-        "<td title='Check Box to select Odd Days only'>$oddCheckBoxT</td>" +
-        "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule'>$pauseCheckBoxT</td>" +     
+        "<td title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
+        "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
         "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +       
         "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
@@ -279,7 +314,7 @@ String displayTable() {
    	str += "</table></div>"
     str
 }
-String buttonLink(String btnName, String linkText, color = "#1A77C9", font = "13px") {
+String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13px") { //// Device Link Format
    "<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
 }
 //////////////////////////////////////////////////////// Schedules and Subscribes //////////////////////////////////////////////////////////
@@ -290,12 +325,13 @@ void initialize() {
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
      subscribe(moistSensor, "water.wet", remoteOffHandler)  //// ver1.0.1
      subscribe(moistSensor, "water.dry", remoteOffHandler)  //// ver1.0.1
-    
+     schedule("0 0 1 ? * * *", sunHandler)   // Every day at 1am to get new sunrise/sunset times  //// ver1.1.0
+     ////////////// Set cron schedules
      DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
          zone = state.DeVices["$dev.id"].zone
          if (state.DeVices["$dev.id"].cron && state.DeVices["$dev.id"].durTime != 0) {
             schedule("${state.DeVices["$dev.id"].cron}", switchOnHandler, [data:zone, overwrite:false]) 
-            if (logEnableBool) {log.debug "${app.label} -SCHEDULED Device ${dev}......duration = ${state.DeVices["$dev.id"].durTime}.....cronString = ${state.DeVices["$dev.id"].cron}"}
+            if (logEnableBool) {log.info "${app.label} -SCHEDULED Device ${dev}......duration = ${state.DeVices["$dev.id"].durTime}.....cronString = ${state.DeVices["$dev.id"].cron}"}
          }
      }
 }   
@@ -303,11 +339,11 @@ void initialize() {
 def onTimeHandler(evt) {
     state.DeVices[evt.device.id].start = now()
     state.DeVices[evt.device.id].counts += 1  
-    log.debug "${app.label} - ON HANDLER, Device ${evt.device.id}.....start= ${state.DeVices[evt.device.id].start}" ////////////////////
+    log.info "${app.label} - ON HANDLER, Device ${evt.device.id}.....start= ${state.DeVices[evt.device.id].start}" 
 }
 def offTimeHandler(evt) {
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
-    log.debug "${app.label} - OFF HANDLER, Device ${evt.device.id}.....total= ${state.DeVices[evt.device.id].total}" ////////////////////
+    log.info "${app.label} - OFF HANDLER, Device ${evt.device.id}.....total= ${state.DeVices[evt.device.id].total}" 
 }
 void switchOnHandler(data) { 
     if (pauseBool) {return}
@@ -316,7 +352,7 @@ void switchOnHandler(data) {
         if (!state.DeVices["$dev.id"].pause) {
             if (data.value == state.DeVices["$dev.id"].zone ) {
                 zone = state.DeVices["$dev.id"].zone
-                if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
+                //if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
                 dev.on()
                 runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
             }
@@ -343,6 +379,16 @@ def remoteOffHandler(evt) {
     else app?.updateSetting("pauseBool", [value:"false",type:"bool"])
     endif
 }
+def sunHandler(evt) {  // get new sunrise/sunset times every day  //// ver1.1.0
+    DeVices.each { dev -> 
+        if (state.DeVices["$dev.id"].sunTime) {
+            state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset) 
+            if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
+            else {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunrise.toString() }
+            }
+         }
+    updated()  // Rebuild cron with new sunSet/Rise schedules
+}
 void appButtonHandler(btn) {
     if (btn == "refresh") refreshHandler()   
     else if (btn == "allOff") allOffHandler()  
@@ -362,15 +408,28 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("m")) state.satUnCheckedBox = btn.minus("m") 
     else if (btn.startsWith("n")) state.satCheckedBox = btn.minus("n")
     else if (btn.startsWith("o")) state.newStartTime = btn.minus("o") 
-    else if (btn.startsWith("p")) state.remStartTime = btn.minus("p")  
     else if (btn.startsWith("q")) state.newDurTime = btn.minus("q") 
-    else if (btn.startsWith("u")) state.remDurTime = btn.minus("u")
     else if (btn.startsWith("r")) state.oddUnCheckedBox = btn.minus("r") 
     else if (btn.startsWith("s")) state.oddCheckedBox = btn.minus("s")
-    else if (btn.startsWith("x")) state.pauseUnCheckedBox = btn.minus("x") 
-    else if (btn.startsWith("y")) state.pauseCheckedBox = btn.minus("y")       
+    else if (btn.startsWith("t")) state.pauseUnCheckedBox = btn.minus("t") 
+    else if (btn.startsWith("v")) state.pauseCheckedBox = btn.minus("v")
+    else if (btn.startsWith("w")) state.sunTimeUnCheckedBox = btn.minus("w")  //// ver1.1.0
+    else if (btn.startsWith("x")) state.sunTimeCheckedBox = btn.minus("x")  //// ver1.1.0 
+    else if (btn.startsWith("y0")) state.sunsetUnCheckedBox = btn.minus("y0")  //// ver1.1.0
+    else if (btn.startsWith("y1")) state.sunsetCheckedBox = btn.minus("y1")  //// ver1.1.0
+    else if (btn.startsWith("y2")) state.newOffsetTime = btn.minus("y2")  //// ver1.1.0
     else if (btn.startsWith("z")) state.resetTotal = btn.minus("z")  
     endif    
+}
+def refreshHandler() { ///////////// Update Times if Active/On
+    state.DeVices.each {k, v ->
+        def dev = DeVices.find{"$it.id" == k}
+        if (dev.currentSwitch == "on") {
+          state.DeVices[k].total += now() - state.DeVices[k].start
+		  state.DeVices[k].start = now()
+          //if (logEnableBool) {log.info "${app.label} -REFRESH Handler, Device ${k}.... state.DeVices[k].total= ${state.DeVices[k].total}"}
+          }
+    }
 }
 /////////////////////////////////////////////////////////////// Functions //////////////////////////////////////////////////////////////////
 def buildCron() {
@@ -382,8 +441,7 @@ def buildCron() {
             String minutes = formattedTime.substring(3) // Chop off the first 3 in string
             
             if (state.DeVices[k].odd) { state.DeVices[k].cron = "0 ${minutes} ${hours} 1/2 * ? * "  }
-            else {
-                String days = ""
+            else { String days = ""
                 if (state.DeVices[k].sun) {days = "SUN,"}
                 if (state.DeVices[k].mon) {days += "MON,"}
                 if (state.DeVices[k].tue) {days += "TUE,"}
@@ -398,36 +456,28 @@ def buildCron() {
                     }   
             }
             endif
-            if (logEnableBool) {log.debug "App: ${app.label} - Device ${dev}, BUILD-CRON = ${state.DeVices[k].cron}"} 
+            //if (logEnableBool) {log.debug "App: ${app.label} - Device ${dev}, BUILD-CRON = ${state.DeVices[k].cron}"} 
           }
    }
 }
-def refreshHandler() { ///////////// Update Times if Active/On
-    state.DeVices.each {k, v ->
-        def dev = DeVices.find{"$it.id" == k}
-        if (dev.currentSwitch == "on") {
-          state.DeVices[k].total += now() - state.DeVices[k].start
-		  state.DeVices[k].start = now()
-          //if (logEnableBool) {log.info "${app.label} -REFRESH Handler, Device ${k}.... state.DeVices[k].total= ${state.DeVices[k].total}"}
-          }
-    }
-}
 //////////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
-def updated() {
-    unsubscribe()
-    unschedule()
-    buildCron()
-    initialize()
+def updated() {  // runs every 'Done' on already installed app 
+    //unsubscribe()
+    unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
+    buildCron()  // build schedules
+    initialize()  // set schedules and subscribes
     if(logEnableBool) runIn(3600, logsOff)  // Disable all Logging after time elapsed
 }
-def installed() {}
+def installed() {  // only runs once for new app 'Done' or first time open 
+    updated()
+}  
 def logsOff() {
     log.info "${app.label} - All App logging auto disabled"
     app?.updateSetting("logEnableBool",[value:"false",type:"bool"])
 }
 def getFormat(type, myText="") {		
-    if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
-    if (formatBool) {if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"}  //// ver1.2.0
+    if(type == "title") return "<h3 style='color:SteelBlue;font-weight: bold'>${myText}</h3>"
+    if (formatBool) {if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"} 
                      if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
     }
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"
