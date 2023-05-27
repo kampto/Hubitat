@@ -55,7 +55,7 @@ def mainPage() {
     if (capabilitySelect == null) {capabilitySelect = 1}
     if (allTotal == null) {allTotal = 0}   //// ver1.1.3
     state.byPassBool = false  //// ver1.1.4
-    if (DeVices) {refreshHandler()}  // get latest times at app open
+    ////if (DeVices) {refreshHandler()}  // get latest times at app open
                     
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle() 
