@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.2.3	2023-05-28	kampto    	Threshold icon changes, update on reload
+*   1.3.0	2023-06-09	kampto    	Added Notification options, Threshold icon changes
 *   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variables to a differnt Table.
 *   1.2.0	2023-05-06	FriedCheese	Pull request: Alternative format Option; App UI page for dark screen, Table sort + search option. 
 *   1.1.8	2023-05-05	kampto		Add option to see last On-time vs last reset. Added per device power, temp, or voltage tracking thresholds in table. Add Thermostat Heating or Cooling modes.
@@ -28,7 +28,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Active Tracker, Times and Counts (Child)"
-	state.version = "1.2.3"
+	state.version = "1.3.0"
     }
 
 definition (
@@ -44,7 +44,7 @@ definition (
 
 preferences { page(name: "mainPage") }
 
-//******************************************************  Page/Input Set-Up  ******************************************************//
+////////////////////////////////////////////////////////////////  Page/Input Set-Up  ///////////////////////////////////////////////////////////////
 def mainPage() {
     if(app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}  //// ver1.2.0
     if (state.DeVices == null) state.DeVices = [:]
@@ -55,8 +55,7 @@ def mainPage() {
     if (capabilitySelect == null) {capabilitySelect = 1}
     if (allTotal == null) {allTotal = 0}   //// ver1.1.3
     state.byPassBool = false  //// ver1.1.4
-    ////if (DeVices) {refreshHandler()}  // get latest times at app open
-                    
+                        
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle() 
   section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  //// ver1.2.0
@@ -73,17 +72,18 @@ def mainPage() {
         
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
-             if (capabilitySelect == "1") {state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}  
-             else if (capabilitySelect == "2") {state.DeVices["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}   //// ver1.0.1
-             else if (capabilitySelect == "3") {state.DeVices["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true]}  //// ver1.0.1
-             else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0]}   //// ver1.0.3
-             else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0]}  //// ver1.1.7
-             else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0]}  //// ver1.1.7
-             else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "idle", thresh: 0]}  //// ver1.1.8 
+             if (capabilitySelect == "1") {state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  
+             else if (capabilitySelect == "2") {state.DeVices["$dev.id"] = [start: dev.currentContact == "open" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}   //// ver1.0.1
+             else if (capabilitySelect == "3") {state.DeVices["$dev.id"] = [start: dev.currentContact == "closed" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.0.1
+             else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}   //// ver1.0.3
+             else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
+             else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
+             else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "idle", thresh: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.8 
             endif    
              state.DeVicesList += dev.id   
              }
 	    }
+   if (DeVices) {refreshHandler()}  // get latest times at app open  ////  ver1.2.3
   }
   section {                         
      if(DeVices) {
@@ -98,7 +98,7 @@ def mainPage() {
       paragraph displayTable()
 	    ///////////////////////// Enter Threshold for Power, Temp, Voltage //// ver1.1.8 
         if(state.newThresh) {
-        input name: "newThresh", type: "number", title:"<b>Enter Threshold number to call On/Active.</b> &nbsp<small>Hit Enter</small>", defaultValue: "", required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
+        input name: "newThresh", type: "number", title:getFormat("noticable","<b>Enter Threshold number to call On/Active.</b> &nbsp<small>Hit Enter</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
           if(newThresh) {
              state.DeVices[state.newThresh].thresh = newThresh
              state.remove("newThresh")
@@ -112,14 +112,12 @@ def mainPage() {
 			  paragraph "<script>{changeSubmit(this)}</script>"
 		      } 
         
-          //input "reset", "button", title: getFormat("important2","RESET Periodic Times, Counts & Update Variables"), width: 5   //// ver1.0.1
-          //input "refresh", "button", title: getFormat("important2","REFRESH Table & Update Variables"), width: 4    //// ver1.0.3
           input "reset", "button", title: "RESET Periodic Times, Counts & Update Variables", width: 5   //// ver1.0.1
           input "refresh", "button", title: "REFRESH Table & Update Variables", width: 4    //// ver1.0.3
           input name: "inDaysC", type: "bool", title:getFormat("important2","Display Cumulative in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6
 		}
   }
-//********************************************************* Input Section 2 *******************************************************//        
+//////////////////////////////////////////////////////////////////////// Input Section 2 //////////////////////////////////////////////////////////////////        
      section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input name: "viewResfreshBool", type: "bool", title: getFormat("important2","<b>View or Change Auto variable Update details?</b><br>(Default is every 10min, for Devices with a variable and box checked in table)"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver1.1.8
               if (viewResfreshBool) {
@@ -151,18 +149,13 @@ def mainPage() {
           input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based Resets and Variable Refresh/Updates?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'  //// ver1.1.3
       }
       
-//**********************************************************  VARIABLES Section ******************************************************//              
- section(getFormat("header","Attach Variables Table:"),hideable: true, hidden: false) {   //// ver1.2.2
-      paragraph getFormat("lessImportant","<ul>"+   //// ver1.2.0
-      "<li>Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format.</li>"+
-      "<li>Click on table link 'Select' to attach a variable to a Device. Click again to remove the variable.</li>"+
-	  "<li>Set table 'Variable Data Type' checkbox to match the Devices variable type and store as Number or String. Use Number for Rule Machine use.</li>"+
-      "</ul>")
+//**********************************************************  VARIABLES Input Section ******************************************************//              
+ section(getFormat("header","Attach Variables and Notifications Table:"),hideable: true, hidden: false) {   //// ver1.2.2
     paragraph variablesTable()  //// ver1.2.2
      ///////////////////////// Periodic Variable Select
      if(state.newVar) {
 	    List vars = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
-        input "newVar", "enum", title: "Select Hub Variable to store data (Number or String).", submitOnChange: true, width: 9, options: vars, newLineAfter: true
+        input "newVar", "enum", title: getFormat("noticable", "Select Hub Variable to store data (Number or String)."), submitOnChange: true, width: 9, options: vars, newLineAfter: true
 		    if(newVar) {
 			    state.DeVices[state.newVar].var = newVar
                 state.remove("newVar")
@@ -178,7 +171,7 @@ def mainPage() {
      ///////////////////////// Cumulative Variable Select  //// ver1.1.5
      if(state.newVarC) {
 		List varsC = getAllGlobalVars().findAll{it.value.type == "integer" || it.value.type == "string"}.keySet().collect().sort{it.capitalize()}
-        input "newVarC", "enum", title: "Select Hub Variable to store data (Number or String).", submitOnChange: true, width: 9, options: varsC, newLineAfter: true
+        input "newVarC", "enum", title: getFormat("noticable","Select Hub Variable to store data (Number or String)."), submitOnChange: true, width: 9, options: varsC, newLineAfter: true
 	        if(newVarC) {
 			 state.DeVices[state.newVarC].varC = newVarC
              state.remove("newVarC")
@@ -194,7 +187,7 @@ def mainPage() {
      ///////////////////////// Device On Counts Variable Select  //// ver1.1.5  
      if(state.newVarCT) {
 	    List varsCT = getAllGlobalVars().findAll{it.value.type == "integer"}.keySet().collect().sort{it.capitalize()}
-        input "newVarCT", "enum", title: "Select Hub Variable to store data (Number only)", submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
+        input "newVarCT", "enum", title: getFormat("noticable","Select Hub Variable to store data (Number only)"), submitOnChange: true, width: 9, options: varsCT, newLineAfter: true
 		  if(newVarCT) {
 		    state.DeVices[state.newVarCT].varCT = newVarCT
             state.remove("newVarCT")
@@ -206,26 +199,59 @@ def mainPage() {
 			state.DeVices[state.remVarCT].varCT = ""
             state.remove("remVarCT")
 			paragraph "<script>{changeSubmit(this)}</script>"
-           } 
+           }
+     ///////////////////////// Notify Time Duration Select  //// ver1.3.0  
+     if(state.newNotifyTime) {
+       app?.updateSetting("notifyTimeDays",[value: "" ,type:"decimal"])   //////////////
+       paragraph getFormat("noticable","<b>Enter Days + Hours to elapse before this device sends a Notification</b> &nbsp <small>Must put number or Zero in both, Hit Enter</small>")
+       input "notifyTimeDays", "decimal", title:getFormat("noticable", "Days"), defaultValue: "", required: false, width: 1, style: 'margin-left:10px'  //submitOnChange:true, 
+	   input "newNotifyTime", "decimal", title:getFormat("noticable", "+Hours"), defaultValue: "", required: false,  submitOnChange:true, width: 1, newLineAfter: true, style: 'margin-left:10px'
+         
+         if (newNotifyTime  && notifyTimeDays ) {newNotifyTime = notifyTimeDays + newNotifyTime/24}
+         else if (newNotifyTime && (notifyTimeDays == 0 || notifyTimeDays == null)) {newNotifyTime = newNotifyTime/24}
+         else if (notifyTimeDays && (newNotifyTime == 0 || newNotifyTime == null)) {newNotifyTime = notifyTimeDays}
+         endif
+         
+         if(newNotifyTime != null) {
+            state.DeVices[state.newNotifyTime].notifyTime = newNotifyTime
+            state.remove("newNotifyTime")
+		    app.removeSetting("newNotifyTime")
+		    paragraph "<script>{changeSubmit(this)}</script>"
+		    }
+		 } 
+        
+       input name: "pushBool", type: "bool", title: "<b>Get push notificatuions for set device run times?</b>", defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver1.2.4
+         if (pushBool) {
+           input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to</b>", multiple: true, required: false, submitOnChange: true, width: 6, newLineAfter: true       
+           }  
 }
-//**********************************************************  Notes Section ******************************************************//        
+////////////////////////////////////////////////////////////////////  Notes Section ////////////////////////////////////////////////////////////////////        
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {   //// ver1.1.5
       paragraph getFormat("lessImportant","<ul>"+   //// ver1.2.0
+  "<b>MAIN</b>"+
       "<li>App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background.</li>"+
 	  "<li>Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on Check Box.</li>"+
       "<li>Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability.</li>"+
       "<li>For Power, Temp, or Voltage you must click on the Tracker threshold number and enter new number for each device. Then above or below Chack Box</li>"+
       "<li>For Thermostat operation mode tracking, you can track 'heating' or 'cooling' modes depnding on in table Check Box.</li>"+ 
+   "<b>VARIABLES</b>" + 
+      "<li>Variables must first be made in Settings/Hub Variables as a String variable for Time Format XX:XX:XX or Number variable total XXXX seconds format.</li>"+                    
       "<li>Set up variables to trigger things in RM (maybe webcore?) using Number format based on total seconds elapsed. Use as Trigger, Counter, etc..</li>"+
       "<li>Variable values can be set up in dashboard tile for viewing Periodic times, total Cumulative times, or Total On Counts.</li>"+
       "<li>Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM.</li>"+
       "<li>Set up Variable refresh updates by an in App schedule or based on state. Otherwise Variables will always update when device turns off or page refresh.</li>"+
+      "<li>Click on table link 'Select' to attach a variable to a Device. Click again to remove the variable.</li>"+
+	  "<li>Set table 'Variable Data Type' checkbox to match the Devices variable type and store as Number or String. Use Number for Rule Machine use.</li>"+                     
+   "<b>NOTIFICATIONS</b>"+
+      "<li>Notifications can send a message to mobile device and/or a created virtual mobile device for viewing on dashboard.</li>"+
+      "<li>Enter time the device is On/Active state to trigger a notification. Tracks Cumulative time.</li>"+ 
+      "<li>If you dont reset Cumulative time in main table or dont check box the reset cumulative at expire you will get a notification every time device cycles.</li>"+                     
       "</ul>")
       }
   }
 }
 
-//**********************************************************  MAIN PAGE TABLE  ******************************************************//
+////////////////////////////////////////////////////////////////////  MAIN PAGE TABLE  //////////////////////////////////////////////////////////////////
 String displayTable() {
     if(state.reset) {  //// Reset Periodic only timer/counts per device
 		def dev = DeVices.find{"$it.id" == state.reset}
@@ -305,8 +331,8 @@ String displayTable() {
         "<th>State</th>" +
         "<th>On<br>Counts</th>" +
         "<th>Reset</th>" +
-		"<th style='width: 100px !important'>Last<br>OnTime</th>" +    //// ver1.1.8  /////////////
-        "<th style='width: 100px !important'>Last<br>Reset</th>"    //// ver1.1.8  /////////////
+		"<th style='width: 100px !important'>Last<br>OnTime</th>" +    //// ver1.1.8 
+        "<th style='width: 100px !important'>Last<br>Reset</th>"    //// ver1.1.8 
 		            
         if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6") {     //// ver1.1.8 
             str += "<th>Min</th>" + "<th>Max</th>" +
@@ -321,7 +347,7 @@ String displayTable() {
         "<th style='border-right:3px solid black'>Auto<br>Update<br>Variable?</th>" +     //// ver1.1.3
         "<th>${inDaysC ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>" +    //// ver1.1.6
         "<th style='border-right:3px solid black'>Reset<br>Total</th>" +  //// ver1.1.0
-        "<th>Has<br>Variable<BR>Linked?</th></tr></thead>"   //// ver1.1.0
+        "<th>Has<br>Variable<br>Linked?</th></tr></thead>"   //// ver1.1.0
        	   
     DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
         String thisVar = state.DeVices["$dev.id"].var
@@ -356,7 +382,7 @@ String displayTable() {
         if (thisVar) {state.DeVices["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time)}
         if (thisVarC) {state.DeVices["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)}  //// ver1.1.4 
         if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// Added ver1.1.5 
-        if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, Device ${dev.id}, Var *${thisVar}* to ${time} or ${intTime}sec, Cumulative Var *${thisVarC}* ${allTime}time, ${AllTimeDays}days, ${intAllTime}sec, Counts Var *${thisVarC}* Counts=${counts}"}  //// Added ver1.1.3
+        if (logEnableBool) {log.info "App: ${app.label}: Page Refresh, Device- ${dev}, Var *${thisVar}* to ${time} or ${intTime}sec, Cumulative Var *${thisVarC}* ${allTime}time, ${AllTimeDays}days, ${intAllTime}sec, Counts Var *${thisVarC}* Counts=${counts}"}  //// Added ver1.1.3
                 
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String reset = buttonLink("d$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px")
@@ -366,7 +392,6 @@ String displayTable() {
         String checkedBox2T = (state.DeVices["$dev.id"].checkBox2) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
         String checkedBox3T = (state.DeVices["$dev.id"].checkBox3) ? buttonLink("g$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("h$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.4
         String checkedBox4T = (state.DeVices["$dev.id"].checkBox4) ? buttonLink("o$dev.id", "<iconify-icon icon='icon-park-solid:up-c'></iconify-icon>", "#CC5500", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='icon-park-solid:down-c'></iconify-icon>", "SteelBlue", "23px")   //// ver1.1.8
-        ////////////String varLink = (state.DeVices["$dev.id"].checkBox4) ? buttonLink("o$dev.id", "<iconify-icon icon='icon-park-solid:up-c'></iconify-icon>", "#CC5500", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='icon-park-solid:down-c'></iconify-icon>", "DodgerBlue", "23px")   
         
         str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>" 
 		if (capabilitySelect == "1") { str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" + "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"}
@@ -413,7 +438,7 @@ String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13
    "<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
 }
 
-//**********************************************************  VARIABLES TABLE  ******************************************************//
+////////////////////////////////////////////////////////////////////  VARIABLES TABLE  /////////////////////////////////////////////////////////////////////
 String variablesTable() {  //// Ver 1.2.2
     ////////////// Variable String or Number Check Box
     if(state.checkedBox1) {       //// ver1.1.3
@@ -427,6 +452,30 @@ String variablesTable() {  //// Ver 1.2.2
         state.remove("uncheckedBox1")
 	    }
     endif
+    ////////////// Notification Check Box
+    if(state.checkedNotify) {       //// ver1.2.4
+        def dev = DeVices.find{"$it.id" == state.checkedNotify}  
+	    state.DeVices[state.checkedNotify].notifyBox = true
+        state.remove("checkedNotify")
+	    }
+	else if(state.uncheckedNotify) {
+        def dev = DeVices.find{"$it.id" == state.uncheckedNotify}  
+	    state.DeVices[state.uncheckedNotify].notifyBox = false
+        state.remove("uncheckedNotify")
+	    }
+    endif
+   ////////////// Notification Reset Cumulative Time Box
+    if(state.checkedNotifyReset) {       //// ver1.3.0
+        def dev = DeVices.find{"$it.id" == state.checkedNotifyReset}  
+	    state.DeVices[state.checkedNotifyReset].notifyReset = true
+        state.remove("checkedNotifyReset")
+	    }
+	else if(state.uncheckedNotifyReset) {
+        def dev = DeVices.find{"$it.id" == state.uncheckedNotifyReset}  
+	    state.DeVices[state.uncheckedNotifyReset].notifyReset = false
+        state.remove("uncheckedNotifyReset")
+	    }
+    endif 
         
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 6px;text-align:center} + .tstat-col td {font-size:13px  }" +
@@ -434,33 +483,53 @@ String variablesTable() {  //// Ver 1.2.2
         "<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>Device</th>" +
 		"<th>Periodic Timer<br>Linked Variable</th>" +
         "<th>Total Counts<br>Linked Variable</th>" +
-        "<th>Cumulative Timer<br>Linked Variable</th>" +   //// ver1.1.4    
-        "<th>Variables DataType?<br>String or Number</th></tr></thead>"    //// ver1.1.3
+        "<th>Cumulative Timer<br>Linked Variable</th>"    //// ver1.1.4  
+        
+            if (pushBool) {str +=    //// ver1.2.4  
+            "<th style='border-right:3px solid black'>Variables DataType?<br>String or Number</th>" +   
+            "<th>Send <br>Notifications?</th>" +      
+            "<th>Notify Trigger<br>Elapsed Time (days)</th>" +     
+            "<th>Reset Cumulative<br>Time at Trigger?</th></tr></thead>"                  
+             }
+            else str += "<th style='border-right:3px solid black'>Variables DataType?<br>String or Number</th></tr></thead>"     //// ver1.1.3
+            endif
+        
   if(DeVices) {   //// ver1.2.2
      DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
         String thisVar = state.DeVices["$dev.id"].var
         String thisVarC = state.DeVices["$dev.id"].varC   //// ver1.1.4
         String thisVarCT = state.DeVices["$dev.id"].varCT   //// ver1.1.5
-                
+        String thisNotifyTime = String.format("%.3f", state.DeVices["$dev.id"].notifyTime)   //// ver1.2.4
+         
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String var = thisVar ? buttonLink("r$dev.id", thisVar, "purple") : buttonLink("n$dev.id", "Select", "green")
         String varC = thisVarC ? buttonLink("y$dev.id", thisVarC, "purple") : buttonLink("z$dev.id", "Select", "green")  //// ver1.1.4
         String varCT = thisVarCT ? buttonLink("v$dev.id", thisVarCT, "purple") : buttonLink("w$dev.id", "Select", "green")  //// ver1.1.5
-        
+        String notifyTime = buttonLink("i$dev.id", thisNotifyTime, "purple")  //// ver1.2.4  
         String checkedBox1T = (state.DeVices["$dev.id"].checkBox1) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.1.3
-        
+        String checkedNotifyT = (state.DeVices["$dev.id"].notifyBox) ? buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("c$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.2.4
+        String checkedNotifyResetT = (state.DeVices["$dev.id"].notifyReset) ? buttonLink("j$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("k$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")   //// ver1.2.4
+         
         str += "<tr style='color:black'><td style='border-right:2px solid black'>$devLink</td>"+ 
 		"<td title='${thisVar ? "Deselect $thisVar" : "Select Hub Variable"}'>$var</td>" +
         "<td title='${thisVarCT ? "Deselect $thisVar" : "Select Hub NUMBER Variable"}'>$varCT</td>" +   //// ver1.1.5
-        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td>" +    //// ver1.1.4
-        "<td title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td></tr>"      //// ver1.1.3
-        }
+        "<td title='${thisVarC ? "Deselect $thisVarC" : "Select Hub Variable"}'>$varC</td>"    //// ver1.1.4
+            
+            if (pushBool) {str +=    //// ver1.2.4  
+            "<td style='border-right:3px solid black' title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td>" +  //// ver1.1.3     
+            "<td title='Check Box to send notifications about this device, must enter time'>$checkedNotifyT</td>" +       
+            "<td title='Select Notification duration time'>$notifyTime</td>" +     
+            "<td title='Reset Cumulative time when Notify Time expires?'>$checkedNotifyResetT</td></tr>"                
+            }
+            else str += "<td style='border-right:3px solid black' title='Check Box to update Time variable in Number format XXXXsec, otherwise String time format XX:XX:XX'>$checkedBox1T</td></tr>"  //// ver1.1.3 
+            endif            
+     }
    }
   str += "</table></div>"
   str
  }
 
-//*****************************************************  Schedules and Subscribes ******************************************************//
+/////////////////////////////////////////////////////////////// Schedules and Subscribes //////////////////////////////////////////////////////////////
 void initialize() {
     if (capabilitySelect == "1") {
 	    subscribe(DeVices, "switch.on", onHandler)
@@ -498,13 +567,12 @@ void initialize() {
         }   
        
     if (autoResetBool) { schedule("2 0 ${resetHour} ? * * *", dailySaveCountsReset) } // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time  //// Added ver1.0.1
-   
-  	if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// ver1.0.3
-    else if (autoRefresh == "Seconds") { schedule("*/${refreshSeconds} * * ? * * *", refreshHandler) }   //// ver1.1.2
-    endif
+     	if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// ver1.0.3
+        else if (autoRefresh == "Seconds") { schedule("*/${refreshSeconds} * * ? * * *", refreshHandler) }   //// ver1.1.2
+        endif
 } 
 
-//**********************************************************  Handlers *************************************************************//
+/////////////////////////////////////////////////////////////////// HANDLERS ///////////////////////////////////////////////////////////////
 def powerHandler(evt) {  //// ver1.1.6
     if (evt.device.currentPower < state.DeVices[evt.device.id].min) {state.DeVices[evt.device.id].min = evt.device.currentPower }  //// ver 1.2.1
     if (evt.device.currentPower > state.DeVices[evt.device.id].max) {state.DeVices[evt.device.id].max = evt.device.currentPower }  
@@ -584,16 +652,24 @@ void offHandler(evt) {
             String allTime = "$allHours:${allMins < 10 ? "0" : ""}$allMins:${allSecs < 10 ? "0" : ""}$allSecs"   
                
              if (thisVar) {state.DeVices[evt.device.id].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time) 
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
+               if (logEnableBool) {log.info "App: ${app.label}: Device- ${evt.device} now Inactive/Off, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
              }
              if (thisVarC) {state.DeVices[evt.device.id].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)   //// ver1.1.4 
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${evt.device.id} now Inactive/Off, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
+               if (logEnableBool) {log.info "App: ${app.label}: Device- ${evt.device} now Inactive/Off, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
              }
              if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5 
+    
+   ////////// Notification Time Check and Messege   //// ver1.3.0
+   if (pushBool && pushDevice) { int notifyTimeSec = state.DeVices[evt.device.id].notifyTime * 86400
+      if ((intAllTime > notifyTimeSec) && state.DeVices[evt.device.id].notifyBox) { pushDevice.deviceNotification("App: ${app.label}, Device ${evt.device}, On Time Expired")   
+        if (logEnableBool) {log.debug "App: ${app.label}: NOTIFICATION, Device- ${evt.device}, CumulativeTotalSec= ${allTotal}, notifyTimeSec= ${notifyTimeSec}"}
+        if (state.DeVices[evt.device.id].notifyReset) { state.DeVices[evt.device.id].total = 0; state.DeVices[evt.device.id].allTime = 0 }
+        }
+    }
 }
 
 void appButtonHandler(btn) {
-    if (btn == "reset") resetTimers() //// ver1.0.1
+    if (btn == "reset") resetTimers()   //// ver1.0.1   a, b, c, d, e, f, g, h, i, j, k, L, M, n, o, p, q, r, s, t, u, v, W, X, y, z 
     else if (btn == "refresh") refreshHandler()  //// ver1.0.3
     else if (btn.startsWith("n")) state.newVar = btn.minus("n")
     else if (btn.startsWith("r")) state.remVar = btn.minus("r")
@@ -611,7 +687,12 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("o")) state.uncheckedBox4 = btn.minus("o")   //// ver1.1.8  
     else if (btn.startsWith("p")) state.checkedBox4 = btn.minus("p")   //// ver1.1.8       
     else if (btn.startsWith("q")) state.newThresh = btn.minus("q")   //// ver1.1.8
-	else if (btn.startsWith("u")) state.remThresh = btn.minus("u")   //// ver1.1.8     
+	else if (btn.startsWith("u")) state.remThresh = btn.minus("u")   //// ver1.1.8
+    else if (btn.startsWith("s")) state.uncheckedNotify = btn.minus("s")   //// ver1.3.0  
+    else if (btn.startsWith("c")) state.checkedNotify = btn.minus("c")   //// ver1.3.0 
+    else if (btn.startsWith("i")) state.newNotifyTime = btn.minus("i")   //// ver1.3.0  
+    else if (btn.startsWith("j")) state.uncheckedNotifyReset = btn.minus("j")   //// ver1.3.0 
+    else if (btn.startsWith("k")) state.checkedNotifyReset = btn.minus("k")   //// ver1.3.0      
     else state.reset = btn.minus("d")
     }
 
@@ -684,20 +765,28 @@ def refreshHandler() {   //// Added ver 1.0.3
                
              if ((thisVar && state.DeVices["$dev.id"].checkBox2) || (thisVar && state.byPassBool)) {  //// ver1.1.3 
                state.DeVices["$dev.id"].checkBox1 ? setGlobalVar(thisVar, intTime) : setGlobalVar(thisVar, time) 
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
+               if (logEnableBool) {log.info "App: ${app.label}: Device- ${dev}, Periodic Var *${thisVar}* to ${time} or ${intTime}sec, Counts=${counts}"}  //// ver1.1.3                  
              }
              if ((thisVarC && state.DeVices["$dev.id"].checkBox2) || (thisVarC && state.byPassBool)) {  //// ver1.1.4 
                state.DeVices["$dev.id"].checkBox1 ? setGlobalVar(thisVarC, intAllTime) : setGlobalVar(thisVarC, allTime)
-               if (logEnableBool) {log.info "App: ${app.label} - Device ${dev.id}, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
+               if (logEnableBool) {log.info "App: ${app.label}: Device- ${dev}, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
              }
              if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5 
+            
+   ////////// Notification Time Check and Messege   //// ver1.3.0
+   if (pushBool && pushDevice) { int notifyTimeSec = state.DeVices["$dev.id"].notifyTime * 86400
+      if ((intAllTime > notifyTimeSec) && state.DeVices["$dev.id"].notifyBox) { pushDevice.deviceNotification("App: ${app.label}, Device ${dev}, On Time Expired")   
+        if (logEnableBool) {log.debug "App: ${app.label}: NOTIFICATION, Device- ${dev}, CumulativeTotalSec= ${allTotal}, notifyTimeSec= ${notifyTimeSec}"}
+        if (state.DeVices["$dev.id"].notifyReset) { state.DeVices["$dev.id"].total = 0; state.DeVices["$dev.id"].allTime = 0 }
+        }
+    }        
                                                      
          }
     state.byPassBool = false  // Reset the bypass  //// ver1.1.3
- }
+}
 
-//*************************************************** Reset Functions ********************************************************//
-void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour rest to save counts or not  //// ver1.1.4
+/////////////////////////////////////////////////////////// Reset Functions ////////////////////////////////////////////////////
+void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour reset to save counts or not  //// ver1.1.4
     if (dayCountsReset) {state.byPassBool = false}
     else state.byPassBool = true  
     resetTimers()
@@ -721,7 +810,6 @@ void remoteReset(evt = null) {   //// ver1.1.4
                   else if (capabilitySelect == "5") {state.DeVices[k].min = dev.currentTemperature; state.DeVices[k].max = dev.currentTemperature}   
                   else if (capabilitySelect == "6") {state.DeVices[k].min = dev.currentVoltage; state.DeVices[k].max = dev.currentVoltage}                             
               } 
-            //if (resetVarAllBool && resetVar && state.DeVices[k].checkBox3) {state.DeVices[k].allTime = 0}  
             if (resetVarC && state.DeVices[k].checkBox3) {state.DeVices[k].allTime = 0 } 
             }
      }
@@ -743,12 +831,11 @@ void resetTimers(evt = null) {
                   else if (capabilitySelect == "5") {state.DeVices[k].min = dev.currentTemperature; state.DeVices[k].max = dev.currentTemperature}   
                   else if (capabilitySelect == "6") {state.DeVices[k].min = dev.currentVoltage; state.DeVices[k].max = dev.currentVoltage}                             
               }
-                                        
         }
     if (logEnableBool) {log.debug "App: ${app.label} - App Periodic Active/On All Timers Reset to 0 Happening ..........."}
     refreshHandler() //// ver1.0.3
 }
-//****************************************************** Other Stuff ********************************************************//
+/////////////////////////////////////////////////////////////// Other Stuff ///////////////////////////////////////////////////////
 def updated() {
     unsubscribe()
     unschedule()
@@ -769,7 +856,7 @@ def getFormat(type, myText="") {
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"
           if(type == "important2") return "<div style='color:#000000'>${myText}</div>"
     }
-    //if(type == "red") return "<div style='color:#660000'>${myText}</div>"
+    if(type == "noticable") return "<div style='color:#CC5500'>${myText}</div>"
 	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
 	if(type == "important") return "<div style='color:#32a4be'>${myText}</div>"
 	//if(type == "important2Bold") return "<div style='color:#5a8200;font-weight: bold'>${myText}</div>"
@@ -779,4 +866,3 @@ def displayTitle() {
     setVersion()
     section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
 }
-
