@@ -60,7 +60,7 @@ def mainPage() {
   displayTitle() 
   section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  //// ver1.2.0
         label title: "<b>1. Name this child App</b>", required: true, submitOnChange: true, width: 3
-        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a capability to track.</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"], ["6":"VOLTAGE Monitor"], ["7":"THERMOSTAT State"]], width: 3, submitOnChange: true, displayDuringSetup: false
+        input name: "capabilitySelect", type: "enum", title: "<b>2. Select a Capability to track</b>", required: true, description: "Default = SWITCH On", defaultValue: "1", multiple: false, options:[["1":"SWITCH On"], ["2":"CONTACT Open"], ["3":"CONTACT Closed"], ["4":"POWER Monitor"], ["5":"TEMPERATURE Monitor"], ["6":"VOLTAGE Monitor"], ["7":"THERMOSTAT State"]], width: 3, submitOnChange: true, displayDuringSetup: false
         if (capabilitySelect == "1") {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}    
         else if (capabilitySelect == "2") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Open Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.0.1
         else if (capabilitySelect == "3") {input "DeVices", "capability.contactSensor", title: "<b>3. Select Devices to Track Contact Closed Time</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.0.1
@@ -69,7 +69,8 @@ def mainPage() {
         else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.7
         else if (capabilitySelect == "7") {input "DeVices", "capability.thermostat", title: "<b>3. Select Thermostat to Track Heat/Cool state</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.8       
         else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
-        
+    paragraph "Only one Capability per each child App can be used.  Do not change Capability or Uncheck a Device after inital App set-up. Adding a Device later is OK."
+      
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
              if (capabilitySelect == "1") {state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, notifyBox: false, timeMin: "", timeMax: "", min: 9999, max: 0, notifyTime: 9999.9999, notifyReset: false]}  
@@ -78,7 +79,7 @@ def mainPage() {
              else if (capabilitySelect == "4") {state.DeVices["$dev.id"] = [start: dev.currentPower >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}   //// ver1.0.3
              else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
              else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
-             else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "idle", thresh: 0, notifyBox: false, timeMin: "", timeMax: "", min: 9999, max: 0, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.8 
+             else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: true, checkBox3: true, checkBox4: true, state: "idle", thresh: 0, min: 9999, max: 0, notifyBox: false, timeMin: "", timeMax: "", notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.8 
             endif    
              state.DeVicesList += dev.id   
              }
@@ -228,7 +229,7 @@ def mainPage() {
   "<b>MAIN</b>"+
       "<li>App Page will not refresh itself, hit in App Refresh button to see latest timers, counts, and states. Variables/Timers will update in background.</li>"+
 	  "<li>Table will always display times in String Time format; XX:XX:XX. Timer Variables can be sent in Number or String format, depends on Check Box.</li>"+
-      "<li>Only one capability can be used per child app. So Switch On or Contact Open etc.. Must make a seperate child app for different capability.</li>"+
+      "<li>Only one capability used per child app; Switch On or Contact Open etc.. Dont change after initial set-up. Must make a seperate child app for different capability.</li>"+
       "<li>For Power, Temp, or Voltage you must click on the Tracker threshold number and enter new number for each device. Then above or below Chack Box</li>"+
       "<li>For Thermostat operation mode tracking, you can track 'heating' or 'cooling' modes depnding on in table Check Box.</li>"+ 
       "<li>Set up Reset Timers/Variables and/or counts by an in App schedule or by On state or by using a remote resest variable from RM.</li>"+ 
@@ -646,7 +647,7 @@ void offHandler(evt) {
           String thisVarCT = state.DeVices[evt.device.id].varCT   //// ver1.1.5
           int counts = state.DeVices[evt.device.id].counts    //// ver1.1.5 
     
-            ////////// Active/On One Cycle Time Calc, Min/Max Time Calc per sessions   //// ver1.3.0
+            ////////// Active/On One Cycle Time Calc, Min/Max Time Calc per sessions   //// ver1.3.1
             if (capabilitySelect == "1" || capabilitySelect == "2" || capabilitySelect == "3" || capabilitySelect == "7") {
              int oneTime = state.DeVices[evt.device.id].oneTime / 1000  
              int intOneTime = oneTime 
@@ -731,43 +732,43 @@ def refreshHandler() {   //// Added ver 1.0.3
         def dev = DeVices.find{"$it.id" == k}
         ///////////// Update Times if Active/On
         if (capabilitySelect == "1" && dev.currentSwitch == "on") {
-            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
 			state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start) //// ver1.1.3
             state.DeVices[k].start = now()
             }
         else if (capabilitySelect == "2" && dev.currentContact == "open") {
-            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)  //// ver1.1.3
 			state.DeVices[k].start = now()
             }
         else if (capabilitySelect == "3" && dev.currentContact == "closed") {
-            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+            state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
         	state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)  //// ver1.1.3
 			state.DeVices[k].start = now()
 		    }
         else if ((capabilitySelect == "4" && dev.currentPower >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "4" && dev.currentPower < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.0.2
-        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)  //// ver1.1.3
 			state.DeVices[k].start = now()
 		    }
         else if ((capabilitySelect == "5" && dev.currentTemperature >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "5" && dev.currentTemperature < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
-        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
 		    } 
         else if ((capabilitySelect == "6" && dev.currentVoltage >= state.DeVices[k].thresh && state.DeVices[k].checkBox4) || (capabilitySelect == "6" && dev.currentVoltage < state.DeVices[k].thresh && state.DeVices[k].checkBox4 == false)) { //// ver1.1.7
-        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+        	//state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
 		    } 
         else if ((capabilitySelect == "7" && dev.currentThermostatOperatingState == "heating" && state.DeVices[k].checkBox4) || (capabilitySelect == "7" && dev.currentThermostatOperatingState == "cooling" && state.DeVices[k].checkBox4 == false)) { //// ver1.1.8
-        	state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.30
+        	state.DeVices[k].oneTime += now() - state.DeVices[k].start   //// ver1.31
             state.DeVices[k].total += now() - state.DeVices[k].start
             state.DeVices[k].allTime = state.DeVices[k].allTime + (now() - state.DeVices[k].start)   
 			state.DeVices[k].start = now()
