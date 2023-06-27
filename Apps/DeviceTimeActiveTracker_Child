@@ -69,7 +69,7 @@ def mainPage() {
         else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.7
         else if (capabilitySelect == "7") {input "DeVices", "capability.thermostat", title: "<b>3. Select Thermostat to Track Heat/Cool state</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.8       
         else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
-    paragraph "Only one Capability per each child App can be used.  Do not change Capability or Uncheck a Device after inital App set-up. Adding a Device later is OK."
+    paragraph "IMPORTANT: Only one Capability per each child App can be used.  Multiple Devices of same Capability can be checked. Do not change Capability or Uncheck a Device after inital App set-up. Adding an additional Device later is OK."
       
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
