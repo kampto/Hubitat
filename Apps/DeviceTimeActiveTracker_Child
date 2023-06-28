@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.3.2	2023-06-25	kampto    	Added Notification options, Added Min/Max for contacts-switches. Threshold icon changes
+*   1.3.3	2023-06-25	kampto    	Added Notification options, Added Min/Max for contacts-switches. Add auto reset by day choice. Threshold icon changes
 *   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variables to a differnt Table.
 *   1.2.0	2023-05-06	FriedCheese	Pull request: Alternative format Option; App UI page for dark screen, Table sort + search option. 
 *   1.1.8	2023-05-05	kampto		Add option to see last On-time vs last reset. Added per device power, temp, or voltage tracking thresholds in table. Add Thermostat Heating or Cooling modes.
@@ -28,7 +28,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Active Tracker, Times and Counts (Child)"
-	state.version = "1.3.2"
+	state.version = "1.3.3"
     }
 
 definition (
@@ -69,7 +69,7 @@ def mainPage() {
         else if (capabilitySelect == "6") {input "DeVices", "capability.voltageMeasurement", title: "<b>3. Select Voltage reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.7
         else if (capabilitySelect == "7") {input "DeVices", "capability.thermostat", title: "<b>3. Select Thermostat to Track Heat/Cool state</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.1.8       
         else {input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
-    paragraph "IMPORTANT: Only one Capability per each child App can be used.  Multiple Devices of same Capability can be checked. Do not change Capability or Uncheck a Device after inital App set-up. Adding an additional Device later is OK."
+    paragraph "IMPORTANT: Only one Capability per each child App can be used.  Multiple Devices of same Capability can be checked. Do not change Capability or Uncheck a Device after initial App set-up. Adding an additional Device later is OK."
       
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
@@ -120,10 +120,11 @@ def mainPage() {
   }
 //////////////////////////////////////////////////////////////////////// Input Section 2 //////////////////////////////////////////////////////////////////        
      section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
-         input name: "autoResetBool", type: "bool", title: getFormat("important2","<b>Daily Reset all Timers & Update Variables at a specific Hour?</b><br>(Default = Off. Does not Reset Cumulative Timer)<br><small>Applies to All</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
+         input name: "autoResetBool", type: "bool", title: getFormat("important2","<b>Reset all Timers & Update Variables at a specific Hour and Day or Everyday?</b><br>(Default = Off.  This does not Reset Cumulative Timer)<br><small>Applies to All</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
           if (autoResetBool) {
-             input name: "dayCountsReset", type: "bool", title: getFormat("important","Also Reset All On Counters and Min/Max values?"), defaultValue:false, submitOnChange:false, style: 'margin-left:60px'   ////  ver1.2.1 
-             input name: "resetHour", type: "enum", title: getFormat("lessImportant",">> Select an Hour for Auto Reset Everyday, 0 to 23.<br><small>Default = 0 (Midnight)</small>"), defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], required: false, style: 'margin-left:110px'
+             input name: "countsResetBool", type: "bool", title: getFormat("important","Also Reset All On Counters and Min/Max values?"), defaultValue:false, submitOnChange:false, style: 'margin-left:60px'   ////  ver1.2.1 
+             input name: "resetDay", type: "enum", title: getFormat("lessImportant",">> Select Everyday or a Single day (once a week). &nbsp <small>Default = Everyday</small>"), defaultValue: "Everyday", submitOnChange: true,  options: ["Everyday","SUN","MON","TUE","WED","THU","FRI","SAT"], required: false, style: 'margin-left:110px'   //// ver1.3.3
+             input name: "resetHour", type: "enum", title: getFormat("lessImportant",">> Select an Hour for Auto Reset, 0 to 23. &nbsp <small>Default = 0 (Midnight)</small>"), defaultValue: "0", submitOnChange: true,  options: ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23"], required: false, style: 'margin-left:110px'
              }
           
           input name: "resetWhenOnBool", type: "bool", title: getFormat("important2","<b>Reset & Restart all Timers & Update Variables when any Device becomes On/Active?</b><br>(Does not Reset Cumulative Times or Counts)<br><small>Applies to All</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
@@ -578,7 +579,9 @@ void initialize() {
         setGlobalVar(resetVarC, false) 
         }   
        
-    if (autoResetBool) { schedule("2 0 ${resetHour} ? * * *", dailySaveCountsReset) } // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time  //// Added ver1.0.1
+    if (autoResetBool && resetDay == "Everyday") { schedule("2 0 ${resetHour} ? * * *", dailySaveCountsReset) } // Add 2sec after the hour so it doesnt potentially confict with Auto refresh at same time  //// Added ver1.0.1
+    else if (autoResetBool) { schedule("2 0 ${resetHour} ? * ${resetDay} *", dailySaveCountsReset) } //// ver1.3.3
+    endif
     
     if (autoRefresh == "Minutes") { schedule("0 */${refreshMinutes} * ? * * *", refreshHandler) }   //// ver1.0.3
     else if (autoRefresh == "Seconds") { schedule("*/${refreshSeconds} * * ? * * *", refreshHandler) }   //// ver1.1.2
@@ -823,7 +826,7 @@ def refreshHandler() {   //// Added ver 1.0.3
 
 /////////////////////////////////////////////////////////// Reset Functions ////////////////////////////////////////////////////
 void dailySaveCountsReset(evt = null) { //// Used by Auto reset daily hour reset to save counts or not  //// ver1.1.4
-    if (dayCountsReset) {state.byPassBool = false}
+    if (countsResetBool) {state.byPassBool = false}
     else state.byPassBool = true  
     resetTimers()
 }
