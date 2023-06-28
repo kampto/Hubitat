@@ -50,6 +50,7 @@ def mainPage() {
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
     if (resetHour == null) {resetHour = 0}   //// ver1.0.1
+    if (resetDay == null) {resetDay = "Everyday"}   //// ver1.3.3
     if (refreshMinutes == null) {refreshMinutes = 10}    //// ver1.1.3
     if (refreshSeconds == null) {refreshSeconds = 30}    //// ver1.1.3
     if (capabilitySelect == null) {capabilitySelect = 1}
