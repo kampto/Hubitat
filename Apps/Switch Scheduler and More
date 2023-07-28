@@ -1,7 +1,7 @@
 /* Switch Scheduler and More
 *  
 *	2023 T. K. (kampto)
-*	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers,. 
+*	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers, Valves.... Use custom time or Sunste/Sunrise times with offsets. 
 *   
 *    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 *    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
@@ -9,6 +9,8 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.2.0	2023-07-27	kampto    	Added Valve capability.
+*   1.1.1	2023-06-13	kampto    	Added table display total time in days option.
 *   1.1.0	2023-05-18	kampto    	Add sunset/sunrise start options, format changes.
 *   1.0.3	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. Added Modes. More usage notes.
 *   1.0.0	2023-05-09	kampto    	First Build from scratch.
@@ -17,10 +19,11 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers,..)";    state.version = "1.1.0" }
+def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
+    state.version = "1.2.0" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
-	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers",
+	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
 	category: "Control",
    	iconUrl: "",
 	iconX2Url: "",
@@ -29,7 +32,7 @@ definition (
 	)
 preferences { page(name: "mainPage") }
 
-////////////////////////////////////////////////////////////  Main Page Inputs/Set-Up /////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////  Main Page Inputs/Set-Up /////////////////////////////////////////////////////////////
 def mainPage() {
     if (app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}  
     if (state.DeVices == null) state.DeVices = [:]
@@ -40,11 +43,11 @@ def mainPage() {
   displayTitle() 
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
         label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
-        input "DeVices", "capability.switch", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
-     
+        input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
+       
      DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
-             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, pause: false]  
+             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, pause: false]  
              state.DeVicesList += dev.id   
              }
 	 }
@@ -61,7 +64,7 @@ def mainPage() {
     paragraph displayTable()
 	  ///////////////////////// Input Start Time 
       if(state.newStartTime) {
-        input name: "newStartTime", type: "time", title:"<b>Enter Start/On Time, Applies to all checked days for Switch.<br><small>Uses 24hr time, &nbsp Hit Update</small>", defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
+        input name: "newStartTime", type: "time", title:getFormat("noticable","<b>Enter Start/On Time, Applies to all checked days for Switch.<br><small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
           if(newStartTime) {
              state.DeVices[state.newStartTime].startTime = newStartTime
              state.remove("newStartTime")
@@ -71,7 +74,7 @@ def mainPage() {
 	    } 
        ///////////////////////// Input Run Duration  
        if(state.newDurTime) {
-        input name: "newDurTime", type: "number", title:"<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch. &nbsp <small>Hit Enter</small>", defaultValue: 0, required: false,  submitOnChange:true, width: 8, style: 'margin-left:10px'
+        input name: "newDurTime", type: "number", title:getFormat("noticable","<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch. &nbsp <small>Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, width: 8, newLineAfter: true, style: 'margin-left:10px'
           if(newDurTime) {
              state.DeVices[state.newDurTime].durTime = newDurTime
              state.remove("newDurTime")
@@ -81,7 +84,7 @@ def mainPage() {
 		} 
        ///////////////////////// Sunrise / Sunset Offset time  //// ver1.1.0
        if(state.newOffsetTime) {
-        input name: "newOffsetTime", type: "number", title:"<b>Enter +/- Offset time from Sunrise or Sunset in minutes, Applies to all checked days for Switch.<br><small>EX: 30, -30, or -90, &nbsp Hit Enter</small>", defaultValue: 0, required: false,  submitOnChange:true, accepts: "-1000 to 1000", range: "-1000..1000", width: 8, style: 'margin-left:10px'
+        input name: "newOffsetTime", type: "number", title:getFormat("noticable","<b>Enter +/- Offset time from Sunrise or Sunset in minutes, Applies to all checked days for Switch.<br><small>EX: 30, -30, or -90, &nbsp Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, accepts: "-1000 to 1000", range: "-1000..1000", width: 8, newLineAfter: true, style: 'margin-left:10px'
           if(newOffsetTime) {
              state.DeVices[state.newOffsetTime].offset = newOffsetTime
              state.remove("newOffsetTime")
@@ -89,15 +92,16 @@ def mainPage() {
              paragraph "<script>{changeSubmit(this)}</script>"
 		     }
 		} 
-       input "refresh", "button", title: "REFRESH Table Times, Counts, & States", width: 5 
-       input "allOff", "button", title: "TURN OFF all switches", width: 4 
+       input "refresh", "button", title: "<b>REFRESH</b> Table Times, Counts, & States", width: 4
+       input "allOff", "button", title: "<b>TURN OFF</b> all switches/valves", width: 3 
+       input name: "inDaysCBool", type: "bool", title:getFormat("important2","Display Total Time in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6  
       }
   }
 ////////////////////////////////////////////////////////////  Advanced Inputs //////////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "Update/Store Schedules without hitting Done exiting App" 
         input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all Devices upcoming schedules?</b><br><small>Remote sensors if enabled will toggle this</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-        input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches? Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches/valves? Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (sprinklerBool) {
                 input "moistSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Remote Moisture sensor to Pause all Schedules (Optional)</b><br><small>Water sensor capability, wet or dry</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'  
             }
@@ -115,7 +119,7 @@ def mainPage() {
 /////////////////////////////////////////////////////////////  Notes Section  /////////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
-      "<li>Use for any switch capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
+      "<li>Use for any switch or valve capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
       "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
       "<li>Select day(s) or odd days check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
       "<li>Odd days will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
@@ -124,7 +128,7 @@ def mainPage() {
       "<li>Total On Time and Counts will track all switch activity, from app and outside app.</li>"+ 
       "<li>Optional: select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
       "<li>Optional: Sprinklers: Moisture sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+     
-      "<li>To automate sprinkers you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+      
+      "<li>To automate sprinkers using 'Switch' you must provide valve voltage (24VAC) thru a switch, outlet(with 24VAC walwart), or relay. </li>"+      
       "<li>You must hit DONE at page bottom to save App.</li>"+                    
       "</ul>")
       }
@@ -253,15 +257,17 @@ String displayTable() {
         
         ////////////////////////// Active/On Time Calc
         int counts = state.DeVices["$dev.id"].counts   
-        int total = state.DeVices["$dev.id"].total / 1000    
+        int total = state.DeVices["$dev.id"].total / 1000
+        float totalDays = (total / 86400) as float //// ver1.1.1
         int hours = total / 3600
         total = total % 3600
 	    int mins = total / 60
 	    int secs = total % 60
-	    String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-            if (state.DeVices["$dev.id"].sunTime) {startTime = thisStartTime} //// ver1.1.0
-            else {startTime = buttonLink("o$dev.id", thisStartTime, "MediumBlue")}
-            endif
+        String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
+         if (inDaysCBool) {time = String.format("%.3f", totalDays)} // For table Only  //// ver1.1.1
+	     if (state.DeVices["$dev.id"].sunTime) {startTime = thisStartTime} //// ver1.1.0
+         else {startTime = buttonLink("o$dev.id", thisStartTime, "MediumBlue")}
+         endif
         
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
 		String resetTotal = buttonLink("z$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px") 
@@ -282,8 +288,10 @@ String displayTable() {
         
         /////////////////////////////// Table Rows Build
         str += "<tr style='color:black'><td>$thisZone</td>" + 
-        "<td>$devLink</td>" +
-        "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"   
+        "<td>$devLink</td>" 
+            if (dev.currentSwitch) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"}   ///////////////
+            else if (dev.currentValve) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentValve == "open" ? "green" : "red"}'title='State $dev'>$dev.currentValve </td>"}    ///////////////
+            endif 
             if (state.DeVices["$dev.id"].sunTime) {str +="<td title='Start Time with Sunset or Sunrise +/- offset'>$startTime</td>"}  //// ver1.1.0
             else str += "<td style='font-weight:bold !important' title='${thisStartTime ? "Click to Change Start Time" : "Select"}'>$startTime</td>"
             endif
@@ -307,9 +315,11 @@ String displayTable() {
         str +=
         "<td title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
         "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
-        "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
-        "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" +       
-        "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
+        "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
+        if (dev.currentSwitch) {str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" }  
+        else if (dev.currentValve) {str += "<td style='font-weight:bold; color:${dev.currentValve == "open" ? "green" : "red"}'>$time</td>" }   //// ver1.20 
+        endif 
+        str += "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
         }
    	str += "</table></div>"
     str
@@ -321,6 +331,8 @@ String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13
 void initialize() {
      subscribe(DeVices, "switch.on", onTimeHandler)
 	 subscribe(DeVices, "switch.off", offTimeHandler)
+     subscribe(DeVices, "valve.open", onTimeHandler)  //// ver1.20
+	 subscribe(DeVices, "valve.close", offTimeHandler)  //// ver1.20
      subscribe(remoteSwitch, "switch.on", remoteOffHandler)
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
      subscribe(moistSensor, "water.wet", remoteOffHandler)  //// ver1.0.1
@@ -339,11 +351,11 @@ void initialize() {
 def onTimeHandler(evt) {
     state.DeVices[evt.device.id].start = now()
     state.DeVices[evt.device.id].counts += 1  
-    log.info "${app.label} - ON HANDLER, Device ${evt.device.id}.....start= ${state.DeVices[evt.device.id].start}" 
+    if (logEnableBool) {log.info "${app.label} - ONtime HANDLER, Device ${evt.device.id}.....start= ${state.DeVices[evt.device.id].start}" }
 }
 def offTimeHandler(evt) {
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
-    log.info "${app.label} - OFF HANDLER, Device ${evt.device.id}.....total= ${state.DeVices[evt.device.id].total}" 
+    if (logEnableBool) {log.info "${app.label} - OFFtime HANDLER, Device ${evt.device.id}.....total= ${state.DeVices[evt.device.id].total}"} 
 }
 void switchOnHandler(data) { 
     if (pauseBool) {return}
@@ -353,7 +365,8 @@ void switchOnHandler(data) {
             if (data.value == state.DeVices["$dev.id"].zone ) {
                 zone = state.DeVices["$dev.id"].zone
                 //if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
-                dev.on()
+                if (dev.currentSwitch)  {dev.on()}    
+                if (dev.currentValve)  {dev.open()}  //// ver1.20
                 runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
             }
         }
@@ -366,15 +379,28 @@ void switchOffHandler(data) {
     DeVices.each { dev -> 
         if (data.value == state.DeVices["$dev.id"].zone ) {
            if (logEnableBool) {log.debug "${app.label} -SWITCH-OFFhandler...Device = ${dev}...zone = ${data.value}"}  
-           dev.off()
-           }
+            if (dev.currentSwitch)  {dev.off()} 
+            if (dev.currentValve)  {dev.close()}  //// ver1.20
+         }
      }
 }
-def allOffHandler(evt) { DeVices.off() }
+def allOffHandler(evt) {
+    DeVices.each { dev ->
+    if (dev.currentSwitch == "on") {dev.off()}  
+    else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
+    endif    
+    }
+}
 
 def remoteOffHandler(evt) {
     if (logEnableBool) {log.debug "App: ${app.label} - Remote Off, Pause/Resume Handler....Device ${evt.device}....Switch=${evt.device.currentSwitch} or Water=${evt.device.currentWater}"}
-    if (evt.device.currentSwitch == "on") {DeVices.off();  app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }
+    if (evt.device.currentSwitch == "on") {app?.updateSetting("pauseBool",[value:"true",type:"bool"])  // remote switch, not device
+        DeVices.each { dev ->
+        if (dev.currentSwitch == "on") {dev.off()}  
+        else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
+        endif    
+        }
+     }
     else if (evt.device.currentWater == "wet") {app?.updateSetting("pauseBool",[value:"true",type:"bool"]) }  //// ver1.0.1
     else app?.updateSetting("pauseBool", [value:"false",type:"bool"])
     endif
@@ -424,7 +450,7 @@ void appButtonHandler(btn) {
 def refreshHandler() { ///////////// Update Times if Active/On
     state.DeVices.each {k, v ->
         def dev = DeVices.find{"$it.id" == k}
-        if (dev.currentSwitch == "on") {
+        if (dev.currentSwitch == "on" || dev.currentValve == "open") {  //////////////////  
           state.DeVices[k].total += now() - state.DeVices[k].start
 		  state.DeVices[k].start = now()
           //if (logEnableBool) {log.info "${app.label} -REFRESH Handler, Device ${k}.... state.DeVices[k].total= ${state.DeVices[k].total}"}
@@ -478,12 +504,12 @@ def logsOff() {
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:SteelBlue;font-weight: bold'>${myText}</h3>"
     if (formatBool) {if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"} 
-                     if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
+          if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
     }
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"
           if(type == "important2") return "<div style='color:#000000'>${myText}</div>"
     }
-    //if(type == "red") return "<div style='color:#660000'>${myText}</div>"
+    if(type == "noticable") return "<div style='color:#CC5500'>${myText}</div>"  // Burnt Orange
 	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
 	if(type == "important") return "<div style='color:#32a4be'>${myText}</div>"
 	//if(type == "important2Bold") return "<div style='color:#5a8200;font-weight: bold'>${myText}</div>"
