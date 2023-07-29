@@ -295,7 +295,7 @@ String displayTable() {
         String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.1.0
         String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("y0$dev.id", "<iconify-icon icon=ph:moon-stars-duotone></iconify-icon>", "DodgerBlue", "23px") : buttonLink("y1$dev.id", "<iconify-icon icon='ph:sun-duotone'></iconify-icon>", "orange", "23px")  //// ver1.1.0
         String offset = buttonLink("y2$dev.id", thisOffsetTime, "MediumBlue")  //// ver1.1.0
-          if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, *${dev}*, StartTime-${thisStartTime}...Duration-${thisDurTime}...Counts-${counts}...Cron-${thisCron}"}
+        //// if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, *${dev}*, StartTime-${thisStartTime}...Duration-${thisDurTime}...Counts-${counts}...Cron-${thisCron}"}
         
         /////////////////////////////// Table Rows Build
         str += "<tr style='color:black'><td>$thisZone</td>" + 
@@ -344,7 +344,7 @@ void initialize() {
      subscribe(DeVices, "switch.on", onTimeHandler)
 	 subscribe(DeVices, "switch.off", offTimeHandler)
      subscribe(DeVices, "valve.open", onTimeHandler)  //// ver1.20
-	 subscribe(DeVices, "valve.close", offTimeHandler)  //// ver1.20
+	 subscribe(DeVices, "valve.closed", offTimeHandler)  //// ver1.20
      subscribe(remoteSwitch, "switch.on", remoteOffHandler)
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
      subscribe(moistSensor, "water.wet", remoteOffHandler)  //// ver1.0.1
@@ -376,7 +376,7 @@ void switchOnHandler(data) {
         if (!state.DeVices["$dev.id"].pause) {
             if (data.value == state.DeVices["$dev.id"].zone ) {
                 zone = state.DeVices["$dev.id"].zone
-                //if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
+                if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
                 if (dev.currentSwitch)  {dev.on()}    
                 if (dev.currentValve)  {dev.open()}  //// ver1.20
                 runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
