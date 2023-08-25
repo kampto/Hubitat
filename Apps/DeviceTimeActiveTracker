@@ -1,7 +1,7 @@
 /* Device Time On Tracker (Parent)
 *  
 *	2022 T. K. (kampto)
-*	NOTES:  Track the time and counts a device is Active/On. Assign to a variable if needed. Refresh/Reset/Update variable various ways. Use variable in RM to trigger things. 
+*	NOTES:  Track the times, on counts, levels, etc.. Assign to a variable or set a notification. Refresh/Reset/Update variable various ways. Use variable in RM to trigger things. 
 * 
 *    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 *    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,17 +11,16 @@
 *	Ver		Date:		Who:		What:
 * 	1.X.X	2023-4-12	kampto		Refernce Child App for revisions
 * 	1.0.1	2022-10-02	kampto		First instance of Parent/Child apps.
-
 */
 
 def setVersion(){
-    state.name = "Device Active Tracker, Times and Counts"
+    state.name = "Device Active Tracker, Times, Levels, and Counts"
 	state.version = "1.X.X <br>  <small> See Child App for revision history </small>"
 }
 
 definition(
 	name: "Device Time Active Tracker", namespace: "kampto", author: "T. K.",
-	description: "Track the time a device or thing is active. Attach to a variable",
+	description: "Track Time a device is Active, Levels, On Counts, Attach data to variables, Send Notifications",
 	category: "General",
 	iconUrl: "",
 	iconX2Url: "",
@@ -41,8 +40,9 @@ def Config() {
 			section(getFormat("header","Purpose & Instructions:"), hideable: true, hidden: true) {
 			paragraph getFormat("important","Purpose:<br>")+
 			getFormat("important2","<ul>"+
-			"<li>Track the time a device or thing is On, Open, Active.</li>"+
-			"<li>Link variables to monitor on dashboard or rule machine.</li>"+
+			"<li>Track the time a device or thing is On, Open, Active. Monitor device levels or attributes.</li>"+
+            "<li>App Capability's include: Switch, Contact Open or Closed, Valve, Temperature, Voltage, Power, Battery Levels, and Thermostat states.</li>"+          
+			"<li>Link variables to monitor on dashboard or rule machine. Set up notifications for time thresholds or battery levels</li>"+
 			"</ul>")
 
 			paragraph getFormat("important","Instructions:<br>")+
@@ -53,17 +53,16 @@ def Config() {
 			"</ul>")
             }
 			section("") {
-				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", title: getFormat("header","<b>Click to add a new 'Device Time Tracker' child"), multiple: true)
-			}
+				app(name: "anyOpenApp", appName: "Device Time Active Tracker Child", namespace: "kampto", 
+                title: getFormat("header","<b>Click here to add a new 'Device Time Tracker' child app"), multiple: true)
+			    }
   			
 			section("") {
-       		label title: getFormat("importantBold","Change name for parent app (optional)"), required: false
+       		    label title: getFormat("importantBold","Change name for parent app (optional)"), required: false
  			}
-			
 		}
 	}
 }
-
 def installed() {
     log.debug "Installed with settings: ${settings}"
     initialize()
@@ -87,26 +86,19 @@ def installCheck(){
 	if(state.appInstalled != 'COMPLETE'){
 		section{paragraph "Please hit 'Done' to install '${app.label}' parent app "}
   	}
-  	else{
-    	log.info "Parent Installed OK"
+  	else{ log.info "Parent Installed OK"
   	}
 }
 
 def getFormat(type, myText="") {
-	if(type == "title") return "<h3 style='color:#0000ff;font-weight: bold'>${myText}</h3>"
-	if(type == "header") return "<div style='color:#660000;font-weight: bold'>${myText}</div>"
-	if(type == "red") return "<div style='color:#660000'>${myText}</div>"
-	if(type == "importantBold") return "<div style='color:#32a4be;font-weight: bold'>${myText}</div>"
+	if(type == "title") return "<h3 style='color:SteelBlue; font-weight: bold'>${myText}</h3>"
+	if(type == "header") return "<div style='color:black; font-weight: bold'>${myText}</div>"
+	if(type == "importantBold") return "<div style='color:SteelBlue; font-weight: bold'>${myText}</div>"
 	if(type == "important") return "<div style='color:#32a4be'>${myText}</div>"
 	if(type == "important2") return "<div style='color:#5a8200'>${myText}</div>"
-	if(type == "important2Bold") return "<div style='color:#5a8200;font-weight: bold'>${myText}</div>"
-	if(type == "lessImportant") return "<div style='color:green'>${myText}</div>"
-	if(type == "rateDisplay") return "<div style='color:green; text-align: center;font-weight: bold'>${myText}</div>"
 }
 
 def displayTitle() {
     setVersion()
-    theName = app.label
-    if(theName == null || theName == "") theName = "New Child App"
-	return section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
+    return section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
     }
