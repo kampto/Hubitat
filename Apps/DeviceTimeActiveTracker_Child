@@ -543,7 +543,7 @@ String displayTable() {
             "<td title='Last Reset time for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>" +    
             "<td title='Minumum Level recorded'>${state.DeVices["$dev.id"].min}</td>" + 
             "<td title='Maximum Level recorded'>${state.DeVices["$dev.id"].max}</td>" +
-            "<td style='font-weight:bold; title='${thisThresh ? "Click to Change Alarm/Notify Lower Battery Level, do not change unless you plan to hit reset, times will get messed up" : "Select Level"}'>$varThresh</td>" +           
+            "<td style='font-weight:bold' title='${thisThresh ? "Click to Change Alarm/Notify Lower Battery Level, do not change unless you plan to hit reset, times will get messed up" : "Select Level"}'>$varThresh</td>" +           
             "<td title='Check Box to send notifications for this Device when level reach. Must set up Advanced Options below with Mobile device'>$checkedNotifyT</td>" +
             "<td style='font-weight:bold' title='${inDaysCBool ? "Total Cumulative Time in Days since last Total reset" : "Total Cumulative Time since last Total reset"}'>$allTimeT</td>" +
             "<td style='border-right:3px solid black' title='Reset all times and Min/Max for $dev' style='padding:0px 0px'>$resetTotal</td>"
