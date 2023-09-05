@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.2.1	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device
+*   1.2.2	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device, Bug fix on run twice a day
 *   1.1.1	2023-06-13	kampto    	Added table display total time in days option.
 *   1.1.0	2023-05-18	kampto    	Add sunset/sunrise start options, format changes.
 *   1.0.3	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. Added Modes. More usage notes.
@@ -20,7 +20,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.2.1" }
+    state.version = "1.2.2" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -478,7 +478,7 @@ def buildCron() {
             String formattedTime = state.DeVices[k].startTime.substring(11, state.DeVices[k].startTime.length() - 12)
             String hours = formattedTime.substring(0, formattedTime.length() - 3) // Chop off the last 3 in string
             String minutes = formattedTime.substring(3) // Chop off the first 3 in string
-                 int runTwoHour = Integer.parseInt(hours) + Integer.parseInt(runTwiceOffset)  // Add the 2nd run offset to the first run to get next run time
+                  int runTwoHour = Integer.valueOf(hours) + Integer.valueOf(runTwiceOffset)  // Add the 2nd run offset to the first run to get next run time
             if (state.DeVices[k].odd && state.DeVices[k].runsDay == 1) { state.DeVices[k].cron = "0 ${minutes} ${hours} 1/2 * ? * "  }   //// ver1.2.1
             else if (state.DeVices[k].odd && state.DeVices[k].runsDay == 2) { state.DeVices[k].cron = "0 ${minutes} ${hours},${runTwoHour} 1/2 * ? * "  }
             else { String days = ""
