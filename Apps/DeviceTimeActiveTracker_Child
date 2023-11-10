@@ -382,19 +382,9 @@ String displayTable() {
     endif
     
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>" +   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
-    //if (formatBool) {//str += "<link rel='stylesheet' type='text/css' href='https://cdn.datatables.net/v/bs/dt-1.11.3/datatables.min.css'/>" //Add datatables to support search/sort of table
-	    //str += "<script type='text/javascript' src='https://cdn.datatables.net/v/bs/dt-1.11.3/datatables.min.js'></script>"
-      //  str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" 
-       // str += "</style><div style='overflow-x:auto'><table id='main-table' class='mdl-data-table tstat-col' style=';border:3px solid black'>" 
-         //  }
-    //else {str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" 
-      //   str += "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" 
-        //  }
          "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
          "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
-         // }
-        //str += 
-		"<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>$capability<br>Device</th>"
+         "<thead><tr style='border-bottom:2px solid black'><th style='border-right:2px solid black'>$capability<br>Device</th>"
 		                    		            
         if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6" || capabilitySelect == "10") { str +=    //// ver1.1.7 
             "<th style='width: 60px !important'>State</th>" +
@@ -523,6 +513,7 @@ String displayTable() {
         else if (capabilitySelect == "8") {str += "<td style='font-weight:bold; color:${dev.currentBattery > state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentBattery</td>" + "<td style='font-weight:bold; color:${dev.currentBattery > state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>"} 
         else if (capabilitySelect == "9") {str += "<td style='font-weight:bold;color:${dev.currentMotion == "active" ? "green" : "red"}'title='State $dev'>$dev.currentMotion</td>" + "<td style='font-weight:bold; color:${dev.currentMotion == "active" ? "green" : "red"}'>$time</td>"}  //// ver1.4.5
         else if (capabilitySelect == "10" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentHumidity</td>" + "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>" }   //// ver1.4.5 
+        else if (capabilitySelect == "10" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'title='State $dev'>$dev.currentHumidity</td>" + "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'>$time</td>"} 
        endif 
         
         if (capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6" || capabilitySelect == "10") { str +=  //// ver1.1.7
@@ -565,7 +556,7 @@ String displayTable() {
             "<td style='font-weight:bold' title='${inDaysCBool ? "Total Cumulative Time in Days since last Total reset" : "Total Cumulative Time since last Total reset"}'>$allTimeT</td>" +
             "<td style='border-right:3px solid black' title='Reset all times and Min/Max for $dev' style='padding:0px 0px'>$resetTotal</td>"
             }
-        else  {str +=   //// Capabilitys 1,2,3.9
+        else  {str +=   //// Capabilitys 1,2,3,9
             "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" +
             "<td title='Reset for $dev Periodic time' style='padding:0px 0px'>$reset</td>" +
             "<td title='Last time went On for $dev'>${state.DeVices["$dev.id"].onTime ?: ""} </td>" +
