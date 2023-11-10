@@ -996,7 +996,7 @@ def refreshHandler() {   //// Added ver 1.0.3
                if (logEnableBool) {log.info "App: ${app.label}: Device- ${dev}, Cumulative Var *${thisVarC}* ${allTime} or ${intAllTime}sec, Counts=${counts}"}   
              }
             if (thisVarCT) {setGlobalVar(thisVarCT, counts)}  //// ver1.1.5 
-              if ((capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6" || capabilitySelect == "8") && thisVarMax ) {setGlobalVar(thisVarMax, max)}  //// ver1.3.4  
+              if ((capabilitySelect == "4" || capabilitySelect == "5" || capabilitySelect == "6" || capabilitySelect == "8" || capabilitySelect == "10") && thisVarMax ) {setGlobalVar(thisVarMax, max)}  //// ver1.3.4  
               else if (thisVarMax) {setGlobalVar(thisVarMax, timeMax)}     
               endif
     ////////// Notification Time Check and Messege   //// ver1.3.0
