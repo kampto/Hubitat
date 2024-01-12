@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.4.5	2023-08-24	kampto    	Add Battery level tracking and options. Added Last Battery report date. Add Motion and Humidty sensor capability
+*   1.4.6	2023-08-24	kampto    	Add Battery level tracking and options. Added Last Battery report date. Add Motion and Humidty sensor capability
 *   1.3.4	2023-06-28	kampto    	Add Max on time variable link. Restructer Resets code. Moved reset when on to table check box.
 *   1.3.3	2023-06-25	kampto    	Added Notification options, Added Min/Max Active times for contacts & switches. Add auto reset by day choice. Threshold icon changes
 *   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variables to a differnt Table.
@@ -29,8 +29,8 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def setVersion() {
-    state.name = "Device Active Tracker, Times, Levels, and Counts (Child)"
-	state.version = "1.4.5"
+    state.name = "Device Tracker: Times, Levels, Last Active, and Counts (Child)"
+	state.version = "1.4.6"
     }
 
 definition (
