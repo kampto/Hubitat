@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.4.1	2024-04-15	kampto    	Fixed 2nd run time bug
+*   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' sensor bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
 *   1.3.1	2023-09-26	kampto    	Added Humidity/Moisture sensor to pause sprinkler schedule. Add status of sprinker pause sensors below table
 *   1.2.2	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device, Bug fix on run twice a day
@@ -23,7 +23,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.4.1" }
+    state.version = "1.4.2" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -426,7 +426,7 @@ def allOffHandler(evt) {
     }
 }
 def remoteOffHandler(evt) {
-    if (wetSensor && evt.device.currentWater) {state.wetdSensorValue = evt.device.currentWater} 
+    if (wetSensor && evt.device.currentWater) {state.wetSensorValue = evt.device.currentWater} 
     if (humidSensor && evt.device.currentHumidity) {state.humidSensorValue = evt.device.currentHumidity}
     if (evt.device.currentSwitch == "on") {state.pauseBool2 = true  // remote switch control to se
         DeVices.each { dev ->
