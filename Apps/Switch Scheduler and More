@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' sensor bug
+*   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
 *   1.3.1	2023-09-26	kampto    	Added Humidity/Moisture sensor to pause sprinkler schedule. Add status of sprinker pause sensors below table
 *   1.2.2	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device, Bug fix on run twice a day
@@ -23,7 +23,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.4.2" }
+    state.version = "1.4.3" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -40,7 +40,7 @@ def mainPage() {
     if (app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}  
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
-    if (pauseHumidValue == null) {int pauseHumidValue = 50}
+    if (pauseHumidValue == null) {pauseHumidValue = 50}
     refreshHandler()  // get latest times at app open    
      
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
@@ -48,13 +48,14 @@ def mainPage() {
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
         label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
         input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
-       
+     paragraph "IMPORTANT!  You can continue to add devices. But removing one will Error the App rendering it useless requireing you to deleted it from the Apps page. To remove a device you must start and build fresh App without it."
+     
      DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
              state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false]  
              state.DeVicesList += dev.id   
              }
-	 }
+       }
    }
   section {                         
      if(DeVices) {
@@ -63,7 +64,7 @@ def mainPage() {
 			Map newState = [:]
 			DeVices.each{dev ->  newState["$dev.id"] = state.DeVices["$dev.id"]} 
             state.DeVices = newState
-			}
+            }
     
     paragraph displayTable()
 	  ///////////////////////// Input Start Time 
@@ -355,6 +356,7 @@ String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13
 }
 /////////////////////////////////////////////////////////// Schedules and Subscribes //////////////////////////////////////////////////////////
 void initialize() {
+     //unsubscribe()  //// TEST  ****************************
      subscribe(DeVices, "switch.on", onTimeHandler)
 	 subscribe(DeVices, "switch.off", offTimeHandler)
      subscribe(DeVices, "valve.open", onTimeHandler)  //// ver1.20
@@ -511,7 +513,7 @@ def buildCron() {
             String hours = formattedTime.substring(0, formattedTime.length() - 3) // Chop off the last 3 in string
             String minutes = formattedTime.substring(3) // Chop off the first 3 in string
                   int runTwoHour = Integer.valueOf(hours) + Integer.valueOf(runTwiceOffset)  // Add the 2nd run offset to the first run to get next run time
-            if  (runTwoHour >= 24) {runTwoHour = 23} // force 2nd run to be in same day
+            if  (runTwoHour >= 24) {runTwoHour = 23} // force 2nd run to be in same day, 23:00 max
             if (state.DeVices[k].odd && state.DeVices[k].runsDay == 1) { state.DeVices[k].cron = "0 ${minutes} ${hours} 1/2 * ? * "  }   //// ver1.2.1
             else if (state.DeVices[k].odd && state.DeVices[k].runsDay == 2) { state.DeVices[k].cron = "0 ${minutes} ${hours},${runTwoHour} 1/2 * ? * "  }
             else { String days = ""
@@ -548,7 +550,7 @@ String statusBar() {
 }
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
-    //unsubscribe()
+    //unsubscribe()  ////   TEST  ************************8
     unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
     buildCron()  // build schedules
     initialize()  // set schedules and subscribes
