@@ -9,7 +9,8 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.4.6	2023-08-24	kampto    	Add Battery level tracking and options. Added Last Battery report date. Add Motion and Humidty sensor capability
+*   1.4.8	2024-07-17	kampto    	Fixed Removing device bug.
+*   1.4.7	2023-08-24	kampto    	Add Battery level tracking and options. Added Last Battery report date. Threshold 50%. Add Motion and Humidty sensor capability
 *   1.3.4	2023-06-28	kampto    	Add Max on time variable link. Restructer Resets code. Moved reset when on to table check box.
 *   1.3.3	2023-06-25	kampto    	Added Notification options, Added Min/Max Active times for contacts & switches. Add auto reset by day choice. Threshold icon changes
 *   1.2.2	2023-05-07	kampto    	Max-Min value in table for Temperature, Power, Voltage. Move variables to a differnt Table.
@@ -30,7 +31,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Tracker: Times, Levels, Last Active, and Counts (Child)"
-	state.version = "1.4.6"
+	state.version = "1.4.8"
     }
 
 definition (
@@ -76,7 +77,7 @@ def mainPage() {
         else if (capabilitySelect == "9") {capability = "Motion active"; input "DeVices", "capability.motionSensor", title: "<b>3. Select Motion Devices to Active</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.4.5      
         else if (capabilitySelect == "10") {capability = "Humidity"; input "DeVices", "capability.relativeHumidityMeasurement", title: "<b>3. Select Humidty reporting Devices to Track</b>", required: true, multiple: true, submitOnChange: true, width: 5}   //// ver1.4.5  
         else {capability = "Switch"; input "DeVices", "capability.switch", title: "<b>3. Select Devices to Track Switch On Time</b>", multiple: true, submitOnChange: true, width: 5}
-    paragraph "IMPORTANT: Only one Capability per each child App (table) can be used.  Multiple Devices of same Capability can be checked. Do not change Capability or Uncheck a Device after initial App set-up. Adding an additional Device later is OK if you hit Done right after adding."
+    paragraph "IMPORTANT: Only one Capability per each child App (table) can be used.  Multiple Devices of same Capability can be checked. Do not change Capability after initial App set-up. Adding an additional Device later is OK if you hit Done right after adding."
       
     DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
@@ -87,14 +88,13 @@ def mainPage() {
              else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "on", thresh: 32, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
              else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
              else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "idle", thresh: 0, min: 9999, max: 0, notifyBox: false, timeMin: "", timeMax: "", notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.8 
-             else if (capabilitySelect == "8") {state.DeVices["$dev.id"] = [start: dev.currentBattery >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", lastTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 60, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.0    
+             else if (capabilitySelect == "8") {state.DeVices["$dev.id"] = [start: dev.currentBattery >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", lastTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 50, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.0    
              else if (capabilitySelect == "9") {state.DeVices["$dev.id"] = [start: dev.currentMotion == "active" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, notifyBox: false, timeMin: "", timeMax: "", min: 9999, max: 0, notifyTime: 9999.9999, notifyReset: false]}   //// ver1.4.5    
              else if (capabilitySelect == "10") {state.DeVices["$dev.id"] =[start: dev.currentHumidity >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 30, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.5 
              endif  
             state.DeVicesList += dev.id   
              }
 	    }
-   if (DeVices) { refreshHandler()}  // get latest times at app open  ////  ver1.2.3
   }
   section {                         
      if(DeVices) {
@@ -104,7 +104,7 @@ def mainPage() {
 				DeVices.each{d ->  newState["$d.id"] = state.DeVices["$d.id"]}
 				state.DeVices = newState
 				}
-                
+      refreshHandler()  // get latest times at app open  ////  ver1.2.3          
       updated()
       paragraph displayTable()
 	    ///////////////////////// Enter Threshold for Power, Temp, Voltage //// ver1.1.8 
@@ -158,7 +158,7 @@ def mainPage() {
              }
             input name: "batResetBool", type: "bool", title: getFormat("important2","<b>Auto Detect Device Battery change and reset stats?</b>"), defaultValue:false, submitOnChange:true,  newLineAfter: true, width: 6, style: 'margin-left:10px'   //// ver1.4.1
              if (batResetBool) {
-             input name: "batResetPercent", type: "number", title:getFormat("important","<b>Enter % level increase to determine battery was changed</b> <br> <small>(1 to 99) Defualt = 10, applies to all devices</small>"), defaultValue: 10, required: false,  submitOnChange:true, accepts: "1 to 5000", range: "1..5000", width: 6, newLineAfter: true, style: 'margin-left:60px'
+             input name: "batResetPercent", type: "number", title:getFormat("important","<b>Enter % level increase to determine battery was changed</b> <br> <small>(1 to 99) Defualt = 20, applies to all devices</small>"), defaultValue: 20, required: false,  submitOnChange:true, accepts: "1 to 5000", range: "1..5000", width: 6, newLineAfter: true, style: 'margin-left:60px'
              }  
          }
          input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting with table sort? Dark screen mode.</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'  //// ver1.2.0
