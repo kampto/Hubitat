@@ -31,7 +31,7 @@ metadata {
 			attribute "lastUpdated", "String"    
 			attribute "maxValue", "number"  
 			attribute "minValue", "number"
-            attribute "batteryLevel", "number"
+            		attribute "battery", "number"
 	        }
         
     preferences {
@@ -84,7 +84,7 @@ def parse(String description) {
         int tempLevelValue = ((tmpValue - minVoltageFor0) * (100 - 0) / (maxVoltageFor100 - minVoltageFor0)  + 0)
             if  (tempLevelValue > 100) {tempLevelValue = 100} 
             if  (tempLevelValue < 0) {tempLevelValue = 0} 
-        sendEvent(name: "batteryLevel", value: tempLevelValue, unit: "%")    
+        sendEvent(name: "battery", value: tempLevelValue, unit: "%")    
         if (logEnable) log.debug "Sent battery level Value = ${tempLevelValue} "    
         }
         
