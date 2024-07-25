@@ -27,11 +27,12 @@ metadata {
 		importUrl: "https://github.com/kampto/Hubitat/blob/main/Drivers/Child_Voltage_Sensor_Advanced.groovy") {
 			capability "Voltage Measurement"
 			capability "Sensor"
+            capability "Battery"
         
 			attribute "lastUpdated", "String"    
 			attribute "maxValue", "number"  
 			attribute "minValue", "number"
-            		attribute "battery", "number"
+            attribute "battery", "number"
 	        }
         
     preferences {
@@ -47,8 +48,8 @@ metadata {
 		input name: "inputMinValue", type: "number", title: "<b>Starting Min VALUE</b>", description: "Default = 50000, Don't change, will Auto populate with new Min VALUE", range: "*...*", defaultValue: 50000, required: false, displayDuringSetup: false
 		input name: "skipZeroValueEnable", type: "bool", title: "<b>Dont Send Zero Values?</b>", description: "If device resets with Zero Value dont send", defaultValue: false
         input name: "sendBatteryLevel", type: "bool", title: "<b>Enable Battery level (0 to 100%) attribute and send?</b>", defaultValue: false
-        input name: "minVoltageFor0", type: "number", title: "<b>Min voltage to represent 0% Battery</b>", description: "Default = 3100, no units", range: "*...*", defaultValue: 3100, required: false, displayDuringSetup: false
-        input name: "maxVoltageFor100", type: "number", title: "<b>Max voltage to represent 100% Battery</b>", description: "Default = 4200, no units", range: "*...*", defaultValue: 4200, required: false, displayDuringSetup: false
+        input name: "minVoltageFor0", type: "number", title: "<b>Min voltage to represent 0% Battery</b>", description: "Default = 3100.00, no units", range: "*...*", defaultValue: 3100.00, required: false, displayDuringSetup: false
+        input name: "maxVoltageFor100", type: "number", title: "<b>Max voltage to represent 100% Battery</b>", description: "Default = 4200.00, no units", range: "*...*", defaultValue: 4200.00, required: false, displayDuringSetup: false
        }
 }   
 
@@ -62,8 +63,9 @@ def parse(String description) {
 			
 		float tmpValue = Float.parseFloat(value)
 		float tmpMultiplier = multiplier as float
-        //int tempLevelValue = multiplier as float    
-
+        float tmpMinVoltageFor0 = minVoltageFor0 as float
+        float tmpMaxVoltageFor100 = maxVoltageFor100 as float    
+        
 //// Set units
 	dispUnit = units
 		
@@ -81,7 +83,7 @@ def parse(String description) {
         
 //// Send Battery Level if enabled
         if (sendBatteryLevel == true) {
-        int tempLevelValue = ((tmpValue - minVoltageFor0) * (100 - 0) / (maxVoltageFor100 - minVoltageFor0)  + 0)
+        int tempLevelValue = ((tmpValue - tmpMinVoltageFor0) * (100 - 0) / (tmpMaxVoltageFor100 - tmpMinVoltageFor0)  + 0)    
             if  (tempLevelValue > 100) {tempLevelValue = 100} 
             if  (tempLevelValue < 0) {tempLevelValue = 0} 
         sendEvent(name: "battery", value: tempLevelValue, unit: "%")    
