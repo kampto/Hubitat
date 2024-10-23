@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.4.5	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset
+*   1.4.6	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset, fixed remove device unsubscribe
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
 *   1.3.1	2023-09-26	kampto    	Added Humidity/Moisture sensor to pause sprinkler schedule. Add status of sprinker pause sensors below table
@@ -24,7 +24,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.4.5" }
+    state.version = "1.4.6" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -552,7 +552,7 @@ String statusBar() {
 }
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
-    //unsubscribe()  ////   
+    unsubscribe()  ////   
     unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
     buildCron()  // build schedules
     initialize()  // set schedules and subscribes
