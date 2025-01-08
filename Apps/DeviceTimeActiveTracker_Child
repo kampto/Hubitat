@@ -132,7 +132,7 @@ def mainPage() {
             input name: "inDaysCBool", type: "bool", title:getFormat("important2","Display Duration Times in Days?"), defaultValue:true, submitOnChange:true, width: 4   
             }
      }
-   if (capabilitySelect == "8") {paragraph "NOTE: Battery % reporting is device dependent and some wont update for days or weeks or longer or only when the % level chnages!"}
+   if (capabilitySelect == "8") {paragraph "NOTE: Battery % reporting is device dependent and some wont update for days or weeks or longer or only when the % level changes!"}
       
   }
 //////////////////////////////////////////////////////////////////////// Input Section 2 //////////////////////////////////////////////////////////////////        
