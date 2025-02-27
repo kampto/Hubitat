@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.5.0	2024-12-17	kampto    	Fixed Removing device bug. Changed Battery threshold. Add last Battery total days tracker (1.5.0). Battery page Note
+*   1.5.2	2024-12-17	kampto    	Fixed Removing device bug. Changed Battery threshold. Add last Battery total days tracker (1.5.0). Battery page Note. Fix Bat last report issue(1.5.2)
 *   1.4.7	2023-08-24	kampto    	Add Battery level tracking and options. Added Last Battery report date. Threshold 50%. Add Motion and Humidty sensor capability
 *   1.3.4	2023-06-28	kampto    	Add Max on time variable link. Restructer Resets code. Moved reset when on to table check box.
 *   1.3.3	2023-06-25	kampto    	Added Notification options, Added Min/Max Active times for contacts & switches. Add auto reset by day choice. Threshold icon changes
@@ -23,7 +23,7 @@
 *   1.1.0	2023-04-15	kampto		Updated page format, option for variables as an int for use in RM. Option to reset when active. Enhanced logs. Power reset bug fix.
 *   1.0.3	2023-04-12	kampto		Added Power monitoring capability, Added Time/Variable refresh time entry, fixed variable refresh at reset, Bug fixes 
 *   1.0.1	2022-10-10	kampto		Added Auto Reset timers, added state to table.  
-*   1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities and features. Origin from "Lights Usage App" B.Ravenel - Hubitat
+*   1.0.0	2022-10-02	kampto		Modified to support Parent/Child apps. Add other capabilities and features.
 */
 
 import groovy.time.TimeCategory
@@ -31,7 +31,7 @@ import java.text.SimpleDateFormat
 
 def setVersion() {
     state.name = "Device Tracker: Times, Levels, Last Active, and Counts (Child)"
-	state.version = "1.5.0"
+	state.version = "1.5.2"
     }
 
 definition (
@@ -88,7 +88,7 @@ def mainPage() {
              else if (capabilitySelect == "5") {state.DeVices["$dev.id"] = [start: dev.currentTemperature >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "on", thresh: 32, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
              else if (capabilitySelect == "6") {state.DeVices["$dev.id"] = [start: dev.currentVoltage >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 0, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.7
              else if (capabilitySelect == "7") {state.DeVices["$dev.id"] = [start: dev.currentThermostatOperatingState =="idle" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "idle", thresh: 0, min: 9999, max: 0, notifyBox: false, timeMin: "", timeMax: "", notifyTime: 9999.9999, notifyReset: false]}  //// ver1.1.8 
-             else if (capabilitySelect == "8") {state.DeVices["$dev.id"] = [start: dev.currentBattery >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", lastTime: "", allTime: 0, counts: 0.0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 40, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.0    
+             else if (capabilitySelect == "8") {state.DeVices["$dev.id"] = [start: dev.currentBattery >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", lastTime: "", allTime: 0, counts: 0.0, reportDays: 0, lastTimeEpoch: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 40, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.0    
              else if (capabilitySelect == "9") {state.DeVices["$dev.id"] = [start: dev.currentMotion == "active" ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, notifyBox: false, timeMin: "", timeMax: "", min: 9999, max: 0, notifyTime: 9999.9999, notifyReset: false]}   //// ver1.4.5    
              else if (capabilitySelect == "10") {state.DeVices["$dev.id"] =[start: dev.currentHumidity >= 0 ? now() : 0, total: 0, oneTime: 0, var: "", varC: "", varCT: "", varMax: "", time: "", onTime: "", allTime: 0, counts: 0, checkBox1: false, checkBox2: false, checkBox3: true, checkBox4: true, state: "off", thresh: 30, min: 9999, max: 0, notifyBox: false, notifyTime: 9999.9999, notifyReset: false]}  //// ver1.4.5 
              endif  
@@ -421,16 +421,17 @@ String displayTable() {
             }
         else if (capabilitySelect == "8") { str +=   //// ver1.4.0
             "<th style='width: 60px !important'>Current<br>Level%</th>" +
-            "<th style='width: 100px !important'>${inDaysCBool ? "Days Above<br>Alarm Level" : "Time Above<br>Alarm Level"}</th>" +
-            "<th style='width: 105px !important'>Date Reached<br>Alarm Level</th>" +
+            "<th style='width: 95px !important'>${inDaysCBool ? "Days Above<br>Alarm Level" : "Time Above<br>Alarm Level"}</th>" +
+            "<th style='width: 95px !important'>Date<br>Reached<br>Alarm Level</th>" +
             //"<th padding-left: 0px !important'>Last<br>Reporting</th>" +
-            "<th style='width: 105px !important'>Last<br>Reporting</th>" +    
-            "<th style='width: 105px !important'>Last<br>Reset</th>"+    
+            "<th style='width: 95px !important'>Last<br>Reporting</th>" +    
+            "<th style='width: 95px !important'>Last<br>Reset</th>"+    
             "<th>Min<br>Level</th>" +    "<th>Max<br>Level</th>" +     
-            "<th>Alarm/Notify<br>Level%</th>" + 
+            "<th style='width: 60px !important'>Alarm<br>Notify<br>Level%</th>" + 
             "<th>Notify?</th>" +
+            "<th>Since<br>Last<br>Report</th>" +    
             "<th>${inDaysCBool ? "Cumulative<br>Total Days" : "Cumulative<br>Total Time"}</th>" + 
-            "<th>Last<br>Total Days</th>" +    
+            "<th style='width: 60px !important'>Last<br>Total<br>Days</th>" +    
             "<th style='border-right:3px solid black'>Reset<br>Device</th></tr></thead>"
             }                               
         else { str +=  //// Capabilitys 1,2,3,9
@@ -455,10 +456,11 @@ String displayTable() {
         String thisThresh = state.DeVices["$dev.id"].thresh   //// ver1.1.8
         String thisVarMax = state.DeVices["$dev.id"].varMax   //// ver1.3.4
         int counts = state.DeVices["$dev.id"].counts   //// ver1.1.5
-        String timeMax = state.DeVices["$dev.id"].timeMax   //// ver1.3.4 
+       	String timeMax = state.DeVices["$dev.id"].timeMax   //// ver1.3.4 
         String max = state.DeVices["$dev.id"].max   //// ver1.3.4 
           if (state.DeVices["$dev.id"].var || state.DeVices["$dev.id"].varC || state.DeVices["$dev.id"].varCT || state.DeVices["$dev.id"].varMax) {attachVarBool = true}    //// ver1.2.2
           else attachVarBool = false
+        // log.warn "REAL App: ${app.label}: reportDays= ${state.DeVices["$dev.id"].reportDays},   reportDays int= ${reportDays}"
         
         ////////// Active/On Total Time Calc
         int total = state.DeVices["$dev.id"].total / 1000 
@@ -515,7 +517,7 @@ String displayTable() {
         else if (capabilitySelect == "7" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentThermostatOperatingState == "heating" ? "#CC5500" : "SteelBlue"}'title='State $dev'>$dev.currentThermostatOperatingState</td>" + "<td style='font-weight:bold; color:${dev.currentThermostatOperatingState == "heating" ? "green" : "red"}'>$time</td>"}  
         else if (capabilitySelect == "7" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentThermostatOperatingState == "cooling" ? "SteelBlue" : "#CC5500"}'title='State $dev'>$dev.currentThermostatOperatingState</td>" + "<td style='font-weight:bold; color:${dev.currentThermostatOperatingState == "cooling" ? "green" : "red"}'>$time</td>"}  //// ver1.1.8
         else if (capabilitySelect == "8") {str += "<td style='font-weight:bold; color:${dev.currentBattery > state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentBattery</td>" + "<td style='font-weight:bold; color:${dev.currentBattery > state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>"} 
-        else if (capabilitySelect == "9") {str += "<td style='font-weight:bold;color:${dev.currentMotion == "active" ? "green" : "red"}'title='State $dev'>$dev.currentMotion</td>" + "<td style='font-weight:bold; color:${dev.currentMotion == "active" ? "green" : "red"}'>$time</td>"}  //// ver1.4.5
+        else if (capabilitySelect == "9") {str += "<td style='font-weight:bold; color:${dev.currentMotion == "active" ? "green" : "red"}'title='State $dev'>$dev.currentMotion</td>" + "<td style='font-weight:bold; color:${dev.currentMotion == "active" ? "green" : "red"}'>$time</td>"}  //// ver1.4.5
         else if (capabilitySelect == "10" && state.DeVices["$dev.id"].checkBox4) {str += "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'title='State $dev'>$dev.currentHumidity</td>" + "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "green" : "red"}'>$time</td>" }   //// ver1.4.5 
         else if (capabilitySelect == "10" && state.DeVices["$dev.id"].checkBox4 == false) {str += "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'title='State $dev'>$dev.currentHumidity</td>" + "<td style='font-weight:bold; color:${dev.currentHumidity >= state.DeVices["$dev.id"].thresh ? "red" : "green"}'>$time</td>"} 
        endif 
@@ -549,7 +551,8 @@ String displayTable() {
             "<td style='border-right:3px solid black' title='Reset Cumulative Total for $dev' style='padding:0px 0px'>$resetTotal</td>"  +
             "<td title='Is there a variable attached to this device? $dev' style='padding:0px 0px'>$attachVarBool</td></tr>"    
             }
-        else if (capabilitySelect == "8") { str += //// ver1.4.0
+        else if (capabilitySelect == "8") {
+             int reportDays = state.DeVices["$dev.id"].reportDays; str += //// ver1.4.0
             "<td title='Date when alarm threshold level was reached for $dev'>${state.DeVices["$dev.id"].onTime ?: ""} </td>" +
             "<td title='Last Date Battery reported level for $dev'>${state.DeVices["$dev.id"].lastTime ?: ""} </td>" +    
             "<td title='Last Reset time for $dev'>${state.DeVices["$dev.id"].time ?: ""} </td>" +    
@@ -557,6 +560,7 @@ String displayTable() {
             "<td title='Maximum Level recorded'>${state.DeVices["$dev.id"].max}</td>" +
             "<td style='font-weight:bold' title='${thisThresh ? "Click to Change Alarm/Notify Lower Battery Level, do not change unless you plan to hit reset, times will get messed up" : "Select Level"}'>$varThresh</td>" +           
             "<td title='Check Box to send notifications for this Device when level reach. Must set up Advanced Options below with Mobile device'>$checkedNotifyT</td>" +
+            "<td title='Total Days since battery last reported'>$reportDays</td>" +    
             "<td style='font-weight:bold' title='${inDaysCBool ? "Total Cumulative Time in Days since last Total reset" : "Total Cumulative Time since last Total reset"}'>$allTimeT</td>" +
             "<td title='Total Days last time battery lasted before changing'>${state.DeVices["$dev.id"].counts}</td>" +    
             "<td style='border-right:3px solid black' title='Reset all times and Min/Max for $dev' style='padding:0px 0px'>$resetTotal</td>"
@@ -749,8 +753,6 @@ def tempHandler(evt) {  //// ver1.1.7
     else if (state.DeVices[evt.device.id].checkBox4 && evt.device.currentTemperature < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
     else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentTemperature < state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "off") {state.DeVices[evt.device.id].state = "on"; onHandler(evt)}
     else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentTemperature >= state.DeVices[evt.device.id].thresh && state.DeVices[evt.device.id].state == "on") {state.DeVices[evt.device.id].state = "off"; offHandler(evt)}
-    //else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentTemperature < state.DeVices[evt.device.id].thresh) {onHandler(evt)}
-    //else if (state.DeVices[evt.device.id].checkBox4 == false && evt.device.currentTemperature >= state.DeVices[evt.device.id].thresh) {offHandler(evt)}
     endif
 } 
 def humidHandler(evt) {  //// ver1.4.5
@@ -786,11 +788,10 @@ def thermostatHandler(evt) {  //// ver1.1.8   // tested user2371
     endif
 } 
 
-void batHandler(evt) {  //// ver1.4.1  ********************************************************  TEST
-    state.DeVices[evt.device.id].lastTime = "test"
-        log.warn "TEST App: ${app.label}: Device- ${evt.device.id}, evt.device.currentBattery= ${evt.device.currentBattery}, state.DeVices[evt.device.id].lastTime= ${state.DeVices[evt.device.id].lastTime}"
+def batHandler(evt) {  //// ver1.4.1  
     state.DeVices[evt.device.id].lastTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  //// ver 1.4.2
-        log.warn "REAL App: ${app.label}: Device- ${evt.device.id}, evt.device.currentBattery= ${evt.device.currentBattery}, state.DeVices[evt.device.id].lastTime= ${state.DeVices[evt.device.id].lastTime}"
+    state.DeVices[evt.device.id].lastTimeEpoch = now()  //// ver 1.5.2
+        //log.warn "Test Bat App: ${app.label}: Device- ${evt.device.id}, evt.device.currentBattery= ${evt.device.currentBattery}, state.DeVices[evt.device.id].lastTime= ${state.DeVices[evt.device.id].lastTime}"
     if (batResetBool && (evt.device.currentBattery > (state.DeVices[evt.device.id].min + batResetPercent))) {state.resetTotal = evt.device.id} 
     if (logEnableBool) {log.info "App: ${app.label}: Device- ${evt.device.id}, evt.device.currentBattery= ${evt.device.currentBattery}, xPercent= ${(state.DeVices[evt.device.id].min + batResetPercent)}, lastTime= ${state.DeVices[evt.device.id].lastTime}"}
     refreshHandler()
@@ -956,7 +957,10 @@ def refreshHandler() {   //// Added ver 1.0.3
             if (dev.currentBattery > state.DeVices[k].thresh) {state.DeVices[k].total = state.DeVices[k].allTime} // Time battery is above threshold
             if (dev.currentBattery <= state.DeVices[k].thresh && state.DeVices[k].checkBox4) {state.DeVices[k].checkBox4 = false  // use checkBox4 to lock out further updates
                 state.DeVices[k].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}") }
+            if (state.DeVices[k].lastTimeEpoch == null || state.DeVices[k].lastTimeEpoch == 0) {state.DeVices[k].reportDays = state.DeVices[k].allTime / 86400000}
+            	else state.DeVices[k].reportDays = (now() -  state.DeVices[k].lastTimeEpoch) / 86400000    ////  ver1.5.1
             state.DeVices[k].start = now()
+            //log.warn "REAL App: ${app.label}: reportDays= ${state.DeVices[k].reportDays},   Now= ${now()},  LastTimeEpoch= ${state.DeVices[k].lastTimeEpoch}"
 		    }
         else if (capabilitySelect == "9" && dev.currentMotion == "active") { //// ver1.4.5
             state.DeVices[k].oneTime += now() - state.DeVices[k].start   
@@ -1041,12 +1045,12 @@ void resetTimers(evt = null) {  //// ver1.1.4
             state.DeVices[k].start = now()   
             state.DeVices[k].time = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")
 		    state.DeVices[k].total = 0
+            if (capabilitySelect == "8") {state.DeVices[k].reportDays = 0}  //// ver1.5.1 
             if (state.keepCountsBool == false) { state.DeVices[k].counts = 0  // Also Reset counts, max, min   //// ver1.1.3
                   if (capabilitySelect == "4") {state.DeVices[k].min = dev.currentPower; state.DeVices[k].max = dev.currentPower}  //// ver1.2.1
                   else if (capabilitySelect == "5") {state.DeVices[k].min = dev.currentTemperature; state.DeVices[k].max = dev.currentTemperature}   
                   else if (capabilitySelect == "6") {state.DeVices[k].min = dev.currentVoltage; state.DeVices[k].max = dev.currentVoltage} 
                   else if (capabilitySelect == "10") {state.DeVices[k].min = dev.currentHumidity; state.DeVices[k].max = dev.currentHumidity}                               
-                  //else if (capabilitySelect == "8") {state.DeVices[k].min = dev.currentBattery; state.DeVices[k].max = dev.currentBattery}  //// ver1.4.0                            
                   else {state.DeVices[k].min = 0; state.DeVices[k].max = 0; state.DeVices[k].timeMin = 0; state.DeVices[k].timeMax = 0}  //// ver1.30                        
              }
             if (remoteResetBool && remoteResetCum && state.DeVices[k].checkBox3) {state.DeVices[k].allTime = 0 }   // Also Remote reset cumulative  //// ver1.3.4
