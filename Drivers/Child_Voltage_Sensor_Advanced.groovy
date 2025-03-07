@@ -14,6 +14,7 @@
 *
 *	Change Revision History:
 * 	Date:       Who:           What:
+*	2025-03-07  kampto         Fixed voltage bug. Added Always log sent value bool.
 *	2024-07-24  kampto         Add voltage Mapping to percent full for batterys
 *	2020-11-29  kampto         Added Max/Min Value attribute, resetable, notes, unit conversion
 *	2020-09-23  kampto         Converted from ST to Hubitat format, with eneble/disable debugging, removed color map and tiles 
@@ -37,6 +38,7 @@ metadata {
         
     preferences {
 		input name: "logEnable", type: "bool", title: "<b>Enable debug logging?</b>", description: "Will Auto Disable in 30min", defaultValue: true
+        input name: "valueLogEnable", type: "bool", title: "<b>Always log new voltages recieved?</b>", description: "Will log all new values when recieved", defaultValue: true
 		input name: "units", type: "enum", title: "<b>Voltage Units</b>", description: "Default = V", defaultValue: "V", required: false, multiple: false, options:[["mV":"mV"], ["V":"V"], ["kV":"kV"]], displayDuringSetup: false
 		input name: "multiplier", type: "enum", title: "<b>Number Multiplier</b>", description: "Default = x1", defaultValue: "1", required: false, multiple: false, options:[["0.001":"x0.001"], ["0.01":"x0.01"], ["0.1":"x0.1"],["1":"x1"], ["10":"x10"], ["100":"x100"], ["1000":"x1000"]], displayDuringSetup: false
 		input name: "numDecimalPlaces", type: "enum", title: "<b>Number of Decimals Places</b>", description: "Default = 1", defaultValue: "1", required: false, multiple: false, options:[["0":"0"], ["1":"1"], ["2":"2"], ["3":"3"]], displayDuringSetup: false
@@ -63,9 +65,7 @@ def parse(String description) {
 			
 		float tmpValue = Float.parseFloat(value)
 		float tmpMultiplier = multiplier as float
-        float tmpMinVoltageFor0 = minVoltageFor0 as float
-        float tmpMaxVoltageFor100 = maxVoltageFor100 as float    
-        
+                
 //// Set units
 	dispUnit = units
 		
@@ -75,14 +75,20 @@ def parse(String description) {
 		if (numDecimalPlaces == "0") {
 			sendEvent(name: name, value: (tmpValue.round()), unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue.round()} " + dispUnit
+            		else if (valueLogEnable) log.info "Sent Value = ${tmpValue.round()} " + dispUnit
+            		endif
 			}
 		else {
 			sendEvent(name: name, value: tmpValue, unit: dispUnit)
 			if (logEnable) log.debug "Sent Value = ${tmpValue} " + dispUnit
+            		else if (valueLogEnable) log.info "Sent Value = ${tmpValue} " + dispUnit
+            		endif
 			}
         
 //// Send Battery Level if enabled
         if (sendBatteryLevel == true) {
+        float tmpMinVoltageFor0 = minVoltageFor0 as float
+        float tmpMaxVoltageFor100 = maxVoltageFor100 as float        
         int tempLevelValue = ((tmpValue - tmpMinVoltageFor0) * (100 - 0) / (tmpMaxVoltageFor100 - tmpMinVoltageFor0)  + 0)    
             if  (tempLevelValue > 100) {tempLevelValue = 100} 
             if  (tempLevelValue < 0) {tempLevelValue = 0} 
