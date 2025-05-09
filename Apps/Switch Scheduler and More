@@ -9,6 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.5.0	2025-05-07	kampto    	Add option for devices to ignore a pause from rain or moisture sensors. Add modes per device. Other app enhancements. Improved notes.
 *   1.4.6	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset, fixed remove device unsubscribe
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
@@ -24,7 +25,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.4.6" }
+    state.version = "1.5.0" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -50,10 +51,11 @@ def mainPage() {
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
         label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
         input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6    
-       
+        paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
+      
         DeVices.each {dev ->
 	    if(!state.DeVices["$dev.id"]) {
-            state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false]  
+            state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, pauseCase: false, mode: false]  
             state.DeVicesList += dev.id   
            }
        }
@@ -110,27 +112,24 @@ def mainPage() {
 ////////////////////////////////////////////////////////////  Advanced Inputs //////////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "Update/Store Schedules without hitting Done exiting App" 
-        input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all Devices upcoming schedules?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "pauseBool", type: "bool", title: getFormat("important2","<b>Pause all Devices upcoming schedules? &nbsp Overrides Ignore Cases, Nothing will run</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
         input name: "sprinklerBool", type: "bool", title: getFormat("important2","<b>Are these Sprinkler switches/valves? &nbsp Open Sprinkler Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (sprinklerBool) {
-                input "wetSensor", "capability.waterSensor", title: getFormat("important2", "<b>Select Wet/Dry sensor to Pause all Schedules (Optional)</b><br><small>'Wet' will pause upcoming, Applies to all devices</small>"), required: false, multiple: false, submitOnChange: true, width: 6, style: 'margin-left:70px'  
-                input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important2", "<b>Select Moisture (humidity) sensor to Pause all Schedules (Optional)</b>"), required: false, multiple: false, submitOnChange: true, width: 6, style: 'margin-left:70px'  
-                 if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level to Pause all upcoming schedules if above</b><br><small>Default = 50%, Applies to all devices</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 6, newLineAfter: true, style: 'margin-left:100px'
+                input "wetSensor", "capability.waterSensor", title: getFormat("important2", "<b>Pause Case: Select Wet/Dry sensor to Pause all Schedules (Optional)</b><br><small>'Wet' will pause upcoming, Applies to all devices with Ignore unchecked</small>"), required: false, multiple: false, submitOnChange: true, width: 7, style: 'margin-left:70px'  
+                input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important2", "<b>Pause Case: Select Moisture (humidity) sensor to Pause all Schedules (Optional)</b><br><small> If >Humidity % Will pause upcoming, Applies to all devices with Ignore unchecked</small>"), required: false, multiple: false, submitOnChange: true, width: 7, style: 'margin-left:70px'  
+                 if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause upcoming schedules</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 5, newLineAfter: true, style: 'margin-left:160px'
                 }
-                input name: "runTwiceOffset", type: "enum", title: getFormat("important2","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Applies to all devices with 2 'Runs a day' selected, max 2nd run time 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 6, newLineAfter: true, style: 'margin-left:70px'
+                input name: "runTwiceOffset", type: "enum", title: getFormat("important2","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Applies to all devices with 2 'Runs a day' selected, max 2nd run time 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 7, newLineAfter: true, style: 'margin-left:70px'
              }
-        input name: "allOffBool", type: "bool", title: getFormat("important2","<b>Switch All Off at a Specific daily time?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "allOffBool", type: "bool", title: getFormat("important2","<b>Switch All Off at a Specific daily time?</b><br><small>This will not pause upcoming schedules, only turn off what is currently on</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (allOffBool) {
                 input name: "allOffTime", type: "time", title:getFormat("blueRegular","<b>Enter All off time, Applies to all.&nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
             }
-        input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off, Pause/Resume Capability?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "remoteSwitchBool", type: "bool", title: getFormat("important2","<b>Remote Switch All Off and Pause/Resume Capability? &nbsp Overrides Ignore Cases</b><br><small>This must be kept checked On to enable</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (remoteSwitchBool) {
-                input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:70px'   
+                input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, width: 8, style: 'margin-left:70px'   
             }
-        input name: "modeBool", type: "bool", title: getFormat("important2","<b>Only run Schedules during a selected mode?</b><br><small>Home, Away,.. Applies to all Devices</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-            if (modeBool){
-                input name: "mode", type: "mode", title: getFormat("important2","<b>Select Mode for schedules to run.</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:70px'
-            }
+        input name: "modeSelect", type: "mode", title: getFormat("important2","<b>For Devices using Modes (in Table), You must select during what Mode that schedule will run</b> <br> <small> Home, Away, etc.. &nbsp Only effects devices with Modes box checked in table</small>"), defaultValue:false, submitOnChange:true, width: 6, style: 'margin-left:10px'
         input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based device activity and refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
         }
@@ -138,17 +137,20 @@ def mainPage() {
    section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
       "<li>Use for any switch or valve capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
-      "<li>Table will not auto refresh, you must hit in App Refresh button.</li>"+
+      "<li>Table will not auto refresh values or states, you must hit in App Refresh button.</li>"+
       "<li>Select day(s) or odd days check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
-      "<li>Odd days will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
+      "<li><b>Odd Days:</b> will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
       "<li>To use Sunset/Sunrise with +/- offset, check box, check sunrise or sunset icon, click number to enter offset.</li>"+                    
 	  "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+                    
-      "<li>Total On Time and Counts will track all switch activity, from app and outside app.</li>"+ 
-      "<li>Optional: Select a virtual switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
-      "<li>Optional: Sprinklers: Wet/Dry sensor if 'wet' will pause all schedules until turns to 'dry'.</li>"+
-      "<li>Optional: Sprinklers: Moisture (humidity) Enter Humidity %, if exceeded will pause all schedules until below that humidity %.</li>"+                    
-      "<li>Optional: Runs Per Day, Typically for sprinklers to run in morning and evening. Select 2 in table. Then select Hours after 1st run in advanced options. Note: If time plus offset exceeds hour 24 it will run at hour 23 2nd time.</li>"+                    
-      "<li>You must hit DONE at page bottom to save App after first making.</li>"+                    
+      "<li><b>Total On Time and Counts:</b> will track all switch activity, from app and outside app.</li>"+
+ 	  "<li><b>Reset:</b> From table per row will reset the total On Time and Counts. It does not reset schedule or turn off the device</li>"+	
+      "<li><b>Modes:</b> If box cheched in table this device will only run during the Mode selected in advanced options. For instance night lights only if your 'Away'."+	                     
+      "<li><b>Ignore Case</b> If this box is checked this device with ignore special pause cases and continue to run, Like Sprinker pause options. <br>This is paticular usefull if you mix light switches with sprinklers in same table and dont want your lighting schedules paused becuase of a sprinkler moisture sensor outside.</li>"+                     
+      "<li><b>Remote Switch:</b> Optional, Select a virtual or real switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
+      "<li><b>Sprinklers:</b> Optional, Wet/Dry sensor if 'wet' will pause all schedules until turns to 'dry'. Does not pause Devices with Igonre Case checked</li>"+
+      "<li><b>Sprinklers:</b> Optional, Moisture (humidity) sensor, Enter Humidity %, if exceeded will pause all schedules. Does not pause Devices with Igonre Case checked.</li>"+                    
+      "<li><b>Runs Per Day:</b> Optional, Typically for sprinklers to run in morning and evening. Select 2 in table. Then select Hours after 1st run in advanced options. Note: If time plus offset exceeds hour 24 it will run at hour 23 2nd time.</li>"+                    
+      "<li><b>You must hit DONE at page bottom to save App after first making.</b></li>"+                    
       "</ul>")
       }
   }
@@ -219,6 +221,20 @@ String displayTable() {
 	    state.DeVices[state.oddUnCheckedBox].odd = false
         state.remove("oddUnCheckedBox") }
     endif
+    if(state.modeCheckedBox) {def dev = DeVices.find{"$it.id" == state.modeCheckedBox}  //// ver1.4.7   Modes
+	    state.DeVices[state.modeCheckedBox].mode = true
+        state.remove("modeCheckedBox") }
+	else if(state.modeUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.modeUnCheckedBox}  
+	    state.DeVices[state.modeUnCheckedBox].mode = false
+        state.remove("modeUnCheckedBox") }
+    endif
+    if(state.pauseCaseCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCaseCheckedBox}  //// ver1.4.7   Ignore Case
+	    state.DeVices[state.pauseCaseCheckedBox].pauseCase = true
+        state.remove("pauseCaseCheckedBox") }
+	else if(state.pauseCaseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCaseUnCheckedBox}  
+	    state.DeVices[state.pauseCaseUnCheckedBox].pauseCase = false
+        state.remove("pauseCaseUnCheckedBox") }
+    endif
     if(state.pauseCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCheckedBox}  //// ver1.0.2
 	    state.DeVices[state.pauseCheckedBox].pause = true
         state.remove("pauseCheckedBox") }
@@ -253,7 +269,7 @@ String displayTable() {
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
         "<thead><tr style='border-bottom:2px solid black'><th>#</th>" +	
-        "<th>Device</th>" +
+            "<th><small><small>App ver${state.version}</small></small><br>Device</th>" +
         "<th style='border-right:2px solid black'>State</th>" +     
 		"<th style='width: 60px !important'>Start<br>Time</th>" +
         "<th>Use Sun<br>Set/Rise?</th>" +  //// ver1.1.0
@@ -262,8 +278,10 @@ String displayTable() {
         "<th>Run<br>Time</th>" +  
         "<th style='width: 65px !important; border-right:2px solid black'>Runs<br>Per Day</th>" +  //// ver1.2.1    
         "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th>Sat</th>" +       
-        "<th>Odd<br>Days?</th>"+  //// ver1.0.3
-        "<th style='border-right:2px solid black'>Pause<br>Sched?</th>"+    //// ver1.0.3
+        "<th style='border-right:2px solid black'>Odd<br>Days?</th>"+  //// ver1.0.3
+        "<th style='border-right:2px solid black'>Use<br>Modes?</th>"+  //// ver1.4.7    
+        "<th style='border-right:2px solid black'>Ignore<br>Case?</th>"+  //// ver1.4.7
+        "<th style='border-right:2px solid black'>Pause<br>Sched?</th>"+    //// ver1.0.3    
         "<th>On<br>Counts" +    
         "<th>Total<br>OnTime</th>"+
         "<th>Reset<br>OnTime</th></tr></thead>"
@@ -308,6 +326,8 @@ String displayTable() {
         String satCheckBoxT = (state.DeVices["$dev.id"].sat) ? buttonLink("m$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("n$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "SteelBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.0.3
         String runsPerDayT = (state.DeVices["$dev.id"].runsDay == 1) ? buttonLink("u$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "SteelBlue", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "darkorange", "23px")  //// ver1.2.1
+        String modeCheckBoxT = (state.DeVices["$dev.id"].mode) ?  buttonLink("y5$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("y6$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.4.7
+        String pauseCaseCheckBoxT = (state.DeVices["$dev.id"].pauseCase) ?  buttonLink("y3$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "darkorange", "23px") : buttonLink("y4$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.4.7
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", "<iconify-icon icon=ic:sharp-pause-circle-filled></iconify-icon>", "red", "23px") : buttonLink("v$dev.id", "<iconify-icon icon=ic:baseline-play-circle></iconify-icon>", "green", "23px")  //// ver1.0.3
         String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.1.0
         String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("y0$dev.id", "<iconify-icon icon=ph:moon-stars-duotone></iconify-icon>", "DodgerBlue", "23px") : buttonLink("y1$dev.id", "<iconify-icon icon='ph:sun-duotone'></iconify-icon>", "orange", "23px")  //// ver1.1.0
@@ -342,7 +362,9 @@ String displayTable() {
              }
             endif
         str +=
-        "<td title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
+        "<td style='border-right:2px solid black' title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
+       	"<td style='border-right:2px solid black' title='Check Box to only run this device schedule during mode selected below in Adv options.'>$modeCheckBoxT</td>" +     
+        "<td style='border-right:2px solid black' title='Check Box to have this device ignore the special pause cases like Wet/Moisture sched pause'>$pauseCaseCheckBoxT</td>" +     
         "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
         if (dev.currentSwitch) {str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" }  
@@ -395,22 +417,23 @@ def offTimeHandler(evt) {
     if (logEnableBool) {log.info "${app.label} - OFFtime HANDLER, Device ${evt.device}.....total= ${state.DeVices[evt.device.id].total}"} 
 }
 void switchOnHandler(data) { 
-    if (state.pauseBool2 || pauseBool) {return}
-    if ((modeBool && mode == location.mode) || (!modeBool)) {
-    DeVices.each { dev -> 
-        if (!state.DeVices["$dev.id"].pause) {
-            if (data.value == state.DeVices["$dev.id"].zone ) {
-                zone = state.DeVices["$dev.id"].zone
-                if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
-                if (dev.currentSwitch)  {dev.on()}    
-                if (dev.currentValve)  {dev.open()}  //// ver1.20
-                runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
-            }
-        }
+    if (pauseBool) {return}   //// ver1.4.7  revised  
+       	DeVices.each { dev -> 
+          if (!state.DeVices["$dev.id"].pause) { //// Pasued per device in table
+            if (state.DeVices["$dev.id"].mode && (modeSelect == null || modeSelect =="")) {log.error "${app.label} - A device was selected to uses Modes but no Mode was selected in the App options"}  // Post error if mode not selected when required
+          	if ((state.DeVices["$dev.id"].mode && modeSelect == location.mode) || !state.DeVices["$dev.id"].mode) { /// Mode selected in table or not, ver1.4.7
+          		if (state.DeVices["$dev.id"].pauseCase == true || (!state.pauseBool2 && state.DeVices["$dev.id"].pauseCase == false)) {  //// ver 1.4.7 revised
+            		if (data.value == state.DeVices["$dev.id"].zone ) {
+                		zone = state.DeVices["$dev.id"].zone
+                		if (logEnableBool) {log.debug "${app.label} -SWITCH-ONhandler...Device = ${dev}...duration = ${state.DeVices["$dev.id"].durTime}"}
+                    	if (dev.currentSwitch)  {dev.on()}
+                		if (dev.currentValve)  {dev.open()}  //// ver1.20
+                		runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                    }
+                }
+        	}
+     	}
      }
-    }
-    else {return}
-    endif
 }
 void switchOffHandler(data) {
     DeVices.each { dev -> 
@@ -423,25 +446,26 @@ void switchOffHandler(data) {
 }
 def allOffHandler(evt) {
     DeVices.each { dev ->
-    if (dev.currentSwitch == "on") {dev.off()}  
-    else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
-    endif    
+    	if (dev.currentSwitch == "on") {dev.off()}  
+    	else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
+    	endif    
     }
 }
-def remoteOffHandler(evt) {
+def remoteOffHandler(evt) { // Handles remote off/pasue and teh wet/humidity sched pause
     if (wetSensor && evt.device.currentWater) {state.wetSensorValue = evt.device.currentWater} 
     if (humidSensor && evt.device.currentHumidity) {state.humidSensorValue = evt.device.currentHumidity}
-    if (evt.device.currentSwitch == "on") {state.pauseBool2 = true  // remote switch control to se
-        DeVices.each { dev ->
-        if (dev.currentSwitch == "on") {dev.off()}  
-        else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
-        endif    
-        }
-     }
-    else if (wetSensor && state.wetSensorValue == "wet") {state.pauseBool2 = true}  //// ver1.0.1
-    else if (humidSensor && state.humidSensorValue >= pauseHumidValue) {state.pauseBool2 = true}  //// ver1.3.0
-    else {state.pauseBool2 = false}                           
-    endif
+    if (evt.device.currentSwitch == "on" && remoteSwitchBool) {state.pauseBool = true; app?.updateSetting("pauseBool",[value:"true",type:"bool"])  // remote switch control to turn off and pause everything
+            DeVices.each { dev ->
+        		if (dev.currentSwitch == "on") {dev.off()}  
+        		else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
+        		endif    
+        	}
+    }
+    if (evt.device.currentSwitch == "off" && remoteSwitchBool) {state.pauseBool = false; app?.updateSetting("pauseBool",[value:"false",type:"bool"])} // Unpause
+    	if (wetSensor && state.wetSensorValue == "wet") {state.pauseBool2 = true}  //// ver1.0.1
+        else if (humidSensor && state.humidSensorValue >= pauseHumidValue) {state.pauseBool2 = true}  //// ver1.3.0
+        else {state.pauseBool2 = false}                           
+    	endif
     if (logEnableBool) {log.debug "App: ${app.label}-Pause/Resume Handler....Device ${evt.device}....Switch=${evt.device.currentSwitch} or Water=${state.wetSensorValue} or Humidity=${state.humidSensorValue}....state.pauseBool2 ${state.pauseBool2}"}
 }
 def sunHandler(evt) {  // get new sunrise/sunset times every day  //// ver1.1.0
@@ -483,6 +507,10 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("y0")) state.sunsetUnCheckedBox = btn.minus("y0")  //// ver1.1.0
     else if (btn.startsWith("y1")) state.sunsetCheckedBox = btn.minus("y1")  //// ver1.1.0
     else if (btn.startsWith("y2")) state.newOffsetTime = btn.minus("y2")  //// ver1.1.0
+    else if (btn.startsWith("y3")) state.pauseCaseUnCheckedBox = btn.minus("y3")  //// ver1.4.7
+    else if (btn.startsWith("y4")) state.pauseCaseCheckedBox = btn.minus("y4")  //// ver1.4.7 
+    else if (btn.startsWith("y5")) state.modeUnCheckedBox = btn.minus("y5")  //// ver1.4.7
+    else if (btn.startsWith("y6")) state.modeCheckedBox = btn.minus("y6")  //// ver1.4.7    
     else if (btn.startsWith("p")) state.runsDayBox1 = btn.minus("p")  //// ver1.2.1
     else if (btn.startsWith("u")) state.runsDayBox2 = btn.minus("u")  //// ver1.2.1    
     else if (btn.startsWith("z")) state.resetTotal = btn.minus("z")  
@@ -503,7 +531,7 @@ def refreshHandler() { ///////////// Update Times if Active/On
       else if (humidSensor && state.humidSensorValue >= pauseHumidValue) {state.pauseBool2 = true}  //// ver1.3.0
       else {state.pauseBool2 = false}                           
       endif
-     if (logEnableBool) {log.debug "App: ${app.label}-Refresh Handler.. Water=${state.wetSensorValue} or pauseHumidValue=${pauseHumidValue}, Humidity=${state.humidSensorValue}....state.pauseBool2=${state.pauseBool2}"}
+    if (logEnableBool) {log.debug "App: ${app.label}-Refresh Handler..  modeSelect = ${modeSelect}, Water=${state.wetSensorValue} or pauseHumidValue=${pauseHumidValue}, Humidity=${state.humidSensorValue}....state.pauseBool2=${state.pauseBool2}"}
 }
 /////////////////////////////////////////////////////////////// Functions //////////////////////////////////////////////////////////////////
 def buildCron() {
@@ -547,8 +575,8 @@ def buildCron() {
 }
 //////////////////////////////////////////////////////////////  Status Bar  ////////////////////////////////////////////////////////////////////
 String statusBar() {
-    if (humidSensor) {paragraph "<b>Moisture/Humidity Sensor</b> &nbsp ${humidSensor} = ${state.humidSensorValue}%, &nbsp Pause all schedules if >= ${pauseHumidValue}%" }
-    if (wetSensor) {paragraph "<b>Wet/Dry Sensor</b> &nbsp ${wetSensor} = ${state.wetSensorValue}, &nbsp Pause all schedules if 'wet'" }
+    if (humidSensor) {paragraph "<b>Moisture/Humidity Sensor</b> &nbsp ${humidSensor} = ${state.humidSensorValue}%, &nbsp Pause schedules if >= ${pauseHumidValue}%" }
+    if (wetSensor) {paragraph "<b>Wet/Dry Sensor</b> &nbsp ${wetSensor} = ${state.wetSensorValue}, &nbsp Pause schedules if 'wet'" }
 }
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
