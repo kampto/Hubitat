@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.5.0	2025-05-07	kampto    	Add option for devices to ignore a pause from rain or moisture sensors. Add modes per device. Other app enhancements. Improved notes.
+*   1.5.1	2025-05-07	kampto    	Add option for devices to ignore a pause from rain or moisture sensors. Add modes per device. Other app enhancements. Improved notes.
 *   1.4.6	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset, fixed remove device unsubscribe
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
@@ -25,7 +25,7 @@ import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
 def titleVersion() { state.name = "Switch Scheduler (Schedule On/Off:  Lights, Outlets, Switches, Relays, Sprinklers, Valves...)"    
-    state.version = "1.5.0" }
+    state.version = "1.5.1" }
 definition (
 	name: "Switch Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -119,7 +119,6 @@ def mainPage() {
                 input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important2", "<b>Pause Case: Select Moisture (humidity) sensor to Pause all Schedules (Optional)</b><br><small> If >Humidity % Will pause upcoming, Applies to all devices with Ignore unchecked</small>"), required: false, multiple: false, submitOnChange: true, width: 7, style: 'margin-left:70px'  
                  if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause upcoming schedules</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 5, newLineAfter: true, style: 'margin-left:160px'
                 }
-                input name: "runTwiceOffset", type: "enum", title: getFormat("important2","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Applies to all devices with 2 'Runs a day' selected, max 2nd run time 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 7, newLineAfter: true, style: 'margin-left:70px'
              }
         input name: "allOffBool", type: "bool", title: getFormat("important2","<b>Switch All Off at a Specific daily time?</b><br><small>This will not pause upcoming schedules, only turn off what is currently on</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (allOffBool) {
@@ -129,7 +128,8 @@ def mainPage() {
             if (remoteSwitchBool) {
                 input "remoteSwitch", "capability.switch", title: getFormat("important2", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, width: 8, style: 'margin-left:70px'   
             }
-        input name: "modeSelect", type: "mode", title: getFormat("important2","<b>For Devices using Modes (in Table), You must select during what Mode that schedule will run</b> <br> <small> Home, Away, etc.. &nbsp Only effects devices with Modes box checked in table</small>"), defaultValue:false, submitOnChange:true, width: 6, style: 'margin-left:10px'
+       	input name: "runTwiceOffset", type: "enum", title: getFormat("important2","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run start to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Only applies to all devices with 2 'Runs a day' selected, max 2nd run time is at hr 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 7, newLineAfter: true, style: 'margin-left:10px'
+        input name: "modeSelect", type: "mode", title: getFormat("important2","<b>For Devices using Modes (in Table), You must select during what Mode that schedule will run</b> <br> <small> Home, Away, etc.. &nbsp Only effects devices with Modes box checked in table</small>"), defaultValue:false, submitOnChange:true, width: 7, style: 'margin-left:10px'
         input name: "formatBool", type: "bool", title: getFormat("important2","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important2","<b>Enable Logging of App based device activity and refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
         }
