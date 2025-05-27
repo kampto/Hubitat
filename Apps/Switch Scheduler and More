@@ -1,4 +1,4 @@
-/* Switch Scheduler and More
+/* Switch/Valve Schedule Controller and More
 *  
 *	2023 T. K. (kampto)
 *	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers, Valves.... Use custom time or Sunste/Sunrise times with offsets. 
@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   2.0.1	2025-05-20	kampto    	Added; Leak Detect option, Modes per device, Motion sensor trig, Notification options. Other app enhancements. Improved notes.
+*   2.0.2	2025-05-20	kampto    	Added; Leak Detect option, Modes per device, Motion sensor trig, Notification options. Other app enhancements. Improved notes.
 *   1.5.2	2025-05-11	kampto    	Add option ignore a pause from rain or moisture sensors. Modes for all. Other app enhancements. Improved notes.
 *   1.4.6	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset, fixed remove device unsubscribe
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
@@ -119,7 +119,7 @@ def mainPage() {
   }
 ////////////////////////////////////////////////////////////  Advanced Inputs //////////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
-        input "updateButton", "button", title: "Update/Store Schedules without hitting Done exiting App" 
+        input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App" 
         input name: "pauseBool", type: "bool", title: getFormat("important","<b>Pause all Devices upcoming schedules? &nbsp Overrides Ignore Cases, Nothing will run</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
         input name: "sprinklerBool", type: "bool", title: getFormat("important","<b>Are these Sprinkler switches/valves using a Wet or Moisture sensor(s)? &nbsp Open Sprinkler Case Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (sprinklerBool) {
