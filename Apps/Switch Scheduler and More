@@ -25,7 +25,7 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch/Valve Scheduler (Schedule On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.0.1" }
+def titleVersion() { state.name = "Switch/Valve Scheduler (Schedule On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.0.2" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -50,13 +50,9 @@ def mainPage() {
    section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
         label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
         input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6
-        //input "DeVices2", "capability.switch, capability.valve", title: "<b>3. Optional: If you want same device to 2 differnt schedules then select it again</b>", required: false, multiple: true, submitOnChange: true, width: 6
-        //input "DeVices3", "capability.switch, capability.valve", title: "<b>4. Optional: If you want same device to 3 differnt schedules then select it again</b>", required: false, multiple: true, submitOnChange: true, width: 6 
-       paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
-      
-       // DeVices = [DeVices, DeVices2, DeVices3].flatten().findAll{it}  //Combine Arrays
-       
-       	DeVices.each {dev ->
+        paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
+                   
+       DeVices.each {dev ->
 	   if(!state.DeVices["$dev.id"]) {    
             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, pauseCase: false, modes: "Any", motion: false]  
             state.DeVicesList += dev.id   
@@ -326,7 +322,7 @@ String displayTable() {
         String thisDurTime = state.DeVices["$dev.id"].durTime
         String thisOffsetTime = state.DeVices["$dev.id"].offset
         String thisCron = state.DeVices["$dev.id"].cron
-        String thisZone = state.DeVices["$dev.id"].zone = zone
+        String thisZone = state.DeVices["$dev.id"].zone 
         String thisMode = state.DeVices["$dev.id"].modes 
         
         ////////////////////////// Active/On Time Calc
@@ -443,6 +439,7 @@ def sensorUpdate() {
     if (wetSensor) {state.wetSensorValue = wetSensor.currentWater}  // Set Values  //// ver1.3.0
     if (wetLeakSensor) {state.wetLeakSensorValue = wetLeakSensor.currentWater}  // Set Values  //// ver2.0.1
     if (motionSensor) {state.motionSensorValue = motionSensor.currentMotion} // Set Values  //// ver2.0.1
+    if (logEnableBool) {log.debug "App: ${app.label} - Sensors Update ..... "}
 }
 ////////////////////////////////////////////////////////////////// Handlers //////////////////////////////////////////////////////////////////
 def onTimeHandler(evt) {
@@ -460,13 +457,14 @@ void switchOnHandler(data) {
           if (!state.DeVices["$dev.id"].pause) { //// Pasued per device in table
             if ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any") { /// Mode selected in table or Any, ver1.4.7
           		if (state.DeVices["$dev.id"].pauseCase == true || (!state.tempPauseBool && state.DeVices["$dev.id"].pauseCase == false)) {  //// ver 1.4.7 revised
-            		if (data.value == state.DeVices["$dev.id"].zone ) {
-                		zone = state.DeVices["$dev.id"].zone
-                		log.info "${app.label}: Device ${dev} Scheduled Turn On for duration ${state.DeVices["$dev.id"].durTime}"}
+            		zone = state.DeVices["$dev.id"].zone
+                    if (data.value == state.DeVices["$dev.id"].zone ) {
+                		log.info "${app.label}: Device: ${dev} Scheduled Turn On for duration ${state.DeVices["$dev.id"].durTime}"
                     	if (pushBool && pushOnBool) {pushDevice.deviceNotification("App: ${app.label}, Scheduled Action, Device ${dev} turning ON for ${state.DeVices["$dev.id"].durTime}min")} //// ver2.0.1 
                     	if (dev.currentSwitch)  {dev.on()}
                 		if (dev.currentValve)  {dev.open()}  //// ver1.20
                        	runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                    	}
                     }
                 }
         	}
@@ -493,7 +491,7 @@ void motionHandler(evt) { //// ver 2.0.1
                 		if (dev.currentValve && dev.currentValve == "open") {dev.close(); runIn(60 * motionRunTime, motionOnHandler, [data:zone, overwrite:false])}  //// ver1.20
                             	}
                     log.info "${app.label}: Motion Detected by ${evt.device}, Device ${dev} Toggling for ${motionRunTime}min"
-                  	if (logEnableBool) {log.debug "${app.label} - MOTION-Handler...Device = ${dev}...SwitchDuration = ${motionRunTime*60}sec... Motion Sensor ${evt.device} is '${evt.device.currentMotion}'... Invert? = ${invertBool} ... MotionCheckBox = ${state.DeVices["$dev.id"].motion} ... Zone = ${state.DeVices["$dev.id"].zone}"}
+                  	if (logEnableBool) {log.debug "${app.label} - MOTION-Handler...Device: ${dev}...SwitchDuration = ${motionRunTime*60}sec... Motion Sensor ${evt.device} is '${evt.device.currentMotion}'... Invert? = ${invertBool} ... MotionCheckBox = ${state.DeVices["$dev.id"].motion} ... Zone = ${state.DeVices["$dev.id"].zone}"}
                 }
         	}
      	}
@@ -504,7 +502,7 @@ void switchOffHandler(data) {
         if (data.value == state.DeVices["$dev.id"].zone ) {
            if (dev.currentSwitch)  {dev.off()} 
            if (dev.currentValve)  {dev.close()}  //// ver1.20
-           log.info "${app.label}: Device = ${dev}, Turning OFF"} 
+           log.info "${app.label}: Device: ${dev}, Turning OFF"} 
          }
      }
 void motionOnHandler(data) { ////ver2.0.1 Added for motion Invert mode
@@ -514,7 +512,7 @@ void motionOnHandler(data) { ////ver2.0.1 Added for motion Invert mode
         	if (data.value == state.DeVices["$dev.id"].zone ) {
            		if (dev.currentSwitch && dev.currentSwitch == "off")  {dev.on()}
            		if (dev.currentValve && dev.currentValve == "closed")  {dev.open()}
-                if (logEnableBool) {log.debug "${app.label} -Motion Back On handler... Device = ${dev}...zone = ${data.value}"} 
+                if (logEnableBool) {log.debug "${app.label} -Motion Back On handler... Device: ${dev}...zone = ${data.value}"} 
             }
         }
      }
@@ -605,13 +603,8 @@ def refreshHandler() { ///////////// Update Times if Active/On
 		  state.DeVices[k].start = now()
           }
     }
-    //////// Pause or trigger schedule sensors
-      sensorUpdate() //// ver2.0.1 Get latest state from sensors (Wet, Humid, Motion)  
-      //if (wetSensor && state.wetSensorValue == "wet") {state.tempPauseBool = true}  //// ver1.0.1
-      //else if (humidSensor && state.humidSensorValue >= pauseHumidValue) {state.tempPauseBool = true}  //// ver1.3.0
-      //else {state.tempPauseBool = false}                           
-      //endif
-      if (logEnableBool) {log.debug "App: ${app.label} - Refresh Handler..  Mode = ${location.mode}, Water=${state.wetSensorValue} or pauseHumidValue=${pauseHumidValue}, Humidity=${state.humidSensorValue}....state.tempPauseBool=${state.tempPauseBool}"}
+     sensorUpdate() //// Pause or trigger schedule sensors, ver2.0.1 Get latest state from sensors (Wet, Humid, Motion)  
+     if (logEnableBool) {log.debug "App: ${app.label} - Refresh Handler..  Mode = ${location.mode}, Water=${state.wetSensorValue} or pauseHumidValue=${pauseHumidValue}, Humidity=${state.humidSensorValue}....state.tempPauseBool=${state.tempPauseBool}"}
 }
 /////////////////////////////////////////////////////////////// Functions //////////////////////////////////////////////////////////////////
 def buildCron() {
