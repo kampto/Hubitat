@@ -313,6 +313,7 @@ String displayTable() {
     int zone = 0
     DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
         zone += 1
+	state.DeVices["$dev.id"].zone = zone
         state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset)  //// ver1.1.0
         if (state.DeVices["$dev.id"].sunTime) {  //// ver1.0.4
           if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
