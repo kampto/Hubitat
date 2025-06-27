@@ -1,7 +1,7 @@
 /* Switch/Valve Schedule Controller and More
 *  
 *	2023 T. K. (kampto)
-*	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers, Valves.... Use custom time or Sunste/Sunrise times with offsets. 
+*	NOTES: Generate a schedule to Automate multiple Lights, Outlets, Switches, Relays, Sprinklers, Valves.... Use custom time, Sunset/Sunrise, other actions or triggers. 
 *   
 *    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 *    http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
@@ -9,7 +9,9 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   2.0.2	2025-05-20	kampto    	Added; Leak Detect option, Modes per device, Motion sensor trig, Notification options. Other app enhancements. Improved notes.
+*   2.1.0	2025-06-20	kampto    	Added off at Sunrise option. Changed IgnoreCase to several SpecialPause cases. Add color to status bar values. Able to toggle device state in table. 
+*									Add contact pause case. Added action options including blink, contact and switch triggers
+*   1.6.2	2025-05-20	kampto    	Added; Leak Detect option, Off @Sunrise, Modes per device, Motion sensor trig, Notification options. Other app enhancements. Improved notes.
 *   1.5.2	2025-05-11	kampto    	Add option ignore a pause from rain or moisture sensors. Modes for all. Other app enhancements. Improved notes.
 *   1.4.6	2024-07-16	kampto    	Fixed app error when removing a device, fixed null value error for run twice offset, fixed remove device unsubscribe
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
@@ -25,7 +27,7 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch/Valve Scheduler (Schedule On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.0.2" }
+def titleVersion() { state.name = "Switch/Valve Scheduler (Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.1.0" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
@@ -33,8 +35,9 @@ definition (
    	iconUrl: "",
 	iconX2Url: "",
     importUrl: "https://raw.githubusercontent.com/kampto/Hubitat/main/Apps/Switch%20Scheduler%20and%20More",
-    documentationLink: "https://community.hubitat.com/t/app-switch-scheduler-and-more-schedule-lights-outlets-switches-relays-sprinklers-valves-and-more/118720"
-	)
+    documentationLink: "https://community.hubitat.com/t/app-switch-scheduler-and-more-schedule-lights-outlets-switches-relays-sprinklers-valves-and-more/118720",
+	singleThreaded: true	
+)
 preferences { page(name: "mainPage") }
 
 ////////////////////////////////////////////////////////////  Main Page Inputs/Set-Up /////////////////////////////////////////////////////////////
@@ -44,250 +47,295 @@ def mainPage() {
     if (state.DeVicesList == null) state.DeVicesList = []
     if (pauseHumidValue == null) {pauseHumidValue = 50}
     if (runTwiceOffset == null) {runTwiceOffset = 12}
+    if (state.sensorPause == null) {state.sensorPause = false}
+    if (allOffTime == null) {allOffTime = "000000000000000000000000000000"}
             
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle() 
-   section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
-        label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
-        input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6
-        paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
+  section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
+       label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
+       input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6
+       paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
                    
        DeVices.each {dev ->
 	   if(!state.DeVices["$dev.id"]) {    
-            state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, total: 0, sunTime: false, sunset: true, offset: 0, sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, startTime: "00000000000Select000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, pauseCase: false, modes: "Any", motion: false]  
-            state.DeVicesList += dev.id   
+            state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, 
+            	total: 0, sunTime: false, sunrise: false, sunset: true, offset: 0, modes: "Any", blink: false, actions: 0,
+            	sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, 
+            	startTime: "000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, specialPause: 0, sensorPause: false, motionCase: 0]  
+            state.DeVicesList += dev.id 
            }
        }
   }
   section {                         
-     if(DeVices) {
-         if(DeVices.id.sort() != state.DeVicesList.sort()) { 
-		    state.DeVicesList = DeVices.id
-			Map newState = [:]
-			DeVices.each{dev ->  newState["$dev.id"] = state.DeVices["$dev.id"]} 
-            state.DeVices = newState
-            }
-         
+    if(DeVices) {
+       if(DeVices.id.sort() != state.DeVicesList.sort()) { 
+	    state.DeVicesList = DeVices.id
+		Map newState = [:]
+		DeVices.each{dev ->  newState["$dev.id"] = state.DeVices["$dev.id"]} 
+        state.DeVices = newState
+        }
     refreshHandler()  // get latest times at app open
     paragraph displayTable()
-	  ///////////////////////// Input Start Time 
-      if(state.newStartTime) {
-        input name: "newStartTime", type: "time", title:getFormat("noticable","<b>Enter Start/On Time, Applies to all checked days for Switch.<br><small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
-          if(newStartTime) {
-             state.DeVices[state.newStartTime].startTime = newStartTime
-             state.remove("newStartTime")
-		     app.removeSetting("newStartTime")
-             paragraph "<script>{changeSubmit(this)}</script>"
-		     }
-	    } 
-       ///////////////////////// Input Run Duration  
-       if(state.newDurTime) {
-        input name: "newDurTime", type: "number", title:getFormat("noticable","<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch. &nbsp <small>Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, width: 8, newLineAfter: true, style: 'margin-left:10px'
-          if(newDurTime) {
-             state.DeVices[state.newDurTime].durTime = newDurTime
-             state.remove("newDurTime")
-		     app.removeSetting("newDurTime")
-             paragraph "<script>{changeSubmit(this)}</script>"
-		     }
-		} 
-       ///////////////////////// Sunrise / Sunset Offset time  //// ver1.1.0
-       if(state.newOffsetTime) {
-        input name: "newOffsetTime", type: "number", title:getFormat("noticable","<b>Enter +/- Offset time from Sunrise or Sunset in minutes, Applies to all checked days for Switch.<br><small>EX: 30, -30, or -90, &nbsp Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, accepts: "-1000 to 1000", range: "-1000..1000", width: 8, newLineAfter: true, style: 'margin-left:10px'
-          if(newOffsetTime) {
-             state.DeVices[state.newOffsetTime].offset = newOffsetTime
-             state.remove("newOffsetTime")
-		     app.removeSetting("newOffsetTime")
-             paragraph "<script>{changeSubmit(this)}</script>"
-		     }
-		} 
-       ///////////////////////// Input Modes  
-       if(state.newMode) {
-       input name: "newMode", type: "mode", title: getFormat("noticable","<b>Select during which mode this device will only run.</b> <br> <small> Home, Away, etc.. &nbsp Or if alway select No Selection</small>"), defaultValue: "", submitOnChange:true, width: 7, required: false, newLineAfter: true, style: 'margin-left:10px'
-             if(newMode) {
-             state.DeVices[state.newMode].modes = newMode
-             state.remove("newMode")
-		     app.removeSetting("newMode")
-             paragraph "<script>{changeSubmit(this)}</script>"
-		     }
-		}     
        input "refresh", "button", title: "<b>REFRESH</b> Table Times, Counts, & States", width: 4
        input "allOff", "button", title: "<b>TURN OFF</b> all switches/valves", width: 3 
        input name: "inDaysCBool", type: "bool", title:getFormat("important","Display Total Time in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.6  
-       
-       statusBar()  
+    statusBar()  
       }
   }
-////////////////////////////////////////////////////////////  Advanced Inputs //////////////////////////////////////////////////////////////////      
+//////////////////////////////////////////////////////////////  Advanced Inputs /////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App" 
-        input name: "pauseBool", type: "bool", title: getFormat("important","<b>Pause all Devices upcoming schedules? &nbsp Overrides Ignore Cases, Nothing will run</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-        input name: "sprinklerBool", type: "bool", title: getFormat("important","<b>Are these Sprinkler switches/valves using a Wet or Moisture sensor(s)? &nbsp Open Sprinkler Case Options</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-            if (sprinklerBool) {
-                input "wetSensor", "capability.waterSensor", title: getFormat("important", "<b>Pause Case: Select Wet/Dry sensor(s) to Pause all Schedules (Optional)</b><br><small>'Wet' will pause upcoming, Applies to all devices with Ignore unchecked</small>"), required: false, multiple: true, submitOnChange: true, width: 7, style: 'margin-left:70px'  
-                input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important", "<b>Pause Case: Select Moisture (humidity) sensor(s) to Pause all Schedules (Optional)</b><br><small>If >Humidity % Will pause upcoming, Applies to all devices with Ignore unchecked</small>"), required: false, multiple: true, submitOnChange: true, width: 7, style: 'margin-left:70px'  
-                 if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause upcoming schedules</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 6, newLineAfter: true, style: 'margin-left:160px'
-                }
-             }
-        input name: "allOffBool", type: "bool", title: getFormat("important","<b>Switch All Off at a Specific daily time?</b><br><small>This will not pause upcoming schedules, only turn off what is currently on</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All Devices upcoming schedules? &nbsp Overrides All Cases, Nothing will run</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+   		input name: "allOffBool", type: "bool", title: getFormat("important","<b>Switch All Off at a Specific daily time?</b><br><small>This will not pause upcoming schedules, only turn Off what is currently On. This must remain checked ON to enable.</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (allOffBool) {
-                input name: "allOffTime", type: "time", title:getFormat("blueRegular","<b>Enter All off time, Applies to all.&nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
-            }
-        input name: "remoteSwitchBool", type: "bool", title: getFormat("important","<b>Remote Switch All Off and Pause/Resume Capability? &nbsp Overrides Ignore Cases</b><br><small>Use dashboard or virtual switch. This must remain checked ON to enable</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+            input name: "allOffTime", type: "time", title:getFormat("blueRegular","<b>Enter All Off time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
+           	}
+        input name: "remoteSwitchBool", type: "bool", title: getFormat("important","<b>Remote Switch All Off and Pause/Resume Capability? &nbsp Overrides All Cases</b><br><small>Use dashboard or virtual switch. This must remain checked ON to enable</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (remoteSwitchBool) {
-                input "remoteSwitch", "capability.switch", title: getFormat("important", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, width: 8, style: 'margin-left:70px'   
+            input "remoteSwitch", "capability.switch", title: getFormat("important", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, width: 8, style: 'margin-left:160px'   
             }
        	input name: "runTwiceOffset", type: "enum", title: getFormat("important","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run start to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Only applies to all devices with 2 'Runs a day' selected, max 2nd run time is at hr 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 7, newLineAfter: true, style: 'margin-left:10px'
-       	input "motionSensor", "capability.motionSensor", title: getFormat("important", "<b>Select Motion Sensor(s) to trigger switch (Optional)</b><br><small>Applies to all devices with Motion checked in table. Will not run if paused or incorrect mode</small>"), required: false, multiple: true, submitOnChange: true, width: 7, style: 'margin-left:10px' 
-       		if (motionSensor) {input name: "motionRunTime", type: "number", title: getFormat("blueRegular","<b>Enter minutes to run switch after Motion triggered</b><small>&nbsp &nbsp Enter 1 to 60min, Default = 3min</small>"), defaultValue: "3", submitOnChange: true, required: false, width: 6, accepts: "1 to 60", range: "1..60", newLineAfter: true, style: 'margin-left:160px'
-       		input name: "invertBool", type: "bool", title: getFormat("important","<b>Invert to Off, If Motion and Switch currently On, switch Off instead?</b><br><small>Will switch Off for run time entered above then back On. Toggle a night light to alert intruders!</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px' 
-            }
-        input name: "leakBool", type: "bool", title: getFormat("important","<b>Leak Detect: Use Wet/Dry sensor as leak detect to turn Off all devices(valves) and pause all schedules (Optional)?</b><br><small>Applies to all switches/valves, This must remain checked ON to work. See Usage Notes for more info</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
-       	    if (leakBool) {
-                input "wetLeakSensor", "capability.waterSensor", title: getFormat("important", "<b>Select Wet/Dry sensor(s) to detect leak and trigger Shutdown</b><br><small>'Wet' will trigger, Not recommended to share same sensor with selected Sprinker wet/dry sensor</small>"), required: false, multiple: true, submitOnChange: true, width: 7, style: 'margin-left:70px'  
-            }
-        input name: "pushBool", type: "bool", title: getFormat("important","<b>Get Push Notifications from selected actions? &nbsp </b><small>This must remain checked ON to recieve notifications, Off to stop all notifications</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver2.0.1
-             if (pushBool) {input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to</b>", multiple: true, required: false, submitOnChange: true, width: 4, newLineAfter: true, style: 'margin-left:160px'       
-             	input name: "pushMotionBool", type: "bool", title: getFormat("important","<b>Get Notificans about Motion Events?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'
-                input name: "pushLeakBool", type: "bool", title: getFormat("important","<b>Get Notificans about Leak Detection Events?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'
-                input name: "pushOnBool", type: "bool", title: getFormat("important","<b>Get Notificans about any Device Scheduled Turn On Event?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'             
-             }
+       	input name: "sunriseOffset", type: "number", title: getFormat("important","<b>If using 'Off @ Sunrise', &nbsp Enter +/- Sunrise Offset minutes to adjust Off time</b><small>&nbsp &nbsp Enter -360 to 360min, Default = -30min</small>"), defaultValue: "-30", submitOnChange: true, required: false, width: 7, accepts: "-360 to 360", range: "-360..360", newLineAfter: true, style: 'margin-left:10px'	
+   		input name: "pushBool", type: "bool", title: getFormat("important","<b>Get Push Notifications from selected actions? &nbsp </b><small>This must remain checked ON to recieve notifications, Off to stop all notifications</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'   //// ver2.0.1
+            if (pushBool) {input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to</b>", multiple: true, required: false, submitOnChange: true, width: 5, newLineAfter: true, style: 'margin-left:160px'       
+             	input name: "pushOnBool", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about any Device Scheduled Turn On Event?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'             
+             	input name: "pushMotionBool", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about Motion Events (If Used)?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'
+                input name: "pushLeakBool", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about Leak Detection Events (If Used)?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:160px'
+               }
        	input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging of App based device activity and refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
-        }
-/////////////////////////////////////////////////////////////  Usage Notes Section  /////////////////////////////////////////////////////////////////
-   section(getFormat("header","Usage Notes:"), hideable: true, hidden: hide) {  
+   		}   
+  	section(getFormat("header","Schedule Special Pause Case Options: Sprinkers Wet, Moisture, Contact state, Voltage, ..."),hideable: true, hidden: false) {    
+          input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important", "<b>Pause Case 1 Humidity/Moisture: Select Humidity sensor(s) to Pause schedules (Optional)</b><br><small>If Humidity above selected % Will pause upcoming, Applies to devices with 'Pause Case' #1 in table. Typically used to pause Sprinklers.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+            if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
+             input name: "invertHumidBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Humidity % is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
+                             }
+          input "wetSensor", "capability.waterSensor", title: getFormat("important", "<b>Pause Case 2 Wet/Dry: Select Wet/Dry sensor(s) to Pause Schedules (Optional)</b><br><small>'Wet' will pause upcoming, Applies to devices with 'Pause Case' #2 in table.  Typically used to pause Sprinklers.</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+          input "voltageSensor", "capability.voltageMeasurement", title: getFormat("important", "<b>Pause Case 3 Voltage: Select Voltage sensor(s) to Pause schedules (Optional)</b><br><small>Typically use for Solar situations. If <= threshold will pause upcoming, Applies to devices with 'Pause Case' #3 in table</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+            if (voltageSensor) {input name: "voltageThreshold", type: "decimal", title: getFormat("blueRegular","<b>Enter Voltage to pause schedule if below</b><small>&nbsp &nbsp Default = 52.2v</small>"), defaultValue: "52.2", submitOnChange: true, required: false, width: 6, newLineAfter: true, style: 'margin-left:60px'
+             }
+          input "contactSensor", "capability.contactSensor", title: getFormat("important", "<b>Pause Case 4 Contacts: Select Contact sensor(s) to Pause schedules if Open (Optional)</b><br><small>Doors, Windows, other.. Applies to devices with 'Pause Case' #4 in table</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+            if (contactSensor) {input name: "invertContactBool", type: "bool", title: getFormat("blueRegular","<b>Change logic to Pause if contact Closed instead?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
+             } 
+          input "tempSensor", "capability.temperatureMeasurement", title: getFormat("important", "<b>Pause Case 5 Temperature: Select Temperature sensor(s) to Pause schedules (Optional)</b><br><small>If Temperature is above selected Value Will pause upcoming, Applies to devices with 'Pause Case' #5 in table.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+            if (tempSensor) {input name: "pauseTempValue", type: "number", title: getFormat("blueRegular","<b>Select Temperature to Pause</b><small>&nbsp &nbsp Default = 50deg</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
+                input name: "invertTempBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Temperature is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
+             } 
+          input name: "leakBool", type: "bool", title: getFormat("important","<b>Leak Detect: Use Wet/Dry sensor as leak detect to turn Off All Devices and Pause All upcoming schedules (Optional)?</b><br><small>Applies to all switches/valves, This must remain checked ON to work. See Usage Notes for more info</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:10px'
+       	    if (leakBool) {
+            input "wetLeakSensor", "capability.waterSensor", title: getFormat("important", "<b>Select Wet/Dry sensor(s) to detect leak and trigger Shutdown</b><br><small>'Wet' will trigger, Not recommended to share same sensor with selected Sprinker wet/dry sensor</small>"), required: false, multiple: true, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:60px'  
+            } 
+       	}
+    section(getFormat("header","Motion Detection Options"),hideable: true, hidden: false) {     
+       	input "motionSensor1", "capability.motionSensor", title: getFormat("important", "<b>Select Motion Sensor(s) Group 1 to trigger switch (Optional)</b><br><small>Applies to all devices with this Case # selected. Will not run if Paused, Incorrect mode, or Special Pause case. You can use Motion On triggers with or without an entered schedule. Will not use Blink Actions Cases.</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px' 
+        	if (motionSensor1) {
+        		input name: "motionActive1", type: "bool", title: getFormat("blueRegular","<b>Keep Device On until motion is Inactive instead of using duration time?</b>&nbsp &nbsp<small>Will ignore entered time</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:60px' 
+       			if (!motionActive1) {input name: "motionRunTime1", type: "decimal", title: getFormat("blueRegular","<b>Enter minutes to run switch after Motion triggered</b><small>&nbsp &nbsp Enter 0.1 to 120min, Default = 3min</small>"), defaultValue: "3", submitOnChange: true, required: false, width: 7, accepts: ".1 to 120", range: ".1..120", newLineAfter: true, style: 'margin-left:60px'}
+       			input name: "invertBool1", type: "bool", title: getFormat("blueRegular","<b>If Motion and a Switch/Valve is currently On, switch Off instead?</b> &nbsp <small> Off devices will still switch On <br>Will switch Off for run time or active entered above then back On. Toggle a night light to alert intruders!</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px' 
+    			} 
+        input "motionSensor2", "capability.motionSensor", title: getFormat("important", "<b>Select Motion Sensor(s) Group 2 to trigger switch (Optional)</b><br><small>Applies to all devices with this Case # selected. Will not run if Paused, Incorrect mode, or Special Pause case. You can use Motion On triggers with or without an entered schedule. Will not use Blink Actions Cases.</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px' 
+        	if (motionSensor2) {
+        		input name: "motionActive2", type: "bool", title: getFormat("blueRegular","<b>Keep Device On until motion is Inactive instead of using duration time?</b>&nbsp &nbsp<small>Will ignore entered time</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:60px' 
+       			if (!motionActive2) {input name: "motionRunTime2", type: "decimal", title: getFormat("blueRegular","<b>Enter minutes to run switch after Motion triggered</b><small>&nbsp &nbsp Enter 0.1 to 120min, Default = 3min</small>"), defaultValue: "3", submitOnChange: true, required: false, width: 7, accepts: ".1 to 120", range: ".1..120", newLineAfter: true, style: 'margin-left:60px'}
+       			input name: "invertBool2", type: "bool", title: getFormat("blueRegular","<b>If Motion and a Switch/Valve is currently On, switch Off instead?</b> &nbsp <small> Off devices will still switch On <br>Will switch Off for run time or active entered above then back On. Toggle a night light to alert intruders!</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px' 
+            	} }
+    section(getFormat("header","Action Switch Options: Blink, Switch Trigger, Contact trigger,... &nbsp <small><b>Only for Switches, not Valves</b></small>"),hideable: true, hidden: false) {        
+      	paragraph getFormat("important","<b>Actions 1: Blink Timer1 device On/Off feature? &nbsp </b><small>Applies to scheduled devices with 'Actions' case #1 in table. &nbsp &nbsp Enter 0.1 to 60min, Default = 1min</small>")
+              input name: "blinkOn1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'ON' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
+              input name: "blinkOff1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'OFF' time minutes</b></small>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
+        paragraph getFormat("important","<b>Actions 2: Blink Timer2 device On/Off feature? &nbsp </b><small>Applies to scheduled devices with 'Actions' case #2 in table. &nbsp &nbsp Enter 0.1 to 60min, Default = 1min</small>")
+              input name: "blinkOn2", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'ON' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
+              input name: "blinkOff2", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'OFF' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
+        input name: "contactTrigger", type: "capability.contactSensor", title: getFormat("important","<b>Actions 3: Select a Contact sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Actions' case #3 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on a device without a schedule defined.</small><br><large><b>Actions 4: Combine Actions 1 & 3</b></large><br><large><b>Actions 5: Combine Actions 2 & 3</b></large>"), multiple: true, width: 8, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	input name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Actions 6: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Actions' case #6 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on a device without a schedule defined.</small><br><large><b>Actions 7: Combine Actions 1 & 6</b></large><br><large><b>Actions 8: Combine Actions 2 & 6</b></large>"), multiple: true, width: 8, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	}	
+///////////////////////////////////////////////////////////////  Usage Notes Section  //////////////////////////////////////////////////////////////
+   section(getFormat("header","Usage Notes / Instructions:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
       "<li>Use for any switch or valve capability; switches, outlets, relays, lights, security lights, sprinklers, etc.. Add as many as you want on table.</li>"+
       "<li>Table will not auto refresh values or states, you must hit in App Refresh button.</li>"+
-      "<li>Select day(s) or odd days check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
-      "<li><b>Odd Days:</b> will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
-      "<li>To use Sunset/Sunrise with +/- offset, check box, check sunrise or sunset icon, click number to enter offset.</li>"+                    
-	  "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+                    
-      "<li><b>Total On Time and Counts:</b> will track all switch activity, from app and outside app.</li>"+
+      "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+    
+      "<li><b>State:</b> Shows current device state after hitting in app Refresh. Clicking to toggle device state will not effect scheduleing or use the set Run time.</li>"+
+      "<li><b>Use Sunset/Sunrise:</b> Option for start time, if checcked combine with selectable sunrise or sunset icon and with start +/- offset time in minutes. New Set/Rise times will auto update daily.</li>"+                       
+      "<li><b>Select day(s):</b> or odd days check boxes, enter Start time and Run Duration. Start times are in 24 hour format. Run Time in Minutes only.</li>"+
+      "<li><b>Odd Days:</b> Will run days 1st, 3rd, 5th,...29th, if 31st, then 1st again of month.</li>"+    
+	  "<li><b>Total On Time and Counts:</b> will track all switch activity, from app and outside app.</li>"+
  	  "<li><b>Reset:</b> From table per row will reset the total On Time and Counts. It does not reset schedule or turn off the device</li>"+	
+      "<li><b>Off @ Sunrise:</b> Instead of setting a time duration, use Sunrise time. Set the Sunrise offset in advanced options. Easier option for all night lights. Run time will appear in Minutes.</li>"+		                     
       "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want to only run during a specific Mode click and select that mode <br> If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
-      "<li><b>Motion:</b> Checking this box will turn On the switch if Motion device is triggerd. Select Motion device and run time in Advanced options. Will not change the scheduled on times if any.<br>If already On will turn off after Motion timer. If Invert enabled the, if On will switch Off for the time selected then back On. Makes it look like someone is Home!<br>For both Normal and Invert cases the Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a time schedule entered."+	
-      "<li><b>Ignore Case</b> If this box is checked this device with ignore special pause cases and continue to run, Like Sprinker pause options. <br>This is paticular usefull if you mix light switches with sprinklers in same table and dont want your lighting schedules paused becuase of a sprinkler moisture sensor outside.</li>"+                     
+      "<li><b>Motion:</b> Selecting a motion group # will toggle a device if Motion device is triggerd. Select Motion device in Options below table, Run or while active time in Advanced options. Will not change the scheduled on times if any.<br>If On to Off enabled the, the switch if On will turn Off for the time selected then back On. Makes it look like someone is Home!<br>For both Off-On-Off or On-Off-On cases the Motion Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a schedule start time entered."+	
+      "<li><b>Pause Case:</b> Select 'None' or case # in table, set up in Options below table to pause upcoming schedule for that device only.</li>"+   
+      "<li><b>Actions Case:</b> Select 'None' or case # in table, set up in Option below table. Cases 1 - 2 (blink) will work with startime defined schedules. Cases 3+ will not use start times, they will trigger on the selected action.</li>"+    	                     
       "<li><b>Remote Switch:</b> Optional, Select a virtual or real switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
-      "<li><b>Sprinklers:</b> Optional, Wet/Dry sensor if 'wet' will pause all schedules until turns to 'dry'. Does not pause Devices with Igonre Case checked</li>"+
-      "<li><b>Sprinklers:</b> Optional, Moisture (humidity) sensor, Enter Humidity %, if exceeded will pause all schedules. Does not pause Devices with Igonre Case checked.</li>"+                    
-      "<li><b>Leak Detect:</b> This will shut off and stop every device schedule permanently until a user unchecks 'Pause All Devices' Ignores modes and 'Ignore Case'. <br> Use case: if you have a water leak in house, can shut off an installed water valve listed in table. Not recommended to use if using 'wet' (rain) sensor for sprinklers.<br> Only triggers if sensor goes from Dry to Wet. If still 'wet' this will not prevent the valve from being manually turned on outside of app.</li>"+
+      "<li><b>Leak Detect:</b> This will shut off and stop every device schedule and actions permanently until a user unchecks 'Pause All Devices' in advanced options. <br> Use case: if you have a water leak in house, can shut off an installed water valve listed in table. Not recommended to use if using 'wet' (rain) sensor for sprinklers.<br> Only triggers if sensor goes from Dry to Wet. If still 'wet' this will not prevent the valve from being manually turned on outside of app.</li>"+
       "<li><b>Runs Per Day:</b> Optional, Typically for sprinklers to run in morning and evening. Select 2 in table. Then select Hours after 1st run start in advanced options. <br>Note: If start time plus 2nd run offset exceeds hour 24 it will run at hour 23 2nd time. Start will not roll over into next day.</li>"+                    
       "<li><b>You must hit DONE at page bottom to save App after first making.</b></li>"+                    
       "</ul>")
       }
   }
 }
-//////////////////////////////////////////////////////////////  Main Table ////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////  Main Table Build ///////////////////////////////////////////////////////////////
 String displayTable() {
-    if(state.resetTotal) {  //// Reset Cumulative time and counts per device Button       
-		def dev = DeVices.find{"$it.id" == state.resetTotal}
-        state.DeVices[state.resetTotal].start = now()
+    //////////////////////////// Table Input Fields /////////////////////////////
+    if(state.newStartTime) {/////// Input Start Time 
+      input name: "newStartTime", type: "time", title:getFormat("noticable","<b>Enter Start/On Time, Applies to all checked days for Switch.</b><br><small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:10px'
+        if(newStartTime) {
+           state.DeVices[state.newStartTime].startTime = newStartTime
+           state.remove("newStartTime")
+           app.removeSetting("newStartTime")
+           paragraph "<script>{changeSubmit(this)}</script>"
+	    }
+	} 
+   if(state.newDurTime) {//////// Input Run Duration 
+      input name: "newDurTime", type: "number", title:getFormat("noticable","<b>Enter Run/On Duration in Minutes, Applies to all checked days for Switch.</b> &nbsp <small>Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, width: 8, newLineAfter: true, style: 'margin-left:10px'
+        if(newDurTime) {
+          state.DeVices[state.newDurTime].durTime = newDurTime
+          state.remove("newDurTime")
+	      app.removeSetting("newDurTime")
+          paragraph "<script>{changeSubmit(this)}</script>"
+	     }
+	} 
+    if(state.newOffsetTime) { ///////// Sunrise / Sunset Offset time  //// ver1.1.0
+     input name: "newOffsetTime", type: "number", title:getFormat("noticable","<b>Enter +/- Offset time from Sunrise or Sunset in minutes, Applies to all checked days for Switch.</b><br><small>EX: 30, -30, or -90, &nbsp Hit Enter</small>"), defaultValue: 0, required: false,  submitOnChange:true, accepts: "-1000 to 1000", range: "-1000..1000", width: 8, newLineAfter: true, style: 'margin-left:10px'
+       if(newOffsetTime) {
+          state.DeVices[state.newOffsetTime].offset = newOffsetTime
+          state.remove("newOffsetTime")
+	      app.removeSetting("newOffsetTime")
+          paragraph "<script>{changeSubmit(this)}</script>"
+	     }
+	} 
+    if(state.newMode) { //////// Input Modes  
+      input name: "newMode", type: "mode", title: getFormat("noticable","<b>Select during which mode this device will only run.</b><br> <small> Home, Away, etc.. &nbsp Or Any if No Selection</small>"), defaultValue: "", submitOnChange:true, width: 7, required: false, newLineAfter: true, style: 'margin-left:10px'
+          if(newMode) {
+          state.DeVices[state.newMode].modes = newMode
+          state.remove("newMode")
+	      app.removeSetting("newMode")
+          paragraph "<script>{changeSubmit(this)}</script>"
+	     }
+	}   
+    ////////////////////////////// Table Buttons / Entries /////////////////////////////
+    if(state.resetTotal) { def dev = DeVices.find{"$it.id" == state.resetTotal}  //// Reset Cumulative time and counts per device Button       
+		state.DeVices[state.resetTotal].start = now()
         state.DeVices[state.resetTotal].total = 0
         state.DeVices[state.resetTotal].counts = 0
         state.remove("resetTotal")
 	    }
-    /////////////////////// Sunday - Saturday, odd day, Check Boxes
-    if(state.sunCheckedBox) { def dev = DeVices.find{"$it.id" == state.sunCheckedBox}
-        state.DeVices[state.sunCheckedBox].sun = true
-        state.remove("sunCheckedBox") }
+    if(state.deviceState) { def dev = DeVices.find{"$it.id" == state.deviceState}  ////ver2.0.3 Toggle device state  
+		if (dev.currentSwitch == "on") {dev.off()}
+        else if (dev.currentSwitch == "off") {dev.on()}
+       	else if (dev.currentValve == "closed") {dev.open()}
+		else if (dev.currentValve == "open") {dev.close()}
+          endif
+        state.remove("deviceState")                          
+        app.removeSetting("deviceState")
+        paragraph "<script>{changeSubmit(this)}</script>"                   
+        }
+    if(state.sunCheckedBox) { def dev = DeVices.find{"$it.id" == state.sunCheckedBox}  //// Sunday - Saturday, odd day, Check Boxes
+        state.DeVices[state.sunCheckedBox].sun = true; state.remove("sunCheckedBox") }
 	else if(state.sunUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunUnCheckedBox}  
-	    state.DeVices[state.sunUnCheckedBox].sun = false
-        state.remove("sunUnCheckedBox") }
-    endif
+	    state.DeVices[state.sunUnCheckedBox].sun = false; state.remove("sunUnCheckedBox") }
+     endif
     if(state.monCheckedBox) {def dev = DeVices.find{"$it.id" == state.monCheckedBox}  
-	    state.DeVices[state.monCheckedBox].mon = true
-        state.remove("monCheckedBox") }
+	    state.DeVices[state.monCheckedBox].mon = true; state.remove("monCheckedBox") }
 	else if(state.monUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.monUnCheckedBox}  
-	    state.DeVices[state.monUnCheckedBox].mon = false
-        state.remove("monUnCheckedBox") }
-    endif
+	    state.DeVices[state.monUnCheckedBox].mon = false; state.remove("monUnCheckedBox") }
+     endif
     if(state.tueCheckedBox) {def dev = DeVices.find{"$it.id" == state.tueCheckedBox}  
-	    state.DeVices[state.tueCheckedBox].tue = true
-        state.remove("tueCheckedBox") }
+	    state.DeVices[state.tueCheckedBox].tue = true; state.remove("tueCheckedBox") }
 	else if(state.tueUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.tueUnCheckedBox}  
-	    state.DeVices[state.tueUnCheckedBox].tue = false
-        state.remove("tueUnCheckedBox") }
-    endif
+	    state.DeVices[state.tueUnCheckedBox].tue = false; state.remove("tueUnCheckedBox") }
+     endif
     if(state.wedCheckedBox) {def dev = DeVices.find{"$it.id" == state.wedCheckedBox}  
-	    state.DeVices[state.wedCheckedBox].wed = true
-        state.remove("wedCheckedBox") }
+	    state.DeVices[state.wedCheckedBox].wed = true; state.remove("wedCheckedBox") }
 	else if(state.wedUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.wedUnCheckedBox}  
-	    state.DeVices[state.wedUnCheckedBox].wed = false
-        state.remove("wedUnCheckedBox") }
-    endif
+	    state.DeVices[state.wedUnCheckedBox].wed = false; state.remove("wedUnCheckedBox") }
+     endif
     if(state.thuCheckedBox) {def dev = DeVices.find{"$it.id" == state.thuCheckedBox}  
-	    state.DeVices[state.thuCheckedBox].thu = true
-        state.remove("thuCheckedBox") }
+	    state.DeVices[state.thuCheckedBox].thu = true; state.remove("thuCheckedBox") }
 	else if(state.thuUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.thuUnCheckedBox}  
-	    state.DeVices[state.thuUnCheckedBox].thu = false
-        state.remove("thuUnCheckedBox") }
-    endif
+	    state.DeVices[state.thuUnCheckedBox].thu = false; state.remove("thuUnCheckedBox") }
+     endif
     if(state.friCheckedBox) {def dev = DeVices.find{"$it.id" == state.friCheckedBox}  
-	    state.DeVices[state.friCheckedBox].fri = true
-        state.remove("friCheckedBox") }
+	    state.DeVices[state.friCheckedBox].fri = true; state.remove("friCheckedBox") }
 	else if(state.friUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.friUnCheckedBox}  
-	    state.DeVices[state.friUnCheckedBox].fri = false
-        state.remove("friUnCheckedBox") }
-    endif
+	    state.DeVices[state.friUnCheckedBox].fri = false; state.remove("friUnCheckedBox") }
+     endif
     if(state.satCheckedBox) {def dev = DeVices.find{"$it.id" == state.satCheckedBox}  
-	    state.DeVices[state.satCheckedBox].sat = true
-        state.remove("satCheckedBox") }
+	    state.DeVices[state.satCheckedBox].sat = true; state.remove("satCheckedBox") }
 	else if(state.satUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.satUnCheckedBox}  
-	    state.DeVices[state.satUnCheckedBox].sat = false
-        state.remove("satUnCheckedBox") }
-    endif
+	    state.DeVices[state.satUnCheckedBox].sat = false; state.remove("satUnCheckedBox") }
+     endif
     if(state.oddCheckedBox) {def dev = DeVices.find{"$it.id" == state.oddCheckedBox}  //// ver1.0.2
-	    state.DeVices[state.oddCheckedBox].odd = true
-        state.remove("oddCheckedBox") }
+	    state.DeVices[state.oddCheckedBox].odd = true; state.remove("oddCheckedBox") }
 	else if(state.oddUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.oddUnCheckedBox}  
-	    state.DeVices[state.oddUnCheckedBox].odd = false
-        state.remove("oddUnCheckedBox") }
-    endif
-   	if(state.motionCheckedBox) {def dev = DeVices.find{"$it.id" == state.motionCheckedBox}  //// ver1.4.7   Modes
-    	state.DeVices[state.motionCheckedBox].motion = true
-       	state.remove("motionCheckedBox") }
-	else if(state.motionUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.motionUnCheckedBox} 
-  		state.DeVices[state.motionUnCheckedBox].motion = false
-      	state.remove("motionUnCheckedBox") }
-    endif
-    if(state.pauseCaseCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCaseCheckedBox}  //// ver1.4.7   Ignore Case
-	    state.DeVices[state.pauseCaseCheckedBox].pauseCase = true
-        state.remove("pauseCaseCheckedBox") }
-	else if(state.pauseCaseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCaseUnCheckedBox}  
-	    state.DeVices[state.pauseCaseUnCheckedBox].pauseCase = false
-        state.remove("pauseCaseUnCheckedBox") }
-    endif
+	    state.DeVices[state.oddUnCheckedBox].odd = false; state.remove("oddUnCheckedBox") }
+     endif
+    if(state.sunriseCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunriseCheckedBox}  //// ver2.0.3 Off at Sunrise
+    	state.DeVices[state.sunriseCheckedBox].sunrise = true; state.remove("sunriseCheckedBox") }
+	else if(state.sunriseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunriseUnCheckedBox} 
+  		state.DeVices[state.sunriseUnCheckedBox].sunrise = false; state.remove("sunriseUnCheckedBox") }
+     endif
+    if(state.pauseCase0) {def dev = DeVices.find{"$it.id" == state.pauseCase0}  
+	    state.DeVices[state.pauseCase0].specialPause = 0; state.remove("pauseCase0") }
+    else if(state.pauseCase1) {def dev = DeVices.find{"$it.id" == state.pauseCase1}  
+	    state.DeVices[state.pauseCase1].specialPause = 1; state.remove("pauseCase1") }
+	else if(state.pauseCase2) {def dev = DeVices.find{"$it.id" == state.pauseCase2}  
+	    state.DeVices[state.pauseCase2].specialPause = 2; state.remove("pauseCase2") }
+    else if(state.pauseCase3) {def dev = DeVices.find{"$it.id" == state.pauseCase3}  
+	    state.DeVices[state.pauseCase3].specialPause = 3; state.remove("pauseCase3") }
+    else if(state.pauseCase4) {def dev = DeVices.find{"$it.id" == state.pauseCase4}  
+	    state.DeVices[state.pauseCase4].specialPause = 4; state.remove("pauseCase4") }
+    else if(state.pauseCase5) {def dev = DeVices.find{"$it.id" == state.pauseCase5}  
+	    state.DeVices[state.pauseCase5].specialPause = 5; state.remove("pauseCase5") }
+     endif
+    if(state.motionCase0) {def dev = DeVices.find{"$it.id" == state.motionCase0}  
+	    state.DeVices[state.motionCase0].motionCase = 0; state.remove("motionCase0") }
+    else if(state.motionCase1) {def dev = DeVices.find{"$it.id" == state.motionCase1}  
+	    state.DeVices[state.motionCase1].motionCase = 1; state.remove("motionCase1") }
+	else if(state.motionCase2) {def dev = DeVices.find{"$it.id" == state.motionCase2}  
+	    state.DeVices[state.motionCase2].motionCase = 2; state.remove("motionCase2") }
+     endif
+    if(state.actions0) {def dev = DeVices.find{"$it.id" == state.actions0}  
+	    state.DeVices[state.actions0].actions = 0; state.remove("actions0") }
+    else if(state.actions1) {def dev = DeVices.find{"$it.id" == state.actions1}  
+	    state.DeVices[state.actions1].actions = 1; state.remove("actions1") }
+    else if(state.actions2) {def dev = DeVices.find{"$it.id" == state.actions2}  
+	    state.DeVices[state.actions2].actions = 2; state.remove("actions2") }
+    else if(state.actions3) {def dev = DeVices.find{"$it.id" == state.actions3}  
+	    state.DeVices[state.actions3].actions = 3; state.remove("actions3") }
+    else if(state.actions4) {def dev = DeVices.find{"$it.id" == state.actions4}  
+	    state.DeVices[state.actions4].actions = 4; state.remove("actions4") }
+    else if(state.actions5) {def dev = DeVices.find{"$it.id" == state.actions5}  
+	    state.DeVices[state.actions5].actions = 5; state.remove("actions5") }
+    else if(state.actions6) {def dev = DeVices.find{"$it.id" == state.actions6}  
+	    state.DeVices[state.actions6].actions = 6; state.remove("actions6") }
+    else if(state.actions7) {def dev = DeVices.find{"$it.id" == state.actions7}  
+	    state.DeVices[state.actions7].actions = 7; state.remove("actions7") }
+    else if(state.actions8) {def dev = DeVices.find{"$it.id" == state.actions8}  
+	    state.DeVices[state.actions8].actions = 8; state.remove("actions8") }
+	 endif
     if(state.pauseCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCheckedBox}  //// ver1.0.2
-	    state.DeVices[state.pauseCheckedBox].pause = true
-        state.remove("pauseCheckedBox") }
+	    state.DeVices[state.pauseCheckedBox].pause = true; state.remove("pauseCheckedBox") }
 	else if(state.pauseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseUnCheckedBox}  
-	    state.DeVices[state.pauseUnCheckedBox].pause = false
-        state.remove("pauseUnCheckedBox") }
-    endif 
-    /////////////////////// Sunrise / Sunset //// ver1.1.0
-    if(state.sunTimeCheckedBox) { def dev = DeVices.find{"$it.id" == state.sunTimeCheckedBox}
-        state.DeVices[state.sunTimeCheckedBox].sunTime = true
-        state.remove("sunTimeCheckedBox") }
+	    state.DeVices[state.pauseUnCheckedBox].pause = false; state.remove("pauseUnCheckedBox") }
+     endif 
+    if(state.sunTimeCheckedBox) { def dev = DeVices.find{"$it.id" == state.sunTimeCheckedBox}   ///// Sunrise / Sunset //// ver1.1.0
+        state.DeVices[state.sunTimeCheckedBox].sunTime = true; state.remove("sunTimeCheckedBox") }
 	else if(state.sunTimeUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunTimeUnCheckedBox}  
-	    state.DeVices[state.sunTimeUnCheckedBox].sunTime = false
-        state.remove("sunTimeUnCheckedBox") }
-    endif
+	    state.DeVices[state.sunTimeUnCheckedBox].sunTime = false; state.remove("sunTimeUnCheckedBox") }
+     endif
     if(state.sunsetCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunsetCheckedBox}  
-	    state.DeVices[state.sunsetCheckedBox].sunset = true
-        state.remove("sunsetCheckedBox") }
+	    state.DeVices[state.sunsetCheckedBox].sunset = true; state.remove("sunsetCheckedBox") }
 	else if(state.sunsetUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.sunsetUnCheckedBox}  
-	    state.DeVices[state.sunsetUnCheckedBox].sunset = false
-        state.remove("sunsetUnCheckedBox") }
-    endif
+	    state.DeVices[state.sunsetUnCheckedBox].sunset = false; state.remove("sunsetUnCheckedBox") }
+     endif
     if(state.runsDayBox1) {def dev = DeVices.find{"$it.id" == state.runsDayBox1}  //// ver1.2.1
-	    state.DeVices[state.runsDayBox1].runsDay = 1
-        state.remove("runsDayBox1") }
+	    state.DeVices[state.runsDayBox1].runsDay = 1; state.remove("runsDayBox1") }
 	else if(state.runsDayBox2) {def dev = DeVices.find{"$it.id" == state.runsDayBox2}  
-	    state.DeVices[state.runsDayBox2].runsDay = 2
-        state.remove("runsDayBox2") }
-    endif
-    /////////////////////////////// Table Header Build
+	    state.DeVices[state.runsDayBox2].runsDay = 2; state.remove("runsDayBox2") }
+     endif
+ /////////////////////////////// Table Header Build
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
@@ -297,35 +345,33 @@ String displayTable() {
 		"<th style='width: 60px !important'>Start<br>Time</th>" +
         "<th>Use Sun<br>Set/Rise?</th>" +  //// ver1.1.0
         "<th style='width: 60px !important'>Rise or<br>Set?</th>" +  //// ver1.1.0
-        "<th style='width: 60px !important'>Offset<br>+/-Min</th>" +  //// ver1.1.0
-        "<th>Run<br>Time</th>" +  
+        "<th style='width: 60px !important; border-right:2px solid black'>Offset<br>+/-Min</th>" +  //// ver1.1.0
+        "<th style='width: 60px !important; border-right:2px solid black'>Off @<br>Sunrise</th>" +  //// ver2.0.3    
+        "<th style='border-right:2px solid black'>Run<br>Time</th>" +  
         "<th style='width: 65px !important; border-right:2px solid black'>Runs<br>Per Day</th>" +  //// ver1.2.1    
         "<th>Sun</th>" + "<th>Mon</th>" + "<th>Tue</th>" + "<th>Wed</th>" + "<th>Thu</th>" + "<th>Fri</th>" + "<th>Sat</th>" +       
         "<th style='border-right:2px solid black'>Odd<br>Days?</th>"+  //// ver1.0.3
         "<th style='border-right:2px solid black'>Run<br>Mode</th>"+  //// ver1.4.7  
         "<th style='border-right:2px solid black'>Use<br>Motion</th>"+  //// ver2.0.1      
-        "<th style='border-right:2px solid black'>Ignore<br>Case?</th>"+  //// ver1.4.7
+        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7
+        "<th style='border-right:2px solid black'>Select<br>Actions?</th>"+     
         "<th style='border-right:2px solid black'>Pause<br>Sched?</th>"+    //// ver1.0.3    
         "<th>On<br>Counts" +    
         "<th>Total<br>OnTime</th>"+
         "<th>Reset<br>OnTime</th></tr></thead>"
         
+    sunHandler() // Get latest Sunrise/Sunset times and apply offset
     int zone = 0
     DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
         zone += 1
-	state.DeVices["$dev.id"].zone = zone
-        state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset)  //// ver1.1.0
-        if (state.DeVices["$dev.id"].sunTime) {  //// ver1.0.4
-          if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
-          else {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunrise.toString() }
-          }
-        String thisStartTime = state.DeVices["$dev.id"].startTime.substring(11, state.DeVices["$dev.id"].startTime.length() - 12) 
-        String thisDurTime = state.DeVices["$dev.id"].durTime
+        state.DeVices["$dev.id"].zone = zone
+        String thisStartTime
+        	if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000") {thisStartTime = "Select"} // For app first load
+        	else  thisStartTime = state.DeVices["$dev.id"].startTime.substring(11, state.DeVices["$dev.id"].startTime.length() - 12) 
+        String thisDurTime = state.DeVices["$dev.id"].durTime 
         String thisOffsetTime = state.DeVices["$dev.id"].offset
         String thisCron = state.DeVices["$dev.id"].cron
-        String thisZone = state.DeVices["$dev.id"].zone 
-        String thisMode = state.DeVices["$dev.id"].modes 
-        
+                
         ////////////////////////// Active/On Time Calc
         int counts = state.DeVices["$dev.id"].counts   
         int total = state.DeVices["$dev.id"].total / 1000
@@ -341,9 +387,12 @@ String displayTable() {
          endif
         
         String devLink = "<a href='/device/edit/$dev.id' target='_blank' title='Open Device Page for $dev'>$dev"
-		String resetTotal = buttonLink("z$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px") 
+        String deviceStateT  //// Toggle Device State button
+        	if (dev.currentSwitch) {deviceStateT = buttonLink("Z$dev.id", dev.currentSwitch)} 
+        	else if (dev.currentValve) {deviceStateT = buttonLink("Z$dev.id", dev.currentValve)} 
+       	String resetTotal = buttonLink("z$dev.id", "<iconify-icon icon='bx:reset'></iconify-icon>", "black", "23px") 
         String durTime = buttonLink("q$dev.id", thisDurTime, "MediumBlue") 
-        String mode = buttonLink("1$dev.id", thisMode, "MediumBlue")
+        String mode = buttonLink("1$dev.id", state.DeVices["$dev.id"].modes, "MediumBlue") 
         String sunCheckBoxT = (state.DeVices["$dev.id"].sun) ? buttonLink("a$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("b$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  
         String monCheckBoxT = (state.DeVices["$dev.id"].mon) ? buttonLink("c$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("d$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String tueCheckBoxT = (state.DeVices["$dev.id"].tue) ? buttonLink("e$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("f$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
@@ -353,47 +402,84 @@ String displayTable() {
         String satCheckBoxT = (state.DeVices["$dev.id"].sat) ? buttonLink("m$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "green", "23px") : buttonLink("n$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")
         String oddCheckBoxT = (state.DeVices["$dev.id"].odd) ? buttonLink("r$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "SteelBlue", "23px") : buttonLink("s$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.0.3
         String runsPerDayT = (state.DeVices["$dev.id"].runsDay == 1) ? buttonLink("u$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "SteelBlue", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "darkorange", "23px")  //// ver1.2.1
-        String motionCheckBoxT = (state.DeVices["$dev.id"].motion) ?  buttonLink("y5$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("y6$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.4.7
-        String pauseCaseCheckBoxT = (state.DeVices["$dev.id"].pauseCase) ?  buttonLink("y3$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "darkorange", "23px") : buttonLink("y4$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.4.7
-        String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", "<iconify-icon icon=ic:sharp-pause-circle-filled></iconify-icon>", "red", "23px") : buttonLink("v$dev.id", "<iconify-icon icon=ic:baseline-play-circle></iconify-icon>", "green", "23px")  //// ver1.0.3
+        String motionCaseT
+        	if (state.DeVices["$dev.id"].motionCase == 0) {motionCaseT = buttonLink("A$dev.id", "None", "blue", "14px")}
+        	else if (state.DeVices["$dev.id"].motionCase == 1) {motionCaseT = buttonLink("B$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#097969", "23px")}
+        	else if (state.DeVices["$dev.id"].motionCase == 2) {motionCaseT = buttonLink("C$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#50C878", "23px")}  //// ver1.2.1
+             endif
+        String specialPauseT 
+        	if (state.DeVices["$dev.id"].specialPause == 0) {specialPauseT = buttonLink("4$dev.id", "None", "blue", "14px")}
+        	else if (state.DeVices["$dev.id"].specialPause == 1) {specialPauseT = buttonLink("5$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#5f3d0c", "23px")}
+        	else if (state.DeVices["$dev.id"].specialPause == 2) {specialPauseT = buttonLink("6$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#8a6634", "23px")}  //// ver1.2.1
+        	else if (state.DeVices["$dev.id"].specialPause == 3) {specialPauseT = buttonLink("7$dev.id", "<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>", "#848710", "23px")} //// ver2.0.4
+        	else if (state.DeVices["$dev.id"].specialPause == 4) {specialPauseT = buttonLink("8$dev.id", "<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>", "#800b35", "23px")} 
+            else if (state.DeVices["$dev.id"].specialPause == 5) {specialPauseT = buttonLink("9$dev.id", "<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>", "#C00030", "23px")}
+             endif
+         String actionsT 
+        	if (state.DeVices["$dev.id"].actions == 0) {actionsT = buttonLink("G$dev.id", "None", "blue", "14px")}
+        	else if (state.DeVices["$dev.id"].actions == 1) {actionsT = buttonLink("H$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#241571", "23px")}  
+        	else if (state.DeVices["$dev.id"].actions == 2) {actionsT = buttonLink("I$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#0F52BA", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 3) {actionsT = buttonLink("J$dev.id", "<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>", "#48AAAD", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 4) {actionsT = buttonLink("K$dev.id", "<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>", "#0096FF", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 5) {actionsT = buttonLink("L$dev.id", "<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>", "#40E0D0", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 6) {actionsT = buttonLink("M$dev.id", "<iconify-icon icon='tabler:circle-6-filled'></iconify-icon>", "#008080", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 7) {actionsT = buttonLink("N$dev.id", "<iconify-icon icon='tabler:circle-7-filled'></iconify-icon>", "#007FFF", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 8) {actionsT = buttonLink("O$dev.id", "<iconify-icon icon='tabler:circle-8-filled'></iconify-icon>", "#2C3863", "23px")}
+        	 endif
+        String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", "<iconify-icon icon=ic:sharp-pause-circle-filled></iconify-icon>", "red", "23px") : buttonLink("v$dev.id", "<iconify-icon icon=ic:baseline-play-circle></iconify-icon>", "green", "23px") 
         String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.1.0
-        String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("y0$dev.id", "<iconify-icon icon=ph:moon-stars-duotone></iconify-icon>", "DodgerBlue", "23px") : buttonLink("y1$dev.id", "<iconify-icon icon='ph:sun-duotone'></iconify-icon>", "orange", "23px")  //// ver1.1.0
-        String offset = buttonLink("y2$dev.id", thisOffsetTime, "MediumBlue")  //// ver1.1.0
-        //// if (logEnableBool) {log.info "App: ${app.label} - Page Refresh, *${dev}*, StartTime-${thisStartTime}...Duration-${thisDurTime}...Counts-${counts}...Cron-${thisCron}"}
+        String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("D$dev.id", "<iconify-icon icon=ph:moon-stars-duotone></iconify-icon>", "DodgerBlue", "23px") : buttonLink("E$dev.id", "<iconify-icon icon='ph:sun-duotone'></iconify-icon>", "orange", "23px")  //// ver1.1.0
+       	String sunriseCheckBoxT = (state.DeVices["$dev.id"].sunrise) ? buttonLink("2$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "SteelBlue", "23px") : buttonLink("3$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver2.0.3
+        String offset = buttonLink("F$dev.id", thisOffsetTime, "MediumBlue")  //// ver1.1.0
+        //// if (logEnableBool) {log.debug "${app.label} -- Page Refresh, **${dev}**, StartTime-${thisStartTime}...Duration-${thisDurTime}...Counts-${counts}...Cron-${thisCron}"}
         
-        /////////////////////////////// Table Rows Build
-        str += "<tr style='color:black'><td>$thisZone</td>" + 
+  /////////////////////////////// Table Rows Build
+        str += "<tr style='color:black'><td>${state.DeVices["$dev.id"].zone}</td>" +     
         "<td style='border-right:2px solid black'>$devLink</td>" 
-            if (dev.currentSwitch) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='State $dev'>$dev.currentSwitch </td>"}   ///////////////
-            else if (dev.currentValve) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentValve == "open" ? "green" : "red"}'title='State $dev'>$dev.currentValve </td>"}    ///////////////
-            endif 
-            if (state.DeVices["$dev.id"].sunTime) {str +="<td title='Start Time with Sunset or Sunrise +/- offset'>$startTime</td>"}  //// ver1.1.0
-            else str += "<td style='font-weight:bold !important' title='${thisStartTime ? "Click to Change Start Time" : "Select"}'>$startTime</td>"
-            endif
-        str += "<td title='Use Sunrise or Sunset for Start time'>$sunTimeCheckBoxT</td>"  //// ver1.0.4    
-            if (state.DeVices["$dev.id"].sunTime) {str += "<td title='Sunset start (moon), otherwise Sunrise start(sun)'>$sunsetCheckBoxT</td>" +  //// ver1.1.0
-             "<td style='font-weight:bold' title='${thisOffsetTime ? "Click to set +/- minutes for Sunset or Sunrise start time" : "Select"}'>$offset</td>"  }
-            else {str += "<td colspan=2 title='User Entered time (not sunset/sunrise)'>User Time</td>"}   //// ver1.0.4   
-            endif
-        str += "<td style='font-weight:bold; title='${thisDurTime ? "Click to Change Run Duration Minutes" : "Select"}'>$durTime</td>" 
+       	if (dev.currentSwitch) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentSwitch == "on" ? "green" : "red"}'title='Click to Change State'>$deviceStateT</td>"}   //////xxxxxxxxxxxxxxxxxxxxxx/////////
+        else if (dev.currentValve) {str += "<td style='font-weight:bold; border-right:2px solid black; color:${dev.currentValve == "open" ? "green" : "red"}'title='Click to Change State'>$deviceStateT</td>"}    //////xxxxxxxxxxxxxxxxxxxxx/////////
+        	endif    
+       	if (state.DeVices["$dev.id"].sunTime) {str +="<td title='Start Time with Sunset or Sunrise +/- offset'>$startTime</td>"}  //// ver1.1.0
+    	else str += "<td style='font-weight:bold !important' title='${thisStartTime ? "Click to Change Start Time, Or leave as Select if Motion trigger Only" : "Select"}'>$startTime</td>"
+     		endif    
+      	str += "<td title='Use Sunrise or Sunset for Start time'>$sunTimeCheckBoxT</td>"  //// ver1.0.4    
+      	if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000" && state.DeVices["$dev.id"].motionCase != 0) {str += "<td style='border-right:2px solid black'; colspan=2 title='No Start time was entered and using motion only'>Start @ Motion</td>"}  ////ver2.0.3
+    	else if (state.DeVices["$dev.id"].sunTime) {str += "<td title='Sunset start (moon), otherwise Sunrise start(sun)'>$sunsetCheckBoxT</td>" +  //// ver1.1.0
+      	"<td style='font-weight:bold; border-right:2px solid black'title='${thisOffsetTime ? "Click to set +/- minutes for Sunset or Sunrise start time" : "Select"}'>$offset</td>"  }
+      	else {str += "<td style='border-right:2px solid black'; colspan=2 title='User Entered time (not sunset/sunrise)'>User Time</td>"}   //// ver1.0.4   
+      		endif
+     	str += "<td style='border-right:2px solid black' title='Check Box to turn Device Off at Sunrise'>$sunriseCheckBoxT</td>"  ////ver2.0.3
+      	if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000" && state.DeVices["$dev.id"].motionCase == 1 && !motionActive1) {str += "<td style='border-right:2px solid black' title='Change Motion On duration time in advanced Options'>$motionRunTime1</td>" }  ////ver2.0.3
+     	else if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000" && state.DeVices["$dev.id"].motionCase == 2 && !motionActive2) {str += "<td style='border-right:2px solid black' title='Change Motion On duration time in advanced Options'>$motionRunTime2</td>" }  ////ver2.0.4
+        else if (state.DeVices["$dev.id"].motionCase == 1 && motionActive1) {str += "<td style='border-right:2px solid black' title='Runs while motion still Active'>Active</td>" }  ////ver2.1.0
+        else if (state.DeVices["$dev.id"].motionCase == 2 && motionActive2) {str += "<td style='border-right:2px solid black' title='Runs while motion still Active'>Active</td>" } 
+        else if (state.DeVices["$dev.id"].actions == 3 || state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 5 || state.DeVices["$dev.id"].actions == 6
+            || state.DeVices["$dev.id"].actions == 7 || state.DeVices["$dev.id"].actions == 8) {str += "<td style='border-right:2px solid black' title='Runs while special Actions triggered'>Other</td>" } 
+        else if (!state.DeVices["$dev.id"].sunrise) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Click to Change Run Duration Minutes'>$durTime</td>" }  ////ver2.03
+     	else {str += "<td style='border-right:2px solid black' >$thisDurTime</td>"} 
+     		endif
         str += "<td style='border-right:2px solid black' title='${thisDurTime ? "Click to Change to run Once or Twice a day" : "Select"}'>$runsPerDayT</td>"   //// ver1.2.1
-            if (state.DeVices["$dev.id"].odd) {str += "<td colspan=7 title='Run Every Odd Day of Month'>Run Every Odd day of Month</td>"}  //// ver1.0.2
-            else {str +=   
+     	if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000" && state.DeVices["$dev.id"].motionCase != 0) {str += "<td colspan=7 title='Using Motion Trigger Only, No Start time selected'>Using Motion Only, All days</td>"}  //// ver2.0.3
+       	else if (state.DeVices["$dev.id"].startTime == "000000000000000000000000000000" && state.DeVices["$dev.id"].motionCase == 0 && (state.DeVices["$dev.id"].actions == 3 || state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 5 || state.DeVices["$dev.id"].actions == 6
+                || state.DeVices["$dev.id"].actions == 7 || state.DeVices["$dev.id"].actions == 8)) {str += "<td colspan=7 title='Using unscheduled Action Cases Only, No Start time selected'>Using unscheduled Action Case</td>"} 
+        else if (state.DeVices["$dev.id"].odd) {str += "<td colspan=7 title='Run Every Odd Day of Month'>Run Every Odd day of Month</td>"}  //// ver1.0.2
+     	else {str +=   
             "<td title='Check Box to select Day'>$sunCheckBoxT</td>" +  
             "<td title='Check Box to select Day'>$monCheckBoxT</td>" +  
             "<td title='Check Box to select Day'>$tueCheckBoxT</td>" +  
             "<td title='Check Box to select Day'>$wedCheckBoxT</td>" +  
             "<td title='Check Box to select Day'>$thuCheckBoxT</td>" +  
             "<td title='Check Box to select Day'>$friCheckBoxT</td>" +  
-            "<td title='Check Box to select Day'>$satCheckBoxT</td>" 
-             }
-            endif
-        str +=
+            "<td title='Check Box to select Day'>$satCheckBoxT</td>"
+            }
+      	str +=
         "<td style='border-right:2px solid black' title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
-       	"<td style='border-right:2px solid black' title='${thisMode ? "Click to Change Mode" : "Select"}'>$mode</td>" +     
-        "<td style='border-right:2px solid black' title='Check Box to turn on switch if Motion event for specified time in advanced options'>$motionCheckBoxT</td>" +     
-        "<td style='border-right:2px solid black' title='Check Box to have this device ignore the special pause cases like Wet/Moisture sched pause'>$pauseCaseCheckBoxT</td>" +     
-        "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
+        "<td style='border-right:2px solid black' title='Click to Change Mode'>$mode</td>" +     
+        "<td style='border-right:2px solid black' title='Select None or which set of Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>" +     
+        "<td style='border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>" 
+        if (dev.currentValve) {str += "<td style='border-right:2px solid black' title='Valves Cant use special Actions'>N/A</td>"} // Valve cant use Actions
+        else  {str += "<td style='border-right:2px solid black' title='Select device actions or none'>$actionsT</td>"}      
+        str += "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
         if (dev.currentSwitch) {str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" }  
         else if (dev.currentValve) {str += "<td style='font-weight:bold; color:${dev.currentValve == "open" ? "green" : "red"}'>$time</td>" }   //// ver1.20 
@@ -401,11 +487,10 @@ String displayTable() {
         str += "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
         }
    	str += "</table></div>"
-    str
 }
 String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13px") { //// Device Link Format
-   "<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
-}
+  	"<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
+	}
 /////////////////////////////////////////////////////////// Schedules and Subscribes //////////////////////////////////////////////////////////
 void initialize() {
      subscribe(DeVices, "switch.on", onTimeHandler)
@@ -414,150 +499,340 @@ void initialize() {
 	 subscribe(DeVices, "valve.closed", offTimeHandler)  //// ver1.20
      subscribe(remoteSwitch, "switch.on", remoteOffHandler)
      subscribe(remoteSwitch, "switch.off", remoteOffHandler)
-     subscribe(wetSensor, "water.wet", remoteOffHandler)  //// ver1.0.1
-     subscribe(wetSensor, "water.dry", remoteOffHandler)  
      subscribe(wetLeakSensor, "water.wet", remoteOffHandler)  //// ver2.0.1
      subscribe(wetLeakSensor, "water.dry", remoteOffHandler)  
-     subscribe(humidSensor, "humidity", remoteOffHandler)  //// ver1.3.0
-     subscribe(motionSensor, "motion.active", motionHandler)  //// ver2.0.1 	
-     
+     subscribe(motionSensor1, "motion.active", motionHandler1)  //// ver2.0.1 
+   	 subscribe(motionSensor2, "motion.active", motionHandler2)  
+     subscribe(motionSensor1, "motion.inactive", motionHandler1)  //// ver2.1.0 
+   	 subscribe(motionSensor2, "motion.inactive", motionHandler2)
+     subscribe(wetSensor, "water.wet", sensorUpdate)  //// ver1.0.1
+     subscribe(wetSensor, "water.dry", sensorUpdate)  
+     subscribe(contactSensor, "contact.open",  sensorUpdate) 
+     subscribe(contactSensor, "contact.closed",  sensorUpdate)	
+     subscribe(humidSensor, "humidity", sensorUpdate)  //// ver1.3.0
+     subscribe(voltageSensor, "voltage", sensorUpdate)  //// ver2.0.3
+     subscribe(contactTrigger, "contact.open", contactTrigHandler) 
+     subscribe(contactTrigger, "contact.closed", contactTrigHandler)
+     subscribe(switchTrigger, "switch.on", switchTrigHandler) 
+     subscribe(switchTrigger, "switch.off", switchTrigHandler)
+    
      schedule("0 0 1 ? * * *", sunHandler)   // Every day at 1am to get new sunrise/sunset times  //// ver1.1.0
      if (allOffBool) {schedule("${state.allOffCron}", allOffHandler)} // Set All off Time  //// ver1.4.0
+     else {unschedule (allOffHandler)}	 
     
-     ////////////// Set device cron schedules
+  ////////////// Set device cron schedules
      DeVices.sort{it.displayName.toLowerCase()}.each {dev ->
          zone = state.DeVices["$dev.id"].zone
          if (state.DeVices["$dev.id"].cron && state.DeVices["$dev.id"].durTime != 0) {
             schedule("${state.DeVices["$dev.id"].cron}", switchOnHandler, [data:zone, overwrite:false]) 
-            if (logEnableBool) {log.info "${app.label} -SCHEDULED Device ${dev}......duration = ${state.DeVices["$dev.id"].durTime}.....cronString = ${state.DeVices["$dev.id"].cron}"}
+            if (logEnableBool) {log.debug "${app.label} -- SCHEDULED Device **${dev}**......duration = ${state.DeVices["$dev.id"].durTime}.....cronString = ${state.DeVices["$dev.id"].cron}"}
          }
      }
-    sensorUpdate() // Get latest state from sensors (Wet, Humid, Motion)
 }   
 /////////////////////////////////////////////////////////////// Sensor Updates //////////////////////////////////////////////////////////////////
-def sensorUpdate() {
-	if (humidSensor) {state.humidSensorValue = humidSensor.currentHumidity} // Set Values  //// ver1.3.0
-    if (wetSensor) {state.wetSensorValue = wetSensor.currentWater}  // Set Values  //// ver1.3.0
-    if (wetLeakSensor) {state.wetLeakSensorValue = wetLeakSensor.currentWater}  // Set Values  //// ver2.0.1
-    if (motionSensor) {state.motionSensorValue = motionSensor.currentMotion} // Set Values  //// ver2.0.1
-    if (logEnableBool) {log.debug "App: ${app.label} - Sensors Update ..... "}
+def sensorUpdate(evt) {
+    if (logEnableBool) {log.debug "${app.label} -- Pause Case Sensor Update State, ${evt.device}"} /// to ${evt}" 
+    if (evt.device.currentHumidity >= pauseHumidValue && !invertHumidBool) {state.humidPauseBool = true}
+    else if (evt.device.currentHumidity <= pauseHumidValue && invertHumidBool) {state.humidPauseBool = true}
+    if (evt.device.currentWater == "wet") {state.wetPauseBool = true} 
+    if (evt.device.currentVoltage <= voltageThreshold) {state.voltPauseBool = true} 
+    if (contactSensor && evt.device.currentContact == "open" && !invertContactBool) {state.contactPauseBool = true} 
+    else if (contactSensor && evt.device.currentContact == "closed" && invertContactBool) {state.contactPauseBool = true} 
+    sensorScan() // Update all sensor array states/values
+}
+//////////////////////////////////////////////?//////////// All Sensor State Scan //////////////////////////////////////////////////////////////
+def sensorScan() { //// Scan all sensors and multips and update status  //// ver2.1.0
+    if (humidSensor) {for(int i = 0; i < humidSensor.currentHumidity.size(); i++) { // Scan arrary
+       	if (humidSensor.currentHumidity[i] >= pauseHumidValue && !invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if >= ${pauseHumidValue}%" ; state.humidPauseBool = true; break} 
+        else if (humidSensor.currentHumidity[i] <= pauseHumidValue && invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if <= ${pauseHumidValue}%"; state.humidPauseBool = true; break}  
+       	else if (!invertHumidBool) {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if >= ${pauseHumidValue}%"; state.humidPauseBool = false}
+        else {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if <= ${pauseHumidValue}%";  state.humidPauseBool = false}
+        } }
+    if (tempSensor) {for(int i = 0; i < tempSensor.currentTemperature.size(); i++) { // Scan arrary
+       	if (tempSensor.currentTemperature[i] >= pauseTempValue && !invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if >= ${pauseTempValue}deg" ; state.tempPauseBool = true; break} 
+        else if (tempSensor.currentTemperature[i] <= pauseTempValue && invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if <= ${pauseTempValue}deg"; state.tempPauseBool = true; break}  
+       	else if (!invertTempBool) {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if >= ${pauseTempValue}deg"; state.tempPauseBool = false}
+        else {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if <= ${pauseTempValue}deg";  state.tempPauseBool = false}
+        } }
+    if (wetSensor) {for(int i = 0; i < wetSensor.currentWater.size(); i++) { 
+       	if (wetSensor.currentWater[i] == "wet") {state.wetStateDisplay = "<text style='color:red; font-weight: bold' >${wetSensor.currentWater}</text>"; state.wetPauseBool = true; break}
+       	else {state.wetStateDisplay = "<text style='color:green' >${wetSensor.currentWater} </text>"; state.wetPauseBool = false}
+        } }        
+    if (voltageSensor) {for(int i = 0; i < voltageSensor.currentVoltage.size(); i++) { 
+       	if (voltageSensor.currentVoltage[i] <= voltageThreshold) {state.voltageStateDisplay = "<text style='color:red; font-weight: bold' >${voltageSensor.currentVoltage} </text>"; state.voltPauseBool = true; break}
+       	else {state.voltageStateDisplay = "<text style='color:green' >${voltageSensor.currentVoltage} </text>"; state.voltPauseBool = false}
+        } } 
+    if (contactSensor) {for(int i = 0; i < contactSensor.currentContact.size(); i++) { 
+       if (contactSensor.currentContact[i] == "open" && !invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Open"; state.contactPauseBool = true; break}
+      	else if (contactSensor.currentContact[i] == "closed" && invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Closed"; state.contactPauseBool = true; break}
+       	else if (!invertContactBool) {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Open"; state.contactPauseBool = false}
+        else {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Closed"; state.contactPauseBool = false}
+        } }
+    if (leakBool && wetLeakSensor) {for(int i = 0; i < wetLeakSensor.currentWater.size(); i++) {
+       	if (wetLeakSensor.currentWater[i] == "wet") {state.wetLeakStateDisplay =  "<text style='color:red; font-weight: bold' >${wetLeakSensor.currentWater} </text>"; break}
+       	else state.wetLeakStateDisplay = "<text style='color:green' >${wetLeakSensor.currentWater} </text>"  
+        } }
+    if (motionSensor1) {for(int i = 0; i < motionSensor1.currentMotion.size(); i++) {
+       	if (motionSensor1.currentMotion[i] == "active") {state.motionState1Display = "<text style='color:red; font-weight: bold' >${motionSensor1.currentMotion} </text>"; break}
+       	else state.motionState1Display = "<text style='color:green' >${motionSensor1.currentMotion} </text>"  
+    	} }    
+    if (motionSensor2) {for(int i = 0; i < motionSensor2.currentMotion.size(); i++) {
+      	if (motionSensor2.currentMotion[i] == "active") {state.motionState2Display = "<text style='color:red; font-weight: bold' >${motionSensor2.currentMotion} </text>"; break}
+      	else state.motionState2Display = "<text style='color:green' >${motionSensor2.currentMotion} </text>"  
+    	} }    
+ 
+    DeVices.each { dev ->  //// Impliment Device Pauses by case
+      	if ((state.humidPauseBool && state.DeVices["$dev.id"].specialPause == 1) || (state.wetPauseBool && state.DeVices["$dev.id"].specialPause == 2) 
+            || (state.voltPauseBool && state.DeVices["$dev.id"].specialPause == 3) || (state.contactPauseBool && state.DeVices["$dev.id"].specialPause == 4) || (state.tempPauseBool && state.DeVices["$dev.id"].specialPause == 5)) {state.DeVices["$dev.id"].sensorPause = true}  //// ver 2.0.4
+      	else {state.DeVices["$dev.id"].sensorPause = false}
+  	}
 }
 ////////////////////////////////////////////////////////////////// Handlers //////////////////////////////////////////////////////////////////
-def onTimeHandler(evt) {
+def onTimeHandler(evt) {//// Called by; Subscribes only
     state.DeVices[evt.device.id].start = now()
     state.DeVices[evt.device.id].counts += 1  
-    if (logEnableBool) {log.debug "${app.label} - ONtime HANDLER, Device ${evt.device}.....start= ${state.DeVices[evt.device.id].start}" }
+    if (logEnableBool) {log.debug "${app.label} -- ONtime HANDLER, Device **${evt.device}**.....start= ${state.DeVices[evt.device.id].start}" }
 }
-def offTimeHandler(evt) {
+def offTimeHandler(evt) {//// Called by; Subscribes only
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
-    if (logEnableBool) {log.debug "${app.label} - OFFtime HANDLER, Device ${evt.device}.....total= ${state.DeVices[evt.device.id].total}"} 
+    if (logEnableBool) {log.debug "${app.label} -- OFFtime HANDLER, Device **${evt.device}**.....total= ${state.DeVices[evt.device.id].total}"} 
 }
-void switchOnHandler(data) { 
-    if (pauseBool) {return} // All paused, get out, dont run  //// ver1.4.7  revised  
+void switchOnHandler(data) {//// Called by; Scheduled Cron's 
+    sensorScan() // Update (Wet, Humid, Motion, ...) values 
+    if (pauseAllBool) {return} // All paused, get out, dont run  //// ver1.4.7  revised  
        	DeVices.each { dev -> 
-          if (!state.DeVices["$dev.id"].pause) { //// Pasued per device in table
-            if ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any") { /// Mode selected in table or Any, ver1.4.7
-          		if (state.DeVices["$dev.id"].pauseCase == true || (!state.tempPauseBool && state.DeVices["$dev.id"].pauseCase == false)) {  //// ver 1.4.7 revised
-            		zone = state.DeVices["$dev.id"].zone
-                    if (data.value == state.DeVices["$dev.id"].zone ) {
-                		log.info "${app.label}: Device: ${dev} Scheduled Turn On for duration ${state.DeVices["$dev.id"].durTime}"
-                    	if (pushBool && pushOnBool) {pushDevice.deviceNotification("App: ${app.label}, Scheduled Action, Device ${dev} turning ON for ${state.DeVices["$dev.id"].durTime}min")} //// ver2.0.1 
+          if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued and Mode per device in table //// ver1.4.7
+          		zone = state.DeVices["$dev.id"].zone
+               	if (data.value == state.DeVices["$dev.id"].zone ) {
+             		if (state.DeVices["$dev.id"].actions == 1 || state.DeVices["$dev.id"].actions == 2) {  //// Blink ON
+                        if (pushBool && pushOnBool) {pushDevice.deviceNotification("App: ${app.label} -- Scheduled Action, Device **${dev}** Blinking ON/Off for ${state.DeVices["$dev.id"].durTime}min")} //// ver2.0.1 
+                        state.DeVices["$dev.id"].blink = true
+                   		runIn(1, blinkOnHandler, [data:zone, overwrite:false])
+                        runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                        }
+                    else {  //// ON
+                        log.info "${app.label} -- Device **${dev}** Scheduled Turn ON for duration ${state.DeVices["$dev.id"].durTime}min"
+                        if (pushBool && pushOnBool) {pushDevice.deviceNotification("App: ${app.label} -- Scheduled Action, Device **${dev}** turning ON for ${state.DeVices["$dev.id"].durTime}min")} //// ver2.0.1 
                     	if (dev.currentSwitch)  {dev.on()}
                 		if (dev.currentValve)  {dev.open()}  //// ver1.20
-                       	runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
-                    	}
-                    }
+                    	runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                    	}	
                 }
-        	}
-     	}
-     }
-void motionHandler(evt) { //// ver 2.0.1
-    sensorUpdate() // Get latest state from sensors (Wet, Humid, Motion)
-    if (pauseBool) {return} // All paused, get out, dont run
-       	DeVices.each { dev -> 
-          if (!state.DeVices["$dev.id"].pause && state.DeVices["$dev.id"].motion) { //// Pasued per device in table
-           	if ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any") { /// Mode selected in table or Any, ver1.4.7
-          		if (state.DeVices["$dev.id"].pauseCase == true || (!state.tempPauseBool && state.DeVices["$dev.id"].pauseCase == false)) {  //// ver 1.4.7 revised
-            		zone = state.DeVices["$dev.id"].zone
-                    //int xRun = Integer.valueOf(60 * motionRunTime) //xRun = Integer.parseInt(60.0 * motionRunTime) //// Convert to integer
-                    //log.debug "xRun = ${xRun}"
-                  	if (!invertBool) { //  Turn On if Off
-                        if (pushBool && pushMotionBool) {pushDevice.deviceNotification("App: ${app.label}, Motion Detected by ${evt.device}, Device ${dev} turning ON for ${motionRunTime}min")} //// ver2.0.1
-                        if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on(); runIn(60 * motionRunTime, switchOffHandler, [data:zone, overwrite:false])}
-                		if (dev.currentValve && dev.currentValve == "closed") {dev.open(); runIn(60 * motionRunTime, switchOffHandler, [data:zone, overwrite:false])}  //// ver1.20
-                           	}
-                   	else { //  Turn Off if On 
-                        if (pushBool && pushMotionBool) {pushDevice.deviceNotification("App: ${app.label}, Motion Detected by ${evt.device}, Device ${dev} turning OFF for ${motionRunTime}min")} //// ver2.0.1
-                        if (dev.currentSwitch && dev.currentSwitch == "on") {dev.off(); runIn(60 * motionRunTime, motionOnHandler, [data:zone, overwrite:false])}
-                		if (dev.currentValve && dev.currentValve == "open") {dev.close(); runIn(60 * motionRunTime, motionOnHandler, [data:zone, overwrite:false])}  //// ver1.20
-                            	}
-                    log.info "${app.label}: Motion Detected by ${evt.device}, Device ${dev} Toggling for ${motionRunTime}min"
-                  	if (logEnableBool) {log.debug "${app.label} - MOTION-Handler...Device: ${dev}...SwitchDuration = ${motionRunTime*60}sec... Motion Sensor ${evt.device} is '${evt.device.currentMotion}'... Invert? = ${invertBool} ... MotionCheckBox = ${state.DeVices["$dev.id"].motion} ... Zone = ${state.DeVices["$dev.id"].zone}"}
-                }
-        	}
-     	}
+            }
+      }
  }
-}
-void switchOffHandler(data) {
+void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, End of Motion Dur time. 
     DeVices.each { dev -> 
         if (data.value == state.DeVices["$dev.id"].zone ) {
            if (dev.currentSwitch)  {dev.off()} 
            if (dev.currentValve)  {dev.close()}  //// ver1.20
-           log.info "${app.label}: Device: ${dev}, Turning OFF"} 
+           if (state.DeVices["$dev.id"].blink) {state.DeVices["$dev.id"].blink = false} // cancel a blink session
+           log.info "${app.label} -- **${dev}** Turning OFF, SwitchOffHandler"
+           } 
          }
      }
-void motionOnHandler(data) { ////ver2.0.1 Added for motion Invert mode
-    if (pauseBool) {return} // All paused, get out, dont run
+void contactTrigHandler(evt) {
+   if (pauseAllBool) {return} 
+    	DeVices.each { dev -> 
+         if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause &&  (state.DeVices["$dev.id"].actions == 3 || state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 5) 
+               && (state.DeVices["$dev.id"].modes == location.mode || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
+           	zone = state.DeVices["$dev.id"].zone
+            if (state.DeVices["$dev.id"].actions == 3 && evt.device.currentContact == "open") {
+                log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}**"
+                if (dev.currentSwitch)  {dev.on()}
+            	}           		
+            else if ((state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 5) && evt.device.currentContact == "open") {
+            	state.DeVices["$dev.id"].blink = true
+               	runIn(1, blinkOnHandler, [data:zone, overwrite:false])
+               	}
+       		else {runIn(1, switchOffHandler, [data:zone, overwrite:false]) 	}
+         }
+     }         
+   }
+void switchTrigHandler(evt) { ////ver2.1.0
+   if (pauseAllBool) {return} 
+    	DeVices.each { dev -> 
+         if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && (state.DeVices["$dev.id"].actions == 6 || state.DeVices["$dev.id"].actions == 7 || state.DeVices["$dev.id"].actions == 8)
+               && (state.DeVices["$dev.id"].modes == location.mode || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
+           	zone = state.DeVices["$dev.id"].zone
+            if (state.DeVices["$dev.id"].actions == 6 && evt.device.currentSwitch == "on") {
+                log.info "${app.label} -- **${dev}** Turning ON triggered by Switch **${evt.device}**"
+            	if (dev.currentSwitch)  {dev.on()}
+       			}
+            else if ((state.DeVices["$dev.id"].actions == 7 || state.DeVices["$dev.id"].actions == 8) && evt.device.currentSwitch == "on") {
+            	state.DeVices["$dev.id"].blink = true
+               	runIn(1, blinkOnHandler, [data:zone, overwrite:false])
+               	} 
+            else {runIn(1, switchOffHandler, [data:zone, overwrite:false]) 	}
+         }
+     }         
+   }
+void motionHandler1(evt) { //// Called by; Subscribes only.  //// ver 2.0.1
+    if (pauseAllBool) {return} // All paused, get out, dont run
+       	DeVices.each { dev -> 
+          if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause &&  state.DeVices["$dev.id"].motionCase == 1 && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
+               	zone = state.DeVices["$dev.id"].zone; int xRun = Math.round(60 * motionRunTime1)
+            if (!motionActive1 && evt.device.currentMotion == "active") {
+                   	if (pushBool && pushMotionBool) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ${xRun/60}min")} //// ver2.0.1
+					log.info "${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}** for ^${xRun/60}min^ .. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool1})" 
+                       	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])} ////  Turn On if Off
+                       	else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool1) {dev.off(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])} ////  Turn Off if On
+                		else if (dev.currentValve && dev.currentValve == "closed") {dev.open(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])}  ////  Turn On if Off /// ver1.20
+                        else if (dev.currentValve && dev.currentValve == "open" && invertBool1) {dev.close(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])}  ////  Turn Off if On  //// ver1.20
+                    		endif
+                    } 
+         	else if (motionActive1 && evt.device.currentMotion == "active")	{  //// ver2.1.0
+                   	if (pushBool && pushMotionBool) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}**") } //// ver2.0.1
+					log.info "${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}**.. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool1})" 
+                    	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on()}  ////  Turn On if Off  ////ver 2.1.0
+                		else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool1) {dev.off()}  ////  Turn Off if On                		
+                        else if (dev.currentValve && dev.currentValve == "closed") {dev.open()}  ////  Turn On if Off
+ 						else if (dev.currentValve && dev.currentValve == "open" && invertBool1) {dev.close()}   ////  Turn Off if On
+                    		endif
+	                } 
+           	else if (motionActive1 && evt.device.currentMotion == "inactive") { ////ver 2.1.0
+                	log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}**.. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool1})" 
+              			if (dev.currentSwitch && dev.currentSwitch == "on") {dev.off()} ////  Turn back Off after inactive  ////ver 2.1.0
+                        else if (dev.currentSwitch && dev.currentSwitch == "off" && invertBool1) {dev.on()}  ////  Turn back On after inactive
+                		else if (dev.currentValve && dev.currentValve == "open") {dev.close()} ////  Turn back Off after inactive 
+     					else if (dev.currentValve && dev.currentValve == "closed" && invertBool1) {dev.open()}  ////  Turn back On after inactive
+                    		endif
+                   }
+              	endif
+         } 
+       }
+ }
+void motionHandler2(evt) { //// Called by; Subscribes only.  //// ver 2.1.0
+    if (pauseAllBool) {return} // All paused, get out, dont run
+       	DeVices.each { dev -> 
+          if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && state.DeVices["$dev.id"].motionCase == 2 && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
+               	zone = state.DeVices["$dev.id"].zone; int xRun = Math.round(60 * motionRunTime2)
+            if (!motionActive2 && evt.device.currentMotion == "active") {
+                   	if (pushBool && pushMotionBool) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}** for ${xRun/60}min")} //// ver2.0.1
+					log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ^${xRun/60}min^ .. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool2})" 
+                       	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])} ////  Turn On if Off
+                       	else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool2) {dev.off(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])} ////  Turn Off if On
+                		else if (dev.currentValve && dev.currentValve == "closed") {dev.open(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])}  ////  Turn On if Off /// ver1.20
+                        else if (dev.currentValve && dev.currentValve == "open" && invertBool2) {dev.close(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])}  ////  Turn Off if On  //// ver1.20
+                    		endif
+                    } 
+         	else if (motionActive2 && evt.device.currentMotion == "active")	{  //// ver2.1.0
+                   	if (pushBool && pushMotionBool) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}**") } //// ver2.0.1
+					log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}**.. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool2})" 
+                    	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on()}  ////  Turn On if Off  ////ver 2.1.0
+                		else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool2) {dev.off()}  ////  Turn Off if On                		
+                        else if (dev.currentValve && dev.currentValve == "closed") {dev.open()}  ////  Turn On if Off
+ 						else if (dev.currentValve && dev.currentValve == "open" && invertBool2) {dev.close()}   ////  Turn Off if On
+                    		endif
+	                } 
+           	else if (motionActive2 && evt.device.currentMotion == "inactive") { ////ver 2.1.0
+                	log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}**.. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool2})" 
+              			if (dev.currentSwitch && dev.currentSwitch == "on") {dev.off()} ////  Turn back Off after inactive  ////ver 2.1.0
+                        else if (dev.currentSwitch && dev.currentSwitch == "off" && invertBool2) {dev.on()}  ////  Turn back On after inactive
+                		else if (dev.currentValve && dev.currentValve == "open") {dev.close()} ////  Turn back Off after inactive
+     					else if (dev.currentValve && dev.currentValve == "closed" && invertBool2) {dev.open()}  ////  Turn back On after inactive
+                    		endif
+                   }
+              	endif
+         } 
+       }
+ }
+void motionBackOnHandler(data) {//// Called by; MotionHandler Invert mode.  //// ver2.0.1
+    if (pauseAllBool) {return} // All paused, get out, dont run
     DeVices.each { dev ->
-        if (!state.DeVices["$dev.id"].pause && state.DeVices["$dev.id"].motion) {
+        if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && state.DeVices["$dev.id"].motion != 0) {
         	if (data.value == state.DeVices["$dev.id"].zone ) {
            		if (dev.currentSwitch && dev.currentSwitch == "off")  {dev.on()}
            		if (dev.currentValve && dev.currentValve == "closed")  {dev.open()}
-                if (logEnableBool) {log.debug "${app.label} -Motion Back On handler... Device: ${dev}...zone = ${data.value}"} 
+                if (logEnableBool) {log.debug "${app.label} -- Motion Back On handler... Device: *${dev}*...zone = ${data.value}"} 
             }
         }
      }
 }
-def allOffHandler(evt) {
+
+/*
+void stateChangeHandler(data) {  ////xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 
+    DeVices.each { dev -> 
+      if (data.value == state.DeVices["$dev.id"].zone ) {
+            if (dev.currentSwitch == "on") {dev.off()}
+        	else if (dev.currentSwitch == "off") {dev.on()}
+       		else if (dev.currentValve == "closed") {dev.open()}
+			else if (dev.currentValve == "open") {dev.close()}
+        	endif
+           log.info "${app.label} -- stateChangeHandler,  Device **${dev}**, Toggling" 
+        }
+     }
+}
+*/
+def blinkOnHandler(data) {  ////ver2.1.0  
+    int xRun
+    DeVices.each { dev -> 
+      if (state.DeVices["$dev.id"].blink == false) {return}
+        if (state.DeVices["$dev.id"].actions == 1 || state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 7) {xRun = Math.round(60 * blinkOn1)}
+        else {xRun = Math.round(60 * blinkOn2)}
+        zone = state.DeVices["$dev.id"].zone
+        if (data.value == state.DeVices["$dev.id"].zone ) {
+           if (dev.currentSwitch == "off") {dev.on(); runIn(xRun, blinkOffHandler, [data:zone, overwrite:false])} 
+           log.info "${app.label} -- BlnikONHandler **${dev}**, Turning ON" 
+        } }
+}
+def blinkOffHandler(data) {  ////ver2.1.0  
+    int xRun
+    DeVices.each { dev -> 
+      if (state.DeVices["$dev.id"].blink == false) {return}
+        if (state.DeVices["$dev.id"].actions == 1 || state.DeVices["$dev.id"].actions == 4 || state.DeVices["$dev.id"].actions == 7) {xRun = Math.round(60 * blinkOff1)}
+        else {xRun = Math.round(60 * blinkOff2)}
+        zone = state.DeVices["$dev.id"].zone
+        if (data.value == state.DeVices["$dev.id"].zone ) {
+           if (dev.currentSwitch == "on") {dev.off(); runIn(xRun, blinkOnHandler, [data:zone, overwrite:false])} 
+           log.info "${app.label} -- BlnikOFFHandler **${dev}**, Turning OFF" 
+        } }
+}
+def allOffHandler(evt) {//// Called by; Sched All off time, Leak, Remote SW, in App Off button
     DeVices.each { dev ->
     	if (dev.currentSwitch == "on") {dev.off()}  
     	else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
     	endif
-    log.info "${app.label}: All Devices Off triggered"     
+        if (state.DeVices["$dev.id"].blink) {state.DeVices["$dev.id"].blink = false}
     }
+    log.info "${app.label} -- All Devices OFF schedule triggered" 
 }
-def remoteOffHandler(evt) { // Handles remote off/pasue and the wet/humidity sched pause
-    if (wetSensor && evt.device.currentWater) {state.wetSensorValue = evt.device.currentWater} 
-    if (wetLeakSensor && evt.device.currentWater) {state.wetLeakSensorValue = evt.device.currentWater} ////ver2.0.1
-    if (humidSensor && evt.device.currentHumidity) {state.humidSensorValue = evt.device.currentHumidity}
-    
-    if ((evt.device.currentSwitch == "on" && remoteSwitchBool) || (leakBool && wetLeakSensor && state.wetLeakSensorValue == "wet")) { //// Shutdown and permanent pause
-        	state.pauseBool = true; app?.updateSetting("pauseBool",[value:"true",type:"bool"])  // remote switch control to turn off and pause everything
-            if (pushBool && pushLeakBool && leakBool) {pushDevice.deviceNotification("App: ${app.label}, Leak Detected by ${evt.device}, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
-        	DeVices.each { dev ->
-                if (dev.currentSwitch == "on") {dev.off()}  
-        		else if (dev.currentValve == "open") {dev.close()}  //// ver1.20
-        		endif    
-        	}
-    }
-    if (evt.device.currentSwitch == "off" && remoteSwitchBool) {state.pauseBool = false; app?.updateSetting("pauseBool",[value:"false",type:"bool"])} // Unpause permanent paause
-   	if (wetSensor && state.wetSensorValue == "wet") {state.tempPauseBool = true}  //// ver1.0.1,  Wet pause
-    else if (humidSensor && state.humidSensorValue >= pauseHumidValue) {state.tempPauseBool = true}  //// ver1.3.0,   Humid pause
-    else {state.tempPauseBool = false}                           
-    endif
-    if (logEnableBool) {log.debug "App: ${app.label} - Remote Pause/Resume Handler....Device ${evt.device}....Switch=${evt.device.currentSwitch} or Water=${state.wetSensorValue} or Humidity=${state.humidSensorValue}....state.tempPauseBool ${state.tempPauseBool}"}
-}
-def sunHandler(evt) {  // get new sunrise/sunset times every day  //// ver1.1.0
-    DeVices.each { dev -> 
-        if (state.DeVices["$dev.id"].sunTime) {
-            state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset) 
-            if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
-            else {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunrise.toString() }
+def remoteOffHandler(evt) {//// Called by; Subscribes only.  // Handles remote off/pause and Leak Sensor off
+    if (evt.device.currentSwitch == "off" && remoteSwitchBool) {state.pauseAllBool = false; app?.updateSetting("pauseAllBool",[value:"false",type:"bool"])} // Unpause permanent pause
+    if (evt.device.currentSwitch == "on" && remoteSwitchBool) { // remote switch control to turn off and pause everything
+        	state.pauseAllBool = true; app?.updateSetting("pauseAllBool",[value:"true",type:"bool"])  
+        	log.info "${app.label} -- All Devices Triggered Off from Remote Switch" 
+        	allOffHandler()  /// Shut all Off
             }
-         }
-    updated()  // Rebuild cron with new sunSet/Rise schedules
+    else if (leakBool && wetLeakSensor && evt.device.currentWater == "wet") { // Leak Detect turn off and pause everything
+        	state.pauseAllBool = true; app?.updateSetting("pauseAllBool",[value:"true",type:"bool"])  
+        	if (pushBool && pushLeakBool && leakBool) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
+        	log.info "${app.label} -- All Devices Triggered Off by Leak Detect" 
+        	allOffHandler()  /// Shut all Off	
+    		}
 }
-void appButtonHandler(btn) {
+def sunHandler(evt) {//// Called by; Scheduled Cron and within functions. // update new sunrise/sunset times every day  //// ver1.1.0
+    DeVices.each { dev -> 
+    if (!state.DeVices["$dev.id"].sunTime) {state.DeVices["$dev.id"].offset = 0} ////ver2.0.3
+    state.offsetRiseAndSet = getSunriseAndSunset(sunriseOffset: state.DeVices["$dev.id"].offset, sunsetOffset: state.DeVices["$dev.id"].offset)  //// ver1.1.0
+   	if (state.DeVices["$dev.id"].sunTime) {  //// ver1.0.4
+          if (state.DeVices["$dev.id"].sunset) {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunset.toString() }
+          else {state.DeVices["$dev.id"].startTime = state.offsetRiseAndSet.sunrise.toString() }
+    }
+    if (state.DeVices["$dev.id"].sunrise) {  ////ver2.0.3  Calculate @ Sunrise Off time and duration
+    	int startHours = Integer.valueOf(state.DeVices["$dev.id"].startTime.substring(11, state.DeVices["$dev.id"].startTime.length() - 15))  
+       	int startMin = Integer.valueOf(state.DeVices["$dev.id"].startTime.substring(14, state.DeVices["$dev.id"].startTime.length() - 12))  
+       	String strSunriseTime = state.offsetRiseAndSet.sunrise
+      	int sunriseHours = Integer.valueOf(strSunriseTime.substring(11, strSunriseTime.length() - 15))  
+      	int sunriseMin = Integer.valueOf(strSunriseTime.substring(14, strSunriseTime.length() - 12))  
+        	if (startHours > sunriseHours) {state.DeVices["$dev.id"].durTime = (24 - startHours + sunriseHours)*60 - startMin + sunriseMin + sunriseOffset - state.DeVices["$dev.id"].offset}
+        	else {state.DeVices["$dev.id"].durTime = (sunriseHours*60) + sunriseMin + sunriseOffset - state.DeVices["$dev.id"].offset}
+        	if (state.DeVices["$dev.id"].durTime < 0) {state.DeVices["$dev.id"].durTime = 0} // Prevent negative times
+      	 }
+    }
+   updated()  // Rebuild cron with new sunSet/Rise schedules
+}
+void appButtonHandler(btn) {//// Called by; In app Button pushes
     if (btn == "refresh") refreshHandler()   
     else if (btn == "allOff") allOffHandler()  
     else if (btn == "updateButton") updated()  
@@ -583,32 +858,48 @@ void appButtonHandler(btn) {
     else if (btn.startsWith("v")) state.pauseCheckedBox = btn.minus("v")
     else if (btn.startsWith("w")) state.sunTimeUnCheckedBox = btn.minus("w")  //// ver1.1.0
     else if (btn.startsWith("x")) state.sunTimeCheckedBox = btn.minus("x")  //// ver1.1.0 
-    else if (btn.startsWith("y0")) state.sunsetUnCheckedBox = btn.minus("y0")  //// ver1.1.0
-    else if (btn.startsWith("y1")) state.sunsetCheckedBox = btn.minus("y1")  //// ver1.1.0
-    else if (btn.startsWith("y2")) state.newOffsetTime = btn.minus("y2")  //// ver1.1.0
-    else if (btn.startsWith("y3")) state.pauseCaseUnCheckedBox = btn.minus("y3")  //// ver1.4.7
-    else if (btn.startsWith("y4")) state.pauseCaseCheckedBox = btn.minus("y4")  //// ver1.4.7 
-    else if (btn.startsWith("y5")) state.motionUnCheckedBox = btn.minus("y5")  //// ver1.4.7
-    else if (btn.startsWith("y6")) state.motionCheckedBox = btn.minus("y6")  //// ver1.4.7    
     else if (btn.startsWith("p")) state.runsDayBox1 = btn.minus("p")  //// ver1.2.1
     else if (btn.startsWith("u")) state.runsDayBox2 = btn.minus("u")  //// ver1.2.1    
     else if (btn.startsWith("z")) state.resetTotal = btn.minus("z")  
-    else if (btn.startsWith("1")) state.newMode = btn.minus("1")  //// ver1.5.2      
+    else if (btn.startsWith("1")) state.newMode = btn.minus("1")  //// ver1.5.2 
+    else if (btn.startsWith("2")) state.sunriseUnCheckedBox = btn.minus("2")  //// ver2.0.3 
+    else if (btn.startsWith("3")) state.sunriseCheckedBox = btn.minus("3")  //// ver2.0.3  
+    else if (btn.startsWith("9")) state.pauseCase0 = btn.minus("9")  //// ver2.0.3
+    else if (btn.startsWith("4")) state.pauseCase1 = btn.minus("4")  //// ver2.0.3
+    else if (btn.startsWith("5")) state.pauseCase2 = btn.minus("5")  //// ver2.0.3    
+    else if (btn.startsWith("6")) state.pauseCase3 = btn.minus("6")  //// ver2.0.3
+    else if (btn.startsWith("7")) state.pauseCase4 = btn.minus("7")  //// ver2.0.3   
+    else if (btn.startsWith("8")) state.pauseCase5 = btn.minus("8")  //// ver2.1.0         
+    else if (btn.startsWith("C")) state.motionCase0 = btn.minus("C")  //// ver2.1.0    
+    else if (btn.startsWith("A")) state.motionCase1 = btn.minus("A")  //// ver2.1.0
+    else if (btn.startsWith("B")) state.motionCase2 = btn.minus("B")  //// ver2.1.0 
+    else if (btn.startsWith("D")) state.sunsetUnCheckedBox = btn.minus("D")  //// ver1.1.0
+    else if (btn.startsWith("E")) state.sunsetCheckedBox = btn.minus("E")  //// ver1.1.0
+    else if (btn.startsWith("F")) state.newOffsetTime = btn.minus("F")  //// ver1.1.0    
+ 	else if (btn.startsWith("Z")) state.deviceState = btn.minus("Z")  ////ver2.0.3 
+   	else if (btn.startsWith("O")) state.actions0 = btn.minus("O")    
+    else if (btn.startsWith("G")) state.actions1 = btn.minus("G")   //// ver2.1.0 
+   	else if (btn.startsWith("H")) state.actions2 = btn.minus("H")    
+    else if (btn.startsWith("I")) state.actions3 = btn.minus("I")
+  	else if (btn.startsWith("J")) state.actions4 = btn.minus("J")
+  	else if (btn.startsWith("K")) state.actions5 = btn.minus("K") 
+    else if (btn.startsWith("L")) state.actions6 = btn.minus("L")
+  	else if (btn.startsWith("M")) state.actions7 = btn.minus("M")
+  	else if (btn.startsWith("N")) state.actions8 = btn.minus("N")     
     endif    
 }
-def refreshHandler() { ///////////// Update Times if Active/On
+def refreshHandler() {//// Called by; In App Button push and within functions  // Update Times if Active/On
     state.DeVices.each {k, v ->
         def dev = DeVices.find{"$it.id" == k}
         if (dev.currentSwitch == "on" || dev.currentValve == "open") {  //////////////////  
           state.DeVices[k].total += now() - state.DeVices[k].start
 		  state.DeVices[k].start = now()
           }
-    }
-     sensorUpdate() //// Pause or trigger schedule sensors, ver2.0.1 Get latest state from sensors (Wet, Humid, Motion)  
-     if (logEnableBool) {log.debug "App: ${app.label} - Refresh Handler..  Mode = ${location.mode}, Water=${state.wetSensorValue} or pauseHumidValue=${pauseHumidValue}, Humidity=${state.humidSensorValue}....state.tempPauseBool=${state.tempPauseBool}"}
+ 	}
+    sensorScan() // Update sensor readings if any
 }
 /////////////////////////////////////////////////////////////// Functions //////////////////////////////////////////////////////////////////
-def buildCron() {
+def buildCron() {//// Called by; updated() function, via install or in App refresh/store buttons or within functions
   state.DeVices.each {k, v ->
      def dev = DeVices.find{"$it.id" == k}
         if(state.DeVices[k].startTime) {
@@ -639,21 +930,27 @@ def buildCron() {
             endif
            }
    }
-  //// Build All Off time  ////ver1.4.0
+  //// Build All Off time Cron ////ver1.4.0
     if (allOffBool) {
         String formattedTimeOff = allOffTime.substring(11, allOffTime.length() - 12)
         String hoursOff = formattedTimeOff.substring(0, formattedTimeOff.length() - 3) // Chop off the last 3 in string
         String minutesOff = formattedTimeOff.substring(3) // Chop off the first 3 in string
         state.allOffCron = "0 ${minutesOff} ${hoursOff} * * ? * "  
-    }   
+    }
+    if (logEnableBool) {log.debug "${app.label} -- All Cron Schedules Successfully Built"} 
 }
-//////////////////////////////////////////////////////////////  Status Bar  ////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////  Status Bar  //////////////////////////////////////////////////////////////////// 
 String statusBar() {
+    if (pauseAllBool) {paragraph getFormat("noticable","<b>All Upcoming Schedules and Motion Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
-    if (humidSensor) {paragraph getFormat("smallLineSpace","<b>Sprinkler Moisture/Humidity Sensors:</b> &nbsp ${humidSensor} = ${state.humidSensorValue}%, &nbsp Pause schedules if >= ${pauseHumidValue}%")} 
-    if (wetSensor) {paragraph getFormat("smallLineSpace","<b>Sprinkler Wet/Dry Sensors:</b> &nbsp ${wetSensor} = ${state.wetSensorValue}, &nbsp Pause schedules if 'wet'" )}
-    if (leakBool) {paragraph getFormat("smallLineSpace","<b>Leak Wet/Dry Sensors:</b> &nbsp ${wetLeakSensor} = ${state.wetLeakSensorValue}, &nbsp Shutdown All if 'wet'" )}
-    if (motionSensor) {paragraph getFormat("smallLineSpace","<b>Motions Sensors:</b> &nbsp ${motionSensor} = ${state.motionSensorValue}")} 
+    if (humidSensor) {paragraph getFormat("smallLineSpace","<b>Moisture/Humidity Sensor(s):</b> &nbsp ${humidSensor} = ${state.humidStateDisplay}")} 
+    if (wetSensor) {paragraph getFormat("smallLineSpace","<b>Wet/Dry Sensor(s):</b> &nbsp ${wetSensor} = ${state.wetStateDisplay}, &nbsp Pause Case #2 schedules if 'wet'" )}
+    if (leakBool && wetLeakSensor) {paragraph getFormat("smallLineSpace","<b>Leak Detect Sensor(s):</b> &nbsp ${wetLeakSensor} = ${state.wetLeakStateDisplay}, &nbsp Shutdown All if 'wet'" )}
+    if (motionSensor1) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s) 1:</b> &nbsp ${motionSensor1} = ${state.motionState1Display}") }
+    if (motionSensor2) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s) 2:</b> &nbsp ${motionSensor2} = ${state.motionState2Display}") }
+    if (voltageSensor) {paragraph getFormat("smallLineSpace","<b>Voltage Sensor(s):</b> &nbsp ${voltageSensor} = ${state.voltageStateDisplay} &nbsp Pause Case #3 schedules if <${voltageThreshold}V") }
+    if (contactSensor) {paragraph getFormat("smallLineSpace","<b>Contact Sensor(s):</b> &nbsp ${contactSensor} = ${state.contactStateDisplay}")} 
+    if (tempSensor) {paragraph getFormat("smallLineSpace","<b>Temperature Sensor(s):</b> &nbsp ${tempSensor} = ${state.tempStateDisplay}")} 
 }
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
@@ -664,7 +961,7 @@ def updated() {  // runs every 'Done' on already installed app
     if(logEnableBool) runIn(3600, logsOff)  // Disable all debug Logging after time elapsed
 }
 def installed() { updated() }  // only runs once for new app 'Done' or first time open 
-def logsOff() {log.info "${app.label} - All App debug logging auto disabled"; app?.updateSetting("logEnableBool",[value:"false",type:"bool"]) }
+def logsOff() {log.info "${app.label} -- All App 'debug' logging auto disabling itself"; app?.updateSetting("logEnableBool",[value:"false",type:"bool"]) }
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:SteelBlue; font-weight: bold'>${myText}</h3>"  // Steel-Blue
     if(type == "blueRegular") return "<div style='color:SteelBlue; font-weight: bold; line-height: 97%'>${myText}</div>"  // Steel-Blue
@@ -681,4 +978,5 @@ def getFormat(type, myText="") {
 }
 def displayTitle() {titleVersion(); 
     section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
-}
+   }
+
