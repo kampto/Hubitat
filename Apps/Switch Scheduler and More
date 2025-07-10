@@ -9,6 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   2.1.1	2025-07-11	kampto    	Fixed some spelling, addded icons to status area below table. 
 *   2.1.0	2025-06-20	kampto    	Added off at Sunrise option. Changed IgnoreCase to several SpecialPause cases. Add color to status bar values. Able to toggle device state in table. 
 *									Add contact pause case. Added action options including blink, contact and switch triggers
 *   1.6.2	2025-05-20	kampto    	Added; Leak Detect option, Off @Sunrise, Modes per device, Motion sensor trig, Notification options. Other app enhancements. Improved notes.
@@ -17,20 +18,18 @@
 *   1.4.2	2024-04-15	kampto    	Fixed 2nd run time and 'wet' pause bug
 *   1.4.0	2024-02-28	kampto    	Added all Off time user input
 *   1.3.1	2023-09-26	kampto    	Added Humidity/Moisture sensor to pause sprinkler schedule. Add status of sprinker pause sensors below table
-*   1.2.2	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device, Bug fix on run twice a day
-*   1.1.1	2023-06-13	kampto    	Added table display total time in days option.
+*   1.2.2	2023-07-28	kampto    	Added Valve capability and 2nd run time per day Hr offset per device, Bug fix on run twice a day. Added table display total time in days option.
 *   1.1.0	2023-05-18	kampto    	Add sunset/sunrise start options, format changes.
 *   1.0.3	2023-05-13	kampto    	Odd days only option. Sprinkler Options with moisture sensor. Pause a single device checkbox. Added Modes. More usage notes.
 *   1.0.0	2023-05-09	kampto    	First Build from scratch.
 */
-
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() { state.name = "Switch/Valve Scheduler (Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.1.0" }
+def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.1.1" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
-	description: "Automate/Schedule Switches, Relays, Outlets, Sprinklers, Valves",
+	description: "Automate/Schedule/Control Switches, Relays, Outlets, Sprinklers, Valves",
 	category: "Control",
    	iconUrl: "",
 	iconX2Url: "",
@@ -55,7 +54,7 @@ def mainPage() {
   section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
        label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
        input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6
-       paragraph "Availible capabilites include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
+       paragraph "Available capabilities include Switches and Valves. Combine multiple devices in single App table or create multiple instances of this App with differnt names."
                    
        DeVices.each {dev ->
 	   if(!state.DeVices["$dev.id"]) {    
@@ -105,9 +104,10 @@ def mainPage() {
                }
        	input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
         input name: "logEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging of App based device activity and refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
-   		}   
-  	section(getFormat("header","Schedule Special Pause Case Options: Sprinkers Wet, Moisture, Contact state, Voltage, ..."),hideable: true, hidden: false) {    
-          input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important", "<b>Pause Case 1 Humidity/Moisture: Select Humidity sensor(s) to Pause schedules (Optional)</b><br><small>If Humidity above selected % Will pause upcoming, Applies to devices with 'Pause Case' #1 in table. Typically used to pause Sprinklers.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+   		} 
+///////////// Pause Cases      
+  	section(getFormat("header","PAUSE CASE Options: Schedule pasue via; Wet, Moisture, Contact state, Voltage, ..."),hideable: true, hidden: false) {    
+          input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important", "<b>Pause Case 1 Humidity/Moisture: Select Humidity sensor(s) to Pause schedules (Optional)</b><br><small>If Humidity above (or below) selected % Will pause upcoming, Applies to devices with 'Pause Case' #1 in table. Typically used to pause Sprinklers.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
             if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
              input name: "invertHumidBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Humidity % is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
                              }
@@ -115,10 +115,10 @@ def mainPage() {
           input "voltageSensor", "capability.voltageMeasurement", title: getFormat("important", "<b>Pause Case 3 Voltage: Select Voltage sensor(s) to Pause schedules (Optional)</b><br><small>Typically use for Solar situations. If <= threshold will pause upcoming, Applies to devices with 'Pause Case' #3 in table</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
             if (voltageSensor) {input name: "voltageThreshold", type: "decimal", title: getFormat("blueRegular","<b>Enter Voltage to pause schedule if below</b><small>&nbsp &nbsp Default = 52.2v</small>"), defaultValue: "52.2", submitOnChange: true, required: false, width: 6, newLineAfter: true, style: 'margin-left:60px'
              }
-          input "contactSensor", "capability.contactSensor", title: getFormat("important", "<b>Pause Case 4 Contacts: Select Contact sensor(s) to Pause schedules if Open (Optional)</b><br><small>Doors, Windows, other.. Applies to devices with 'Pause Case' #4 in table</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+          input "contactSensor", "capability.contactSensor", title: getFormat("important", "<b>Pause Case 4 Contacts: Select Contact sensor(s) to Pause schedules (Optional)</b><br><small>Doors, Windows, other.. Will pasue if Open (or closed). Applies to devices with 'Pause Case' #4 in table</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
             if (contactSensor) {input name: "invertContactBool", type: "bool", title: getFormat("blueRegular","<b>Change logic to Pause if contact Closed instead?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
              } 
-          input "tempSensor", "capability.temperatureMeasurement", title: getFormat("important", "<b>Pause Case 5 Temperature: Select Temperature sensor(s) to Pause schedules (Optional)</b><br><small>If Temperature is above selected Value Will pause upcoming, Applies to devices with 'Pause Case' #5 in table.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
+          input "tempSensor", "capability.temperatureMeasurement", title: getFormat("important", "<b>Pause Case 5 Temperature: Select Temperature sensor(s) to Pause schedules (Optional)</b><br><small>If Temperature is above (or below) selected Value Will pause upcoming, Applies to devices with 'Pause Case' #5 in table.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
             if (tempSensor) {input name: "pauseTempValue", type: "number", title: getFormat("blueRegular","<b>Select Temperature to Pause</b><small>&nbsp &nbsp Default = 50deg</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
                 input name: "invertTempBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Temperature is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
              } 
@@ -127,7 +127,8 @@ def mainPage() {
             input "wetLeakSensor", "capability.waterSensor", title: getFormat("important", "<b>Select Wet/Dry sensor(s) to detect leak and trigger Shutdown</b><br><small>'Wet' will trigger, Not recommended to share same sensor with selected Sprinker wet/dry sensor</small>"), required: false, multiple: true, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:60px'  
             } 
        	}
-    section(getFormat("header","Motion Detection Options"),hideable: true, hidden: false) {     
+///////////// Motion Detection         
+    section(getFormat("header","MOTION DETECTION Options"),hideable: true, hidden: false) {     
        	input "motionSensor1", "capability.motionSensor", title: getFormat("important", "<b>Select Motion Sensor(s) Group 1 to trigger switch (Optional)</b><br><small>Applies to all devices with this Case # selected. Will not run if Paused, Incorrect mode, or Special Pause case. You can use Motion On triggers with or without an entered schedule. Will not use Blink Actions Cases.</small>"), required: false, multiple: true, submitOnChange: true, width: 8, style: 'margin-left:10px' 
         	if (motionSensor1) {
         		input name: "motionActive1", type: "bool", title: getFormat("blueRegular","<b>Keep Device On until motion is Inactive instead of using duration time?</b>&nbsp &nbsp<small>Will ignore entered time</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:60px' 
@@ -140,7 +141,8 @@ def mainPage() {
        			if (!motionActive2) {input name: "motionRunTime2", type: "decimal", title: getFormat("blueRegular","<b>Enter minutes to run switch after Motion triggered</b><small>&nbsp &nbsp Enter 0.1 to 120min, Default = 3min</small>"), defaultValue: "3", submitOnChange: true, required: false, width: 7, accepts: ".1 to 120", range: ".1..120", newLineAfter: true, style: 'margin-left:60px'}
        			input name: "invertBool2", type: "bool", title: getFormat("blueRegular","<b>If Motion and a Switch/Valve is currently On, switch Off instead?</b> &nbsp <small> Off devices will still switch On <br>Will switch Off for run time or active entered above then back On. Toggle a night light to alert intruders!</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px' 
             	} }
-    section(getFormat("header","Action Switch Options: Blink, Switch Trigger, Contact trigger,... &nbsp <small><b>Only for Switches, not Valves</b></small>"),hideable: true, hidden: false) {        
+///////////// Actions           
+    section(getFormat("header","ACTION Switch Options: Blink, Switch Trigger, Contact trigger,... &nbsp <small><b>Only for Switches, not Valves</b></small>"),hideable: true, hidden: false) {        
       	paragraph getFormat("important","<b>Actions 1: Blink Timer1 device On/Off feature? &nbsp </b><small>Applies to scheduled devices with 'Actions' case #1 in table. &nbsp &nbsp Enter 0.1 to 60min, Default = 1min</small>")
               input name: "blinkOn1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'ON' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
               input name: "blinkOff1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'OFF' time minutes</b></small>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
@@ -338,7 +340,7 @@ String displayTable() {
  /////////////////////////////// Table Header Build
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   //////// font-weight: bold !important; word-wrap: break-word !important; white-space: normal!important
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:15px !important; padding:2px 4px;text-align:center} + .tstat-col td {font-size:13px  }" +
-        "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style=';border:3px solid black'>" +
+        "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style='border:3px solid black'>" +
         "<thead><tr style='border-bottom:2px solid black'><th>#</th>" +	
         "<th style='border-right:2px solid black'><small><small>App ver${state.version}</small></small><br>Device</th>" +
         "<th style='border-right:2px solid black'>State</th>" +     
@@ -404,27 +406,27 @@ String displayTable() {
         String runsPerDayT = (state.DeVices["$dev.id"].runsDay == 1) ? buttonLink("u$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "SteelBlue", "23px") : buttonLink("p$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "darkorange", "23px")  //// ver1.2.1
         String motionCaseT
         	if (state.DeVices["$dev.id"].motionCase == 0) {motionCaseT = buttonLink("A$dev.id", "None", "blue", "14px")}
-        	else if (state.DeVices["$dev.id"].motionCase == 1) {motionCaseT = buttonLink("B$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#097969", "23px")}
-        	else if (state.DeVices["$dev.id"].motionCase == 2) {motionCaseT = buttonLink("C$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#50C878", "23px")}  //// ver1.2.1
+        	else if (state.DeVices["$dev.id"].motionCase == 1) {motionCaseT = buttonLink("B$dev.id", state.motionIcon1)}
+        	else if (state.DeVices["$dev.id"].motionCase == 2) {motionCaseT = buttonLink("C$dev.id", state.motionIcon2)}  //// ver1.2.1
              endif
-        String specialPauseT 
+       String specialPauseT 
         	if (state.DeVices["$dev.id"].specialPause == 0) {specialPauseT = buttonLink("4$dev.id", "None", "blue", "14px")}
-        	else if (state.DeVices["$dev.id"].specialPause == 1) {specialPauseT = buttonLink("5$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#5f3d0c", "23px")}
-        	else if (state.DeVices["$dev.id"].specialPause == 2) {specialPauseT = buttonLink("6$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#8a6634", "23px")}  //// ver1.2.1
-        	else if (state.DeVices["$dev.id"].specialPause == 3) {specialPauseT = buttonLink("7$dev.id", "<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>", "#848710", "23px")} //// ver2.0.4
-        	else if (state.DeVices["$dev.id"].specialPause == 4) {specialPauseT = buttonLink("8$dev.id", "<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>", "#800b35", "23px")} 
-            else if (state.DeVices["$dev.id"].specialPause == 5) {specialPauseT = buttonLink("9$dev.id", "<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>", "#C00030", "23px")}
+        	else if (state.DeVices["$dev.id"].specialPause == 1) {specialPauseT = buttonLink("5$dev.id", state.pauseCaseIcon1)}
+        	else if (state.DeVices["$dev.id"].specialPause == 2) {specialPauseT = buttonLink("6$dev.id", state.pauseCaseIcon2)} //// ver1.2.1
+        	else if (state.DeVices["$dev.id"].specialPause == 3) {specialPauseT = buttonLink("7$dev.id", state.pauseCaseIcon3)} //// ver2.0.4
+        	else if (state.DeVices["$dev.id"].specialPause == 4) {specialPauseT = buttonLink("8$dev.id", state.pauseCaseIcon4)} 
+            else if (state.DeVices["$dev.id"].specialPause == 5) {specialPauseT = buttonLink("9$dev.id", state.pauseCaseIcon5)}
              endif
-         String actionsT 
+		String actionsT 
         	if (state.DeVices["$dev.id"].actions == 0) {actionsT = buttonLink("G$dev.id", "None", "blue", "14px")}
-        	else if (state.DeVices["$dev.id"].actions == 1) {actionsT = buttonLink("H$dev.id", "<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>", "#241571", "23px")}  
-        	else if (state.DeVices["$dev.id"].actions == 2) {actionsT = buttonLink("I$dev.id", "<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>", "#0F52BA", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 3) {actionsT = buttonLink("J$dev.id", "<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>", "#48AAAD", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 4) {actionsT = buttonLink("K$dev.id", "<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>", "#0096FF", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 5) {actionsT = buttonLink("L$dev.id", "<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>", "#40E0D0", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 6) {actionsT = buttonLink("M$dev.id", "<iconify-icon icon='tabler:circle-6-filled'></iconify-icon>", "#008080", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 7) {actionsT = buttonLink("N$dev.id", "<iconify-icon icon='tabler:circle-7-filled'></iconify-icon>", "#007FFF", "23px")}
-        	else if (state.DeVices["$dev.id"].actions == 8) {actionsT = buttonLink("O$dev.id", "<iconify-icon icon='tabler:circle-8-filled'></iconify-icon>", "#2C3863", "23px")}
+        	else if (state.DeVices["$dev.id"].actions == 1) {actionsT = buttonLink("H$dev.id", state.actionsIcon1)}  
+        	else if (state.DeVices["$dev.id"].actions == 2) {actionsT = buttonLink("I$dev.id", state.actionsIcon2)}
+        	else if (state.DeVices["$dev.id"].actions == 3) {actionsT = buttonLink("J$dev.id", state.actionsIcon3)}
+        	else if (state.DeVices["$dev.id"].actions == 4) {actionsT = buttonLink("K$dev.id", state.actionsIcon4)}
+        	else if (state.DeVices["$dev.id"].actions == 5) {actionsT = buttonLink("L$dev.id", state.actionsIcon5)}
+        	else if (state.DeVices["$dev.id"].actions == 6) {actionsT = buttonLink("M$dev.id", state.actionsIcon6)}
+        	else if (state.DeVices["$dev.id"].actions == 7) {actionsT = buttonLink("N$dev.id", state.actionsIcon7)}
+        	else if (state.DeVices["$dev.id"].actions == 8) {actionsT = buttonLink("O$dev.id", state.actionsIcon8)}
         	 endif
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", "<iconify-icon icon=ic:sharp-pause-circle-filled></iconify-icon>", "red", "23px") : buttonLink("v$dev.id", "<iconify-icon icon=ic:baseline-play-circle></iconify-icon>", "green", "23px") 
         String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", "<iconify-icon icon='material-symbols:check-box'></iconify-icon>", "purple", "23px") : buttonLink("x$dev.id", "<iconify-icon icon='material-symbols:check-box-outline-blank'></iconify-icon>", "black", "23px")  //// ver1.1.0
@@ -477,6 +479,8 @@ String displayTable() {
         "<td style='border-right:2px solid black' title='Click to Change Mode'>$mode</td>" +     
         "<td style='border-right:2px solid black' title='Select None or which set of Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>" +     
         "<td style='border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>" 
+        ////"<td style='vertical-align: bottom !important; border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>" 
+        
         if (dev.currentValve) {str += "<td style='border-right:2px solid black' title='Valves Cant use special Actions'>N/A</td>"} // Valve cant use Actions
         else  {str += "<td style='border-right:2px solid black' title='Select device actions or none'>$actionsT</td>"}      
         str += "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
@@ -543,16 +547,16 @@ def sensorUpdate(evt) {
 //////////////////////////////////////////////?//////////// All Sensor State Scan //////////////////////////////////////////////////////////////
 def sensorScan() { //// Scan all sensors and multips and update status  //// ver2.1.0
     if (humidSensor) {for(int i = 0; i < humidSensor.currentHumidity.size(); i++) { // Scan arrary
-       	if (humidSensor.currentHumidity[i] >= pauseHumidValue && !invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if >= ${pauseHumidValue}%" ; state.humidPauseBool = true; break} 
-        else if (humidSensor.currentHumidity[i] <= pauseHumidValue && invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if <= ${pauseHumidValue}%"; state.humidPauseBool = true; break}  
-       	else if (!invertHumidBool) {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if >= ${pauseHumidValue}%"; state.humidPauseBool = false}
-        else {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause Case #1 schedules if <= ${pauseHumidValue}%";  state.humidPauseBool = false}
+        if (humidSensor.currentHumidity[i] >= pauseHumidValue && !invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause schedules if >= ${pauseHumidValue}%" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon1}</text>"; state.humidPauseBool = true; break} 
+        else if (humidSensor.currentHumidity[i] <= pauseHumidValue && invertHumidBool) {state.humidStateDisplay = "<text style='color:red; font-weight: bold' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause schedules if <= ${pauseHumidValue}%" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon1}</text>"; state.humidPauseBool = true; break}  
+       	else if (!invertHumidBool) {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause schedules if >= ${pauseHumidValue}%" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon1}</text>"; state.humidPauseBool = false}
+        else {state.humidStateDisplay = "<text style='color:green' >${humidSensor.currentHumidity}%, </text>" + "&nbsp Pause schedules if <= ${pauseHumidValue}%" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon1}</text>";  state.humidPauseBool = false}
         } }
     if (tempSensor) {for(int i = 0; i < tempSensor.currentTemperature.size(); i++) { // Scan arrary
-       	if (tempSensor.currentTemperature[i] >= pauseTempValue && !invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if >= ${pauseTempValue}deg" ; state.tempPauseBool = true; break} 
-        else if (tempSensor.currentTemperature[i] <= pauseTempValue && invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if <= ${pauseTempValue}deg"; state.tempPauseBool = true; break}  
-       	else if (!invertTempBool) {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if >= ${pauseTempValue}deg"; state.tempPauseBool = false}
-        else {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause Case #5 schedules if <= ${pauseTempValue}deg";  state.tempPauseBool = false}
+       	if (tempSensor.currentTemperature[i] >= pauseTempValue && !invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause schedules if >= ${pauseTempValue}deg" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon5}</text>"; state.tempPauseBool = true; break} 
+        else if (tempSensor.currentTemperature[i] <= pauseTempValue && invertTempBool) {state.tempStateDisplay = "<text style='color:red; font-weight: bold' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause schedules if <= ${pauseTempValue}deg" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon5}</text>"; state.tempPauseBool = true; break}  
+       	else if (!invertTempBool) {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause schedules if >= ${pauseTempValue}deg" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon5}</text>"; state.tempPauseBool = false}
+        else {state.tempStateDisplay = "<text style='color:green' >${tempSensor.currentTemperature}deg, </text>" + "&nbsp Pause schedules if <= ${pauseTempValue}deg" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon5}</text>";  state.tempPauseBool = false}
         } }
     if (wetSensor) {for(int i = 0; i < wetSensor.currentWater.size(); i++) { 
        	if (wetSensor.currentWater[i] == "wet") {state.wetStateDisplay = "<text style='color:red; font-weight: bold' >${wetSensor.currentWater}</text>"; state.wetPauseBool = true; break}
@@ -563,10 +567,10 @@ def sensorScan() { //// Scan all sensors and multips and update status  //// ver
        	else {state.voltageStateDisplay = "<text style='color:green' >${voltageSensor.currentVoltage} </text>"; state.voltPauseBool = false}
         } } 
     if (contactSensor) {for(int i = 0; i < contactSensor.currentContact.size(); i++) { 
-       if (contactSensor.currentContact[i] == "open" && !invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Open"; state.contactPauseBool = true; break}
-      	else if (contactSensor.currentContact[i] == "closed" && invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Closed"; state.contactPauseBool = true; break}
-       	else if (!invertContactBool) {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Open"; state.contactPauseBool = false}
-        else {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause Case #4 schedules if Closed"; state.contactPauseBool = false}
+       if (contactSensor.currentContact[i] == "open" && !invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause schedules if Open" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon4}</text>"; state.contactPauseBool = true; break}
+      	else if (contactSensor.currentContact[i] == "closed" && invertContactBool) {state.contactStateDisplay = "<text style='color:red; font-weight: bold' >${contactSensor.currentContact}, </text>" + "&nbsp Pause schedules if Closed" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon4}</text>"; state.contactPauseBool = true; break}
+       	else if (!invertContactBool) {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause schedules if Open" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon4}</text>"; state.contactPauseBool = false}
+        else {state.contactStateDisplay = "<text style='color:green' >${contactSensor.currentContact}, </text>" + "&nbsp Pause schedules if Closed" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon4}</text>"; state.contactPauseBool = false}
         } }
     if (leakBool && wetLeakSensor) {for(int i = 0; i < wetLeakSensor.currentWater.size(); i++) {
        	if (wetLeakSensor.currentWater[i] == "wet") {state.wetLeakStateDisplay =  "<text style='color:red; font-weight: bold' >${wetLeakSensor.currentWater} </text>"; break}
@@ -749,21 +753,6 @@ void motionBackOnHandler(data) {//// Called by; MotionHandler Invert mode.  ////
         }
      }
 }
-
-/*
-void stateChangeHandler(data) {  ////xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 
-    DeVices.each { dev -> 
-      if (data.value == state.DeVices["$dev.id"].zone ) {
-            if (dev.currentSwitch == "on") {dev.off()}
-        	else if (dev.currentSwitch == "off") {dev.on()}
-       		else if (dev.currentValve == "closed") {dev.open()}
-			else if (dev.currentValve == "open") {dev.close()}
-        	endif
-           log.info "${app.label} -- stateChangeHandler,  Device **${dev}**, Toggling" 
-        }
-     }
-}
-*/
 def blinkOnHandler(data) {  ////ver2.1.0  
     int xRun
     DeVices.each { dev -> 
@@ -944,18 +933,39 @@ String statusBar() {
     if (pauseAllBool) {paragraph getFormat("noticable","<b>All Upcoming Schedules and Motion Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
     if (humidSensor) {paragraph getFormat("smallLineSpace","<b>Moisture/Humidity Sensor(s):</b> &nbsp ${humidSensor} = ${state.humidStateDisplay}")} 
-    if (wetSensor) {paragraph getFormat("smallLineSpace","<b>Wet/Dry Sensor(s):</b> &nbsp ${wetSensor} = ${state.wetStateDisplay}, &nbsp Pause Case #2 schedules if 'wet'" )}
+    if (wetSensor) {paragraph getFormat("smallLineSpace","<b>Wet/Dry Sensor(s):</b> &nbsp ${wetSensor} = ${state.wetStateDisplay}, &nbsp Pause schedules if 'wet'"  + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon2}</text>" )}
     if (leakBool && wetLeakSensor) {paragraph getFormat("smallLineSpace","<b>Leak Detect Sensor(s):</b> &nbsp ${wetLeakSensor} = ${state.wetLeakStateDisplay}, &nbsp Shutdown All if 'wet'" )}
-    if (motionSensor1) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s) 1:</b> &nbsp ${motionSensor1} = ${state.motionState1Display}") }
-    if (motionSensor2) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s) 2:</b> &nbsp ${motionSensor2} = ${state.motionState2Display}") }
-    if (voltageSensor) {paragraph getFormat("smallLineSpace","<b>Voltage Sensor(s):</b> &nbsp ${voltageSensor} = ${state.voltageStateDisplay} &nbsp Pause Case #3 schedules if <${voltageThreshold}V") }
+    if (motionSensor1) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s)</b>" + "&nbsp ${motionSensor1} = ${state.motionState1Display}" + ", Group" + "<text style='position:absolute; top:-.48em'>${state.motionIcon1}</text>")}
+    if (motionSensor2) { paragraph getFormat("smallLineSpace","<b>Motion Sensor(s)</b>" + "&nbsp ${motionSensor2} = ${state.motionState2Display}" + ", Group" + "<text style='position:absolute; top:-.48em'>${state.motionIcon2}</text>")}
+    if (voltageSensor) {paragraph getFormat("smallLineSpace","<b>Voltage Sensor(s):</b> &nbsp ${voltageSensor} = ${state.voltageStateDisplay} &nbsp Pause schedules if <${voltageThreshold}V" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon3}</text>")}
     if (contactSensor) {paragraph getFormat("smallLineSpace","<b>Contact Sensor(s):</b> &nbsp ${contactSensor} = ${state.contactStateDisplay}")} 
     if (tempSensor) {paragraph getFormat("smallLineSpace","<b>Temperature Sensor(s):</b> &nbsp ${tempSensor} = ${state.tempStateDisplay}")} 
 }
+def icons() { ////ver2.1.0
+////PauseCase    
+    state.pauseCaseIcon1 = "<text style='color:#5f3d0c; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>"} </text>"  //////KEEP/// 
+    state.pauseCaseIcon2 = "<text style='color:#8a6634; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>"} </text>" 
+    state.pauseCaseIcon3 = "<text style='color:#848710; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>"} </text>" 
+    state.pauseCaseIcon4 = "<text style='color:#800b35; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>"} </text>" 
+    state.pauseCaseIcon5 = "<text style='color:#C00030; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>"} </text>" 
+////Actions
+ 	state.actionsIcon1 = "<text style='color:#241571; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>"} </text>"    
+	state.actionsIcon2 = "<text style='color:#0F52BA; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>"} </text>"     
+    state.actionsIcon3 = "<text style='color:#48AAAD; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-3-filled'></iconify-icon>"} </text>" 
+    state.actionsIcon4 = "<text style='color:#0096FF; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-4-filled'></iconify-icon>"} </text>" 
+    state.actionsIcon5 = "<text style='color:#40E0D0; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-5-filled'></iconify-icon>"} </text>" 
+	state.actionsIcon6 = "<text style='color:#008080; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-6-filled'></iconify-icon>"} </text>" 
+    state.actionsIcon7 = "<text style='color:#007FFF; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-7-filled'></iconify-icon>"} </text>" 
+    state.actionsIcon8 = "<text style='color:#2C3863; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-8-filled'></iconify-icon>"} </text>" 
+////Motion
+	state.motionIcon1 = "<text style='color:#097969; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-1-filled'></iconify-icon>"} </text>" 
+    state.motionIcon2 = "<text style='color:#50C878; font-size:23px; display:inline-block; vertical-align:middle'> ${"<iconify-icon icon='tabler:circle-2-filled'></iconify-icon>"} </text>"  
+}    
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
     unsubscribe()  ////   
     unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
+    icons()
     buildCron()  // build schedules
     initialize()  // set schedules and subscribes
     if(logEnableBool) runIn(3600, logsOff)  // Disable all debug Logging after time elapsed
@@ -963,20 +973,18 @@ def updated() {  // runs every 'Done' on already installed app
 def installed() { updated() }  // only runs once for new app 'Done' or first time open 
 def logsOff() {log.info "${app.label} -- All App 'debug' logging auto disabling itself"; app?.updateSetting("logEnableBool",[value:"false",type:"bool"]) }
 def getFormat(type, myText="") {		
-    if(type == "title") return "<h3 style='color:SteelBlue; font-weight: bold'>${myText}</h3>"  // Steel-Blue
+    if(type == "title") return "<h3 style='color:SteelBlue; line-height: 50%; font-weight: bold'>${myText}</h3>"  // Steel-Blue
     if(type == "blueRegular") return "<div style='color:SteelBlue; font-weight: bold; line-height: 97%'>${myText}</div>"  // Steel-Blue
     if(type == "noticable") return "<div style='color:#CC5500'>${myText}</div>"  // Burnt-Orange
     if(type == "lessImportant") return "<div style='color:green'>${myText}</div>" // Green
-    if(type == "smallLineSpace") return "<div style='line-height: 50%'>${myText}</div>" // smallLineSpace
-    
+    if(type == "smallLineSpace") return "<div style='line-height: 50%; white-space:nowrap; '>${myText}</div>" // smallLineSpace
+        
     if (formatBool) {if(type == "header") {return "<div style='color:#660000;font-weight: bold'>${myText}</div>"}  // Burgandy-Red //// ver1.2.0
                     if(type == "important") return "<div style='color:#5a8200; line-height: 97%'>${myText}</div>"  // Lime-Green
-    }
+    	}
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"  // Black
           if(type == "important") return "<div style='color:#000000; line-height: 97%'>${myText}</div>"   // Black
-    }
+    	}
 }
-def displayTitle() {titleVersion(); 
-    section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
-   }
+def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
 
