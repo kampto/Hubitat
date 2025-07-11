@@ -355,9 +355,10 @@ String displayTable() {
         "<th style='border-right:2px solid black'>Odd<br>Days?</th>"+  //// ver1.0.3
         "<th style='border-right:2px solid black'>Run<br>Mode</th>"+  //// ver1.4.7  
         "<th style='border-right:2px solid black'>Use<br>Motion</th>"+  //// ver2.0.1      
-        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7
-        "<th style='border-right:2px solid black'>Select<br>Actions?</th>"+     
-        "<th style='border-right:2px solid black'>Pause<br>Sched?</th>"+    //// ver1.0.3    
+        "<th style='border-right:2px solid black'>Select<br>Actions?</th>"+    
+        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7 
+        "<th style='border-right:2px solid black'>Sensor<br>Paused</th>"+    //// ver1.0.3     
+        "<th style='border-right:2px solid black'>Manual<br>Pause?</th>"+    //// ver1.0.3    
         "<th>On<br>Counts" +    
         "<th>Total<br>OnTime</th>"+
         "<th>Reset<br>OnTime</th></tr></thead>"
@@ -477,16 +478,16 @@ String displayTable() {
       	str +=
         "<td style='border-right:2px solid black' title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>" +
         "<td style='border-right:2px solid black' title='Click to Change Mode'>$mode</td>" +     
-        "<td style='border-right:2px solid black' title='Select None or which set of Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>" +     
-        "<td style='border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>" 
-        ////"<td style='vertical-align: bottom !important; border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>" 
-        
+        "<td style='border-right:2px solid black' title='Select None or which set of Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>"  
         if (dev.currentValve) {str += "<td style='border-right:2px solid black' title='Valves Cant use special Actions'>N/A</td>"} // Valve cant use Actions
-        else  {str += "<td style='border-right:2px solid black' title='Select device actions or none'>$actionsT</td>"}      
-        str += "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" +     
+        	else  {str += "<td style='border-right:2px solid black' title='Select device actions or none'>$actionsT</td>"}     
+        str += "<td style='border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>"
+        if (state.DeVices["$dev.id"].sensorPause) {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.pauseIcon</td>"} 
+        	else {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.playIcon</td>"} 
+        str += "<td style='border-right:2px solid black' title='Check Box to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" + 
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
         if (dev.currentSwitch) {str += "<td style='font-weight:bold; color:${dev.currentSwitch == "on" ? "green" : "red"}'>$time</td>" }  
-        else if (dev.currentValve) {str += "<td style='font-weight:bold; color:${dev.currentValve == "open" ? "green" : "red"}'>$time</td>" }   //// ver1.20 
+        	else if (dev.currentValve) {str += "<td style='font-weight:bold; color:${dev.currentValve == "open" ? "green" : "red"}'>$time</td>" }   //// ver1.20 
         endif 
         str += "<td style='border-right:3px solid black' title='Reset Total On Time & Counts for $dev' style='padding:0px 0px'>$resetTotal</td></tr>" 
         }
@@ -536,12 +537,12 @@ void initialize() {
 /////////////////////////////////////////////////////////////// Sensor Updates //////////////////////////////////////////////////////////////////
 def sensorUpdate(evt) {
     if (logEnableBool) {log.debug "${app.label} -- Pause Case Sensor Update State, ${evt.device}"} /// to ${evt}" 
-    if (evt.device.currentHumidity >= pauseHumidValue && !invertHumidBool) {state.humidPauseBool = true}
-    else if (evt.device.currentHumidity <= pauseHumidValue && invertHumidBool) {state.humidPauseBool = true}
-    if (evt.device.currentWater == "wet") {state.wetPauseBool = true} 
-    if (evt.device.currentVoltage <= voltageThreshold) {state.voltPauseBool = true} 
-    if (contactSensor && evt.device.currentContact == "open" && !invertContactBool) {state.contactPauseBool = true} 
-    else if (contactSensor && evt.device.currentContact == "closed" && invertContactBool) {state.contactPauseBool = true} 
+    ///if (evt.device.currentHumidity >= pauseHumidValue && !invertHumidBool) {state.humidPauseBool = true}
+    //else if (evt.device.currentHumidity <= pauseHumidValue && invertHumidBool) {state.humidPauseBool = true}
+    //if (evt.device.currentWater == "wet") {state.wetPauseBool = true} 
+    //if (evt.device.currentVoltage <= voltageThreshold) {state.voltPauseBool = true} 
+    //if (contactSensor && evt.device.currentContact == "open" && !invertContactBool) {state.contactPauseBool = true} 
+    //else if (contactSensor && evt.device.currentContact == "closed" && invertContactBool) {state.contactPauseBool = true} 
     sensorScan() // Update all sensor array states/values
 }
 //////////////////////////////////////////////?//////////// All Sensor State Scan //////////////////////////////////////////////////////////////
@@ -941,7 +942,7 @@ String statusBar() {
     if (contactSensor) {paragraph getFormat("smallLineSpace","<b>Contact Sensor(s):</b> &nbsp ${contactSensor} = ${state.contactStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon4}</text>")} 
     if (tempSensor) {paragraph getFormat("smallLineSpace","<b>Temperature Sensor(s):</b> &nbsp ${tempSensor} = ${state.tempStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.pauseCaseIcon5}</text>")} 
 }
-def icons() { ////ver2.1.0
+def icons() { ////ver2.1.1
 ////Boxes - Circles
     state.unCheckedBox = "<iconify-icon inline style='color:black; font-size:23px' icon='material-symbols:check-box-outline-blank'></iconify-icon>"  
     state.greenCheckBox = "<iconify-icon inline style='color:green; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
