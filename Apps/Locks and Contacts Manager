@@ -8,12 +8,12 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.0.0	2025-06-09	kampto    	First Build from scratch.
+*   1.0.1	2025-06-09	kampto    	First Build from scratch.
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.0" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.1" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -88,23 +88,15 @@ def mainPage() {
         input name: "autoLockBool", type: "bool", title: getFormat("important","<b>Auto Lock if unlocked after a delay?</b>&nbsp &nbsp <small>Applies to all Locks. Ignores Contact Switches, could lock while door is open! Use case is if door unlocked but never opened. Will not run if Paused or Incorrect mode.</small>"), defaultValue:false, newLineAfter: true, width: 8, submitOnChange:true, style: 'margin-left:10px' 
         	if (autoLockBool) {input name: "lockDelaySec", type: "number", title: getFormat("blueRegular","<b>AutoLock Delay</b>&nbsp &nbsp <small>After unlocked will wait this time till Auto lockiing. Default = 30, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "30", accepts:"0 to 600", range:"0..600", width: 4, newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
       	input name: "lockRetryBool", type: "bool", title: getFormat("important","<b>If Auto Lock fails to Lock in 5sec, Try one more time?</b>&nbsp &nbsp <small>Applies to all Locks.</small>"), defaultValue:false, newLineAfter: true, width: 6, submitOnChange:true, style: 'margin-left:10px' 
-        input name: "contactLock1", type: "capability.contactSensor", title: getFormat("important","<b>Actions 1: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 1 Delay time after Contact Closed. Applies to devices with 'Actions' case #1 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-    		if (contactLock1) {input name: "contactLock1DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 1: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
-        input name: "contactLock2", type: "capability.contactSensor", title: getFormat("important","<b>Actions 2: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 2 Delay time after Contact Closed. Applies to devices with 'Actions' case #2 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-    		if (contactLock2) {input name: "contactLock2DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 2: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
+        input name: "contactLock1", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 1: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 1 Delay time after Contact Closed. Applies to devices with 'Actions' case #1 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    		if (contactLock1) {input name: "contactLock1DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 1: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5sec, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
+        input name: "contactLock2", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 2: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 2 Delay time after Contact Closed. Applies to devices with 'Actions' case #2 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    		if (contactLock2) {input name: "contactLock2DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 2: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5sec, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
     }
     section(getFormat("header","<b>UNLOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
         input name: "neverUnlockBool", type: "bool", title: getFormat("important","<b>Never UnLock in any circumstance?</b> &nbsp <small>Applies to all Locks.</small>"), defaultValue:true, width: 6, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
-    	input name: "remoteSwitch", type: "capability.switch", title: getFormat("important","<b>Actions 1: Select Switch(s) to control lock state.</b><br><small>On = Unlock, Off = Lock. Will not run if Paused or Incorrect mode. Use dashboard, virtual switch, or linked physical switch.</small>"), defaultValue:false, multiple: true, submitOnChange:true, width: 9, style: 'margin-left:10px' 
-          //  if (remoteSwitchBool) {
-            //input "remoteSwitch", "capability.switch", title: getFormat("important", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, width: 8, style: 'margin-left:160px'   
-            //}       
-        //nput name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Actions 6: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Actions' case #6 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small><br><large><b>Actions 7: Combine Actions 1 & 6</b></large><br><large><b>Actions 8: Combine Actions 2 & 6</b></large>"), multiple: true, width: 8, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-    	//paragraph getFormat("important","<b>Actions 9: Select Mode to trigger Device On/Off. &nbsp </b><small>Applies to Devices with 'Actions' case #9 in table. &nbsp Switches/Valves will turn On/Off when mode changes to the Selected<br>unless paused. Will toggle back when mode changes back to not selected mode. Will work on devices with or without a start time/schedule defined in table.</small><br><large><b>Actions 10: Combine Actions 1 & 9</b></large>")
-          //    input name: "modeTrigger", type: "mode", title: getFormat("blueRegular","<b>Select Mode</b>"), width: 2, submitOnChange:true, style: 'margin-left:60px'   
-            //  input name: "modeOnTime", type: "number", title: getFormat("blueRegular","<b>Input Device Ontime after triggered by Mode in minutes &nbsp</b><small>Default = 0, 0 means no timer is applied. Enter 0 to 360 minutes</small>"), defaultValue: "0", required: false, submitOnChange: true, accepts: "0 to 360", range: "0..360", width: 3, style: 'margin-left:30px' 
-        	 // input name: "modeInvertBool", type: "bool", title: getFormat("blueRegular","<b>Turn Device Off if On with mode instaed?</b>"), defaultValue:false, width: 3, submitOnChange:true, style: 'margin-left:30px' 
-    }	
+    	input name: "remoteSwitch", type: "capability.switch", title: getFormat("important","<b>Unlock Actions 1: Select Switch(s) to control lock state.</b><br><small>On = Unlock, Off = Lock. Will not run if Paused or Incorrect mode. Use dashboard, virtual switch, or linked physical switch.</small>"), defaultValue:false, multiple: true, submitOnChange:true, width: 9, style: 'margin-left:10px' 
+}	
 ///////////////////////////////////////////////////////////////  Usage Notes Section  //////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes / Instructions:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
@@ -305,7 +297,7 @@ void lockRetryHandler(data) {
        		if (pushDevice && pushLockFailed) {pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure") }
         } 
 }  }
-void unLockHandler(data) {   /////XXXXXXXXXXXXXXXX
+void unLockHandler(data) {   
     if (neverUnlockBool || pauseAllBool) {return}
     DeVices.each { dev -> 
        if (dev.currentLock == "locked" && !state.DeVices["$dev.id"].pause && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any") && data.value == state.DeVices["$dev.id"].zone) {
@@ -329,7 +321,7 @@ void contactClosedHandler(evt) {
 void contactOpendHandler(evt) {  
     DeVices.each { dev ->
         if (dev.currentLock) {        
-			///////////////  TBD  ////////////////////////
+		////////////////////  TBD  ////////////////////////
         }     
 }  } 
 def allLockHandler(evt) {//// Called by Sched All off time or App button
@@ -381,7 +373,7 @@ def refreshHandler() {//// Called by; In App Button push and within functions  /
           state.DeVices[k].total += now() - state.DeVices[k].start
 		  state.DeVices[k].start = now()
           }
-}	}
+}  }
 def buildCron() {//// Build Cron for All Locked Time if used
   if (allLockBool) {
         String formattedTimeOff = allOffTime.substring(11, allOffTime.length() - 12)
@@ -435,5 +427,7 @@ def getFormat(type, myText="") {
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"  // Black
           if(type == "important") return "<div style='color:#000000; line-height: 97%'>${myText}</div>"   // Black
     	}
+}
+def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
 }
 def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
