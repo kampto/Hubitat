@@ -42,7 +42,7 @@ def mainPage() {
        DeVices.each {dev ->
 	   if(!state.DeVices["$dev.id"]) {    
             state.DeVices["$dev.id"] = [start: dev.currentLock == "unlocked" || dev.currentContact == "open" ? now() : 0, onTime: "NotYet",
-            	total: 0,  modes: "Any",  lockActions: 0, unLockActions: 0, zone: 0, counts: 0, pause: false, pauseLock: false]  
+            	total: 0,  modes: "Any",  lockActions: 0, unLockActions: 0, zone: 0, counts: 0, pause: false]  
             state.DeVicesList += dev.id 
            }
        }
@@ -80,8 +80,8 @@ def mainPage() {
                     if (pushBattery) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter % level to get Notified<b> &nbsp <small>Applies to all Devices.</small>"), defaultValue: "40", submitOnChange:true, newLineAfter: true, width:4, style: 'margin-left:120px'}
              }
         input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, submitOnChange:true
+        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, width: 3, submitOnChange:true, style: 'margin-left:10px'
+        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, width: 3, submitOnChange:true
 }
 ///////////// Actions           
     section(getFormat("header","<b>LOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
@@ -321,7 +321,7 @@ void contactClosedHandler(evt) {
 void contactOpendHandler(evt) {  
     DeVices.each { dev ->
         if (dev.currentLock) {        
-		////////////////////  TBD  ////////////////////////
+			//////////////////  TBD  ////////////////////////
         }     
 }  } 
 def allLockHandler(evt) {//// Called by Sched All off time or App button
