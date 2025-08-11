@@ -8,12 +8,13 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.0.3	2025-08-11	kampto    	Add Notifications enable per device. Other clean up.
 *   1.0.1	2025-06-09	kampto    	First Build from scratch.
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.1" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.3" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -42,7 +43,7 @@ def mainPage() {
        DeVices.each {dev ->
 	   if(!state.DeVices["$dev.id"]) {    
             state.DeVices["$dev.id"] = [start: dev.currentLock == "unlocked" || dev.currentContact == "open" ? now() : 0, onTime: "NotYet",
-            	total: 0,  modes: "Any",  lockActions: 0, unLockActions: 0, zone: 0, counts: 0, pause: false]  
+            	total: 0,  modes: "Any",  lockActions: 0, unLockActions: 0, zone: 0, counts: 0, pause: false, notify: false]  
             state.DeVicesList += dev.id 
            }
        }
@@ -71,17 +72,15 @@ def mainPage() {
             if (allLockBool) {
             input name: "allLockTime", type: "time", title:getFormat("blueRegular","<b>Enter All Locks locked time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
            	}
-        input name: "pushBool", type: "bool", title: getFormat("important","<b>Push Notifications Options &nbsp </b><small>Select Device and Notification Options</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:10px'   //// ver2.0.1
-            if (pushBool) {input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to</b>", multiple: true, required: false, submitOnChange: true, width: 4, newLineAfter: true, style: 'margin-left:100px'       
-             	input name: "pushLockBool", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about any Lock Locking and Unlocking?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:100px'             
-             	input name: "pushContactBool", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about any Contact Opening or Closing?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:100px'
-                input name: "pushLockFailed", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about any Lock possibly Jamming?</b>&nbsp <small>If using Retry</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:100px'
-                input name: "pushBattery", type: "bool", title: getFormat("blueRegular","<b>Get Notificans about Battery Levels below selected level?</b>"), defaultValue:false, submitOnChange:true,  newLineAfter: true, style: 'margin-left:100px'
-                    if (pushBattery) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter % level to get Notified<b> &nbsp <small>Applies to all Devices.</small>"), defaultValue: "40", submitOnChange:true, newLineAfter: true, width:4, style: 'margin-left:120px'}
-             }
+        input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to (Optional)</b> &nbsp <small>Applies to Selected Devices.</small>", multiple: true, required: false, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:10px'       
+            if (pushDevice) {    
+            input name: "pushLockFailed", type: "bool", title: getFormat("blueRegular","<b>Special Option: Get Notificans about any Lock possibly Jamming?</b>&nbsp <small>If using Retry</small>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
+            input name: "pushBattery", type: "bool", title: getFormat("blueRegular","<b>Special Option: Get Notificans about Battery Levels below selected level?</b>"), defaultValue:true, submitOnChange:true,  newLineAfter: true, style: 'margin-left:60px'
+               if (pushBattery) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter % low level to get Notified<b>"), defaultValue: "40", submitOnChange:true, newLineAfter: true, width:4, style: 'margin-left:80px'}
+            }
         input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, width: 3, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, width: 3, submitOnChange:true
+        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, width: 10, submitOnChange:true, style: 'margin-left:10px'
+        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, width: 10, submitOnChange:true
 }
 ///////////// Actions           
     section(getFormat("header","<b>LOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
@@ -96,7 +95,7 @@ def mainPage() {
     section(getFormat("header","<b>UNLOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
         input name: "neverUnlockBool", type: "bool", title: getFormat("important","<b>Never UnLock in any circumstance?</b> &nbsp <small>Applies to all Locks.</small>"), defaultValue:true, width: 6, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
     	input name: "remoteSwitch", type: "capability.switch", title: getFormat("important","<b>Unlock Actions 1: Select Switch(s) to control lock state.</b><br><small>On = Unlock, Off = Lock. Will not run if Paused or Incorrect mode. Use dashboard, virtual switch, or linked physical switch.</small>"), defaultValue:false, multiple: true, submitOnChange:true, width: 9, style: 'margin-left:10px' 
-}	
+   }	
 ///////////////////////////////////////////////////////////////  Usage Notes Section  //////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes / Instructions:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
@@ -105,12 +104,11 @@ def mainPage() {
       "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+   
       "<li><b>Active On Time and Counts</b> track Locks Open(red) and Contacts Open(red) Times.</li>"+                      
       "<li><b>State:</b> Shows current device state after hitting in app Refresh. Clicking will toggle a Lock unless all Paused.</li>"+
-      "<li><b>Reset:</b> From table per row will reset the total On Time and Counts.</li>"+	
-      "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want to only run during a specific Mode click and select that mode <br> If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
-      "<li><b>Motion:</b> Selecting a motion group # will toggle a device if Motion device is triggerd. Select Motion device in Options below table, Run or while active time in Advanced options. Will not change the scheduled on times if any.<br>If On to Off enabled the, the switch if On will turn Off for the time selected then back On. Makes it look like someone is Home!<br>For both Off-On-Off or On-Off-On cases the Motion Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a schedule start time entered."+	
-      "<li><b>Lock Pause:</b> Will stop any App actions from operation that Lock.</li>"+   
-      "<li><b>Actions Case:</b> Select 'None' or case # in table, set up in Option below table.</li>"+    	                     
-      "<li><b>Remote Switch:</b> Optional, Select a virtual or real switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
+      "<li><b>Reset:</b> From table per row will reset the total On Time and Counts. Configureation will remain.</li>"+	
+      "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want Lock to only run during a specific Mode click and select that mode <br> If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
+      "<li><b>Notify:</b> Click Play to recieve push notifications of open/closed, locked/unlocks or special cases in advanced options. Must select a device to send notification to.</li>"+  
+      "<li><b>Lock Pause:</b> Clicking Pause Will stop any App actions from operation that Lock.</li>"+   
+      "<li><b>Actions Case:</b> Select 'None' or case # in table, set up in Option below table. Only Locks can use Action Cases.</li>"+    	                     
       "<li><b>You must hit DONE at page bottom to save App after first making.</b></li>"+                    
       "</ul>")
       }
@@ -169,6 +167,11 @@ String displayTable() {
 	    state.DeVices[state.pauseCheckedBox].pause = true; state.remove("pauseCheckedBox") }
 	else if (state.pauseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseUnCheckedBox}  
 	    state.DeVices[state.pauseUnCheckedBox].pause = false; state.remove("pauseUnCheckedBox") }
+      endif
+    if (state.notifyNo) {def dev = DeVices.find{"$it.id" == state.notifyNo}                                
+	    state.DeVices[state.notifyNo].notify = false; state.remove("notifyNo") }
+	else if (state.notifyYes) {def dev = DeVices.find{"$it.id" == state.notifyYes}  
+	    state.DeVices[state.notifyYes].notify = true; state.remove("notifyYes") }
      endif 
 ///////////////////////////////////////// Table Header Build /////////////////////////////////////
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   
@@ -181,6 +184,7 @@ String displayTable() {
         "<th style='border-right:2px solid black'>Lock<br>Actions</th>"+    
         "<th style='border-right:2px solid black'>Unlock<br>Actions</th>"+  
         "<th style='border-right:2px solid black'>Lock<br>Pause?</th>"+
+        "<th style='border-right:2px solid black'>Notifi-<br>cations?</th>"+    
         "<th style='border-right:2px solid black'>Battery<br>Level%</th>"+    
         "<th>Last State<br>Change Time" + 
         "<th>Active<br>Counts" +    
@@ -220,6 +224,7 @@ String displayTable() {
         	else if (state.DeVices["$dev.id"].unLockActions == 4) {unLockActionsT = buttonLink("P$dev.id", state.unLockActionsIcon4)} 
         		endif
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("A$dev.id", state.pauseIcon) : buttonLink("B$dev.id", state.playIcon) 
+        String notifyCheckBoxT = (state.DeVices["$dev.id"].notify) ? buttonLink("Q$dev.id", state.playIcon) : buttonLink("R$dev.id", state.pauseIcon) 
              
 ///////////////////////////////////////////////// Table Rows Build /////////////////////////////////////////////
         str += "<tr style='color:black'><td>${state.DeVices["$dev.id"].zone}</td>" +     
@@ -232,8 +237,9 @@ String displayTable() {
         	else  {str += "<td style='border-right:2px solid black' title='Contacts Cant use special Actions'>N/A</td>"} 
         if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Select Unlock actions or none'>$unLockActionsT</td>"} 
         	else  {str += "<td style='border-right:2px solid black' title='Contacts Cant use special Actions'>N/A</td>"} 
-        if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Click to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>"} 
+        if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Click to Pause all Lock App actions, Red is paused, Green is run'>$pauseCheckBoxT</td>"} 
         	else  {str += "<td style='border-right:2px solid black' title='Cant Pause a contact'>N/A</td>"} 
+        str += "<td style='border-right:2px solid black' title='Get Notifications from this devices actions? Check selections in advanced options, Green is Yes'>$notifyCheckBoxT</td>" 
         str += "<td style='border-right:2px solid black' title='Battery Level' >${dev.currentBattery}</td>" +
         "<td style='font-size:14px !important' title='Last Time Lock or contact went Open' >${state.DeVices["$dev.id"].onTime}</td>"+
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
@@ -270,14 +276,14 @@ def onTimeHandler(evt) { //// Called by; Subscribes only
     state.DeVices[evt.device.id].counts += 1  
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
     	if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
-    	if ((evt.device.currentLock && pushDevice && pushlockBool) || (evt.device.currentContact && pushDevice && pushContactBool)) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
+    	if (pushDevice && state.DeVices[evt.device.id].notify) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
     	if (autoLockBool && !pauseAllBool && evt.device.currentLock == "unlocked") {zone = state.DeVices[evt.device.id].zone; runIn(lockDelaySec, lockHandler, [data:zone, overwrite:false]) }
 }   
 def offTimeHandler(evt) { //// Called by; Subscribes only
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
     	if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
-    	if ((evt.device.currentLock && pushDevice && pushlockBool) || (evt.device.currentContact && pushDevice && pushContactBool)) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
+    	if (pushDevice && state.DeVices[evt.device.id].notify) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
 }       
 void lockHandler(data) { 
     if (pauseAllBool) {return} // All paused, get out, dont run
@@ -294,7 +300,7 @@ void lockRetryHandler(data) {
         if (dev.currentLock == "unlocked" && data.value == state.DeVices["$dev.id"].zone ) {
         	dev.lock()
             if (logInfoEnableBool) {log.info "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"}
-       		if (pushDevice && pushLockFailed) {pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure") }
+       		if (pushDevice && pushLockFailed && state.DeVices["$dev.id"].notify) {pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure") }
         } 
 }  }
 void unLockHandler(data) {   
@@ -306,7 +312,7 @@ void unLockHandler(data) {
 }  }
 void contactClosedHandler(evt) {
     if (pauseAllBool) {return} // All paused, get out, dont run
-    if (logDebugEnableBool) {log.debug "App: ${app.label} -- TEST1 ... evt.device.currentContact = ${evt.device.currentContact}.... evt.device = ${evt.device}...contactLock1 = ${contactLock1}"}
+    if (logDebugEnableBool) {log.debug "App: ${app.label} -- evt.device.currentContact = ${evt.device.currentContact}.... evt.device = ${evt.device}...contactLock1 = ${contactLock1}"}
     DeVices.each { dev ->
         if (dev.currentLock && evt.device.currentContact == "closed") {
          	zone = state.DeVices["$dev.id"].zone 
@@ -333,7 +339,7 @@ def allLockHandler(evt) {//// Called by Sched All off time or App button
 }
 def batHandler(evt) {
     if (evt.device.currentBattery <= batPercent) {
-    	if (pushDevice && pushBattery) { pushDevice.deviceNotification("${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%") }
+    	if (pushDevice && pushBattery && state.DeVices[evt.device.id].notify) { pushDevice.deviceNotification("${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%") }
 		if (logInfoEnableBool) {log.info "App: ${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%"}
 }  }
 def remoteSwitchHandler(evt) {//// Called by Subscribes only.
@@ -363,7 +369,9 @@ void appButtonHandler(btn) {//// Called by; In app Button pushes
     else if (btn.startsWith("L")) state.unLockActions1 = btn.minus("L")
    	else if (btn.startsWith("M")) state.unLockActions2 = btn.minus("M")    
     else if (btn.startsWith("N")) state.unLockActions3 = btn.minus("N")
-  	else if (btn.startsWith("O")) state.unLockActions4 = btn.minus("O")    
+  	else if (btn.startsWith("O")) state.unLockActions4 = btn.minus("O")
+        else if (btn.startsWith("Q")) state.notifyNo = btn.minus("Q") 
+    	else if (btn.startsWith("R")) state.notifyYes = btn.minus("R")
   	 endif    
 }
 def refreshHandler() {//// Called by; In App Button push and within functions  // Update Times if Active/On
@@ -401,12 +409,12 @@ def icons() {
     state.unLockActionsIcon2 = "<iconify-icon inline style='color:#FF3C00; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
     state.unLockActionsIcon3 = "<iconify-icon inline style='color:#E6812F; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
     state.unLockActionsIcon4 = "<iconify-icon inline style='color:#CD946A; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
-    if (logDebugEnableBool) {log.info "App: ${app.label} -- Get Icon States"}
+    if (logDebugEnableBool) {log.info "App: ${app.label} -- Get Icon Graphics"}
 }    
 ////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
     unsubscribe()  ////   
-    unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
+    unschedule()  // cancels all(or one) scheduled jobs including runIn
     icons()
     buildCron()
     initialize()  // set schedules and subscribes
@@ -427,7 +435,5 @@ def getFormat(type, myText="") {
     else {if(type == "header") return "<div style='color:#000000;font-weight: bold'>${myText}</div>"  // Black
           if(type == "important") return "<div style='color:#000000; line-height: 97%'>${myText}</div>"   // Black
     	}
-}
-def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
 }
 def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
