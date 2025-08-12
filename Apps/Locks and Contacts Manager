@@ -8,13 +8,14 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   1.0.4	2025-08-11	kampto    	Lock All Locks logic.
 *   1.0.3	2025-08-11	kampto    	Add Notifications enable per device. Other clean up.
 *   1.0.1	2025-06-09	kampto    	First Build from scratch.
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.3" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.4" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -68,7 +69,7 @@ def mainPage() {
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App" 
         input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Actions/Buttons? &nbsp No Locks will change state from App</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
-   		input name: "allLockBool", type: "bool", title: getFormat("important","<b>Lock All Locks at a Specific daily time?</b> &nbsp <small>This must remain checked ON to enable.</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+   		input name: "allLockBool", type: "bool", title: getFormat("important","<b>Lock All Locks at a Specific daily time?</b> &nbsp <small>This must remain checked ON to enable. <br>Ignores Modes and Device specific Pause. Will not run if 'Pause All' enabled</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (allLockBool) {
             input name: "allLockTime", type: "time", title:getFormat("blueRegular","<b>Enter All Locks locked time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
            	}
@@ -107,7 +108,8 @@ def mainPage() {
       "<li><b>Reset:</b> From table per row will reset the total On Time and Counts. Configureation will remain.</li>"+	
       "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want Lock to only run during a specific Mode click and select that mode <br> If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
       "<li><b>Notify:</b> Click Play to recieve push notifications of open/closed, locked/unlocks or special cases in advanced options. Must select a device to send notification to.</li>"+  
-      "<li><b>Lock Pause:</b> Clicking Pause Will stop any App actions from operation that Lock.</li>"+   
+      "<li><b>Lock Pause:</b> Clicking Pause Will stop any App actions from operation that Lock.</li>"+  
+      "<li><b>Lock All Locks Button:</b> Clicking 'Lock all Locks' will lock regardless of Mode or individually Paused. Will not Lock if 'Pause All' enabled.</li>"+                      
       "<li><b>Actions Case:</b> Select 'None' or case # in table, set up in Option below table. Only Locks can use Action Cases.</li>"+    	                     
       "<li><b>You must hit DONE at page bottom to save App after first making.</b></li>"+                    
       "</ul>")
@@ -333,7 +335,7 @@ void contactOpendHandler(evt) {
 def allLockHandler(evt) {//// Called by Sched All off time or App button
     if (pauseAllBool) {return} // All paused, get out, dont run
     DeVices.each { dev ->
-    	if ((state.DeVices["$dev.id"].modes == location.mode || state.DeVices["$dev.id"].modes == "Any") && dev.currentLock == "unlocked") { dev.lock() }  
+    	if (dev.currentLock == "unlocked") { dev.lock() }  
     	}
     if (logInfoEnableBool) {log.info "App: ${app.label} -- All Locks Locking"} 
 }
