@@ -437,7 +437,7 @@ def buildCron() {//// Build Cron for All Locked Time if used
 String statusBar() {
     if (pauseAllBool) {paragraph getFormat("noticable","<b>All Lock Actions Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
-    if (pushDevice) {paragraph getFormat("smallLineSpace","<b>Last Notifiaction:</b> &nbsp ${state.lastPush}")}
+    if (pushDevice) {paragraph getFormat("smallLineSpace","<b>Last Notification:</b> &nbsp ${state.lastPush}")}
     
 }
 ///////////////////////////////////////////////////////////  Icon Graphics  ////////////////////////////////////////////////////////////////// 
