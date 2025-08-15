@@ -33,6 +33,7 @@ def mainPage() {
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
     if (allLockTime == null) {allLockTime = "000000000000000000000000000000"}
+    if (state.lastPush == null) (state.lastPush = "Waiting")
     
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle()
@@ -77,10 +78,10 @@ def mainPage() {
         input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notification to (Optional)</b> &nbsp <small>Applies to Selected Devices in table.</small>", multiple: true, required: false, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:10px'       
         if (pushDevice) {
             input name: "pushOpen", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Contacts Opening?</b>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
-            	if (pushOpen) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open<b>&nbsp <small>Desfault = 1sec</small>"), defaultValue: "1", submitOnChange:true, width: 6, newLineAfter: true, style: 'margin-left:80px'}
+            	if (pushOpen) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open<b>&nbsp <small>Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, width: 6, newLineAfter: true, style: 'margin-left:80px'}
             input name: "pushClosed", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Contacts Closing?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
             input name: "pushUnlocked", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Locks Unlocking?</b>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
-            	if (pushUnlocked) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked<b>&nbsp <small>Desfault = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
+            	if (pushUnlocked) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked<b>&nbsp <small>Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
             input name: "pushLocked", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Locks Locking?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
             input name: "pushLockFailed", type: "bool", title: getFormat("blueRegular","<b>Get Notified about any Lock possibly Jamming?</b>&nbsp <small>If using Retry</small>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
             input name: "pushBattery", type: "bool", title: getFormat("blueRegular","<b>Get Notified about Battery Levels below selected level?</b>"), defaultValue:true, submitOnChange:true,  newLineAfter: true, style: 'margin-left:60px'
@@ -298,6 +299,7 @@ def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
     	}
     }
     if (autoLockBool && !pauseAllBool && evt.device.currentLock == "unlocked") {zone = state.DeVices[evt.device.id].zone; runIn(lockDelaySec, lockHandler, [data:zone, overwrite:false]) }
+    if (logDebugEnableBool) {log.warn "TEST App: ${app.label} -- evt = $evt -------- dev = $device" }
 }   
 def offTimeHandler(evt) { //// Called by; Subscribes only  CLOSED
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
@@ -355,17 +357,20 @@ void contactOpendHandler(evt) {
 }  } 
 void notifyEvtHandler(evt) { // evt Descritption
     if (logDebugEnableBool) {log.debug "evtHandler App: ${app.label} -- id = $evt.displayName -- evt.descriptionText = $evt.descriptionText"} 
-   	pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText")
+   	state.lastPush = "App: ${app.label} -- $evt.descriptionText"
+    pushDevice.deviceNotification(state.lastPush) 
 }
 void notifyDataHandler(data) { // special cases, Data
-    if (logDebugEnableBool) {log.debug "TdataHandler App: ${app.label} -- data.displayName = ${data.displayName}"}
+    if (logDebugEnableBool) {log.debug "dataHandler App: ${app.label} -- data.displayName = ${data.displayName}"}
     DeVices.each { dev ->
     	if (data.zone == state.DeVices["$dev.id"].zone) {  
-    		switch (data.notifyCase) {
-        	case 1: if (dev.currentContact == "open") {pushDevice.deviceNotification("App: ${app.label} -- **$dev** has been Open for > $openDelay seconds") } ; break
-       		case 2: if (dev.currentLock == "unlocked") {pushDevice.deviceNotification("App: ${app.label} -- **$dev** has been Unlocked for > $unlockedDelay seconds") } ; break
-       	    case 3: pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"); break
-            }  
+    	switch (data.notifyCase) {
+        	case 1: if (dev.currentContact == "open") {state.lastPush = "App: ${app.label} -- **$dev** has been Open for > $openDelay seconds"} ; break
+       		case 2: if (dev.currentLock == "unlocked") {state.lastPush = "App: ${app.label} -- **$dev** has been Unlocked for > $unlockedDelay seconds"} ; break
+       	    case 3: state.lastPush = "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"; break    
+            }
+            if (logDebugEnableBool) {log.warn "TEST App: ${app.label} -- evt = $evt -------- dev = $data.displayName --- $device---$data.device ---- $data.dev ------- device = $device" }
+       	pushDevice.deviceNotification(state.lastPush) 
 }  } }
 def allLockHandler(evt) {//// Called by Sched All off time or App button
     if (pauseAllBool) {return} // All paused, get out, dont run
@@ -432,6 +437,8 @@ def buildCron() {//// Build Cron for All Locked Time if used
 String statusBar() {
     if (pauseAllBool) {paragraph getFormat("noticable","<b>All Lock Actions Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
+    if (pushDevice) {paragraph getFormat("smallLineSpace","<b>Last Notifiaction:</b> &nbsp ${state.lastPush}")}
+    
 }
 ///////////////////////////////////////////////////////////  Icon Graphics  ////////////////////////////////////////////////////////////////// 
 def icons() { 
@@ -446,7 +453,7 @@ def icons() {
     state.unLockActionsIcon2 = "<iconify-icon inline style='color:#FF3C00; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
     state.unLockActionsIcon3 = "<iconify-icon inline style='color:#E6812F; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
     state.unLockActionsIcon4 = "<iconify-icon inline style='color:#CD946A; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
-    if (logDebugEnableBool) {log.info "App: ${app.label} -- Get Icon Graphics"}
+    if (logDebugEnableBool) {log.debug "App: ${app.label} -- Get Icon Graphics"}
 }    
 ////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
