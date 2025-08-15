@@ -8,14 +8,14 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   1.0.4	2025-08-11	kampto    	Lock All Locks logic.
-*   1.0.3	2025-08-11	kampto    	Add Notifications enable per device. Other clean up.
+*   1.0.5	2025-08-14	kampto    	More notification choices and delays.
+*   1.0.4	2025-08-11	kampto    	Add Notifications enable per device. Other clean up. Lock All Locks logic.
 *   1.0.1	2025-06-09	kampto    	First Build from scratch.
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.4" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.0.5" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -68,29 +68,36 @@ def mainPage() {
 //////////////////////////////////////////////////////////////  Advanced Inputs /////////////////////////////////////////////////////////////      
    section(getFormat("header","Advanced Options:"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App" 
-        input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Actions/Buttons? &nbsp No Locks will change state from App</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Lock Actions? &nbsp No Locks will change state from App</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
    		input name: "allLockBool", type: "bool", title: getFormat("important","<b>Lock All Locks at a Specific daily time?</b> &nbsp <small>This must remain checked ON to enable. <br>Ignores Modes and Device specific Pause. Will not run if 'Pause All' enabled</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (allLockBool) {
             input name: "allLockTime", type: "time", title:getFormat("blueRegular","<b>Enter All Locks locked time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
            	}
-        input "pushDevice", "capability.notification", title: "<b>Select device(s) to send notification to (Optional)</b> &nbsp <small>Applies to Selected Devices.</small>", multiple: true, required: false, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:10px'       
-            if (pushDevice) {    
-            input name: "pushLockFailed", type: "bool", title: getFormat("blueRegular","<b>Special Option: Get Notificans about any Lock possibly Jamming?</b>&nbsp <small>If using Retry</small>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
-            input name: "pushBattery", type: "bool", title: getFormat("blueRegular","<b>Special Option: Get Notificans about Battery Levels below selected level?</b>"), defaultValue:true, submitOnChange:true,  newLineAfter: true, style: 'margin-left:60px'
-               if (pushBattery) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter % low level to get Notified<b>"), defaultValue: "40", submitOnChange:true, newLineAfter: true, width:4, style: 'margin-left:80px'}
+   ///// Push Options    
+        input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notification to (Optional)</b> &nbsp <small>Applies to Selected Devices in table.</small>", multiple: true, required: false, submitOnChange: true, width: 6, newLineAfter: true, style: 'margin-left:10px'       
+        if (pushDevice) {
+            input name: "pushOpen", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Contacts Opening?</b>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
+            	if (pushOpen) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open<b>&nbsp <small>Desfault = 1sec</small>"), defaultValue: "1", submitOnChange:true, width: 6, newLineAfter: true, style: 'margin-left:80px'}
+            input name: "pushClosed", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Contacts Closing?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
+            input name: "pushUnlocked", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Locks Unlocking?</b>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
+            	if (pushUnlocked) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked<b>&nbsp <small>Desfault = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
+            input name: "pushLocked", type: "bool", title: getFormat("blueRegular","<b>Get Notified of Locks Locking?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'    
+            input name: "pushLockFailed", type: "bool", title: getFormat("blueRegular","<b>Get Notified about any Lock possibly Jamming?</b>&nbsp <small>If using Retry</small>"), defaultValue:true, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px'
+            input name: "pushBattery", type: "bool", title: getFormat("blueRegular","<b>Get Notified about Battery Levels below selected level?</b>"), defaultValue:true, submitOnChange:true,  newLineAfter: true, style: 'margin-left:60px'
+               	if (pushBattery) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter % low level to get Notified<b>"), defaultValue: "40", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
             }
         input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, width: 10, submitOnChange:true, style: 'margin-left:10px'
-        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, width: 10, submitOnChange:true
+        input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
+        input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, submitOnChange:true
 }
 ///////////// Actions           
     section(getFormat("header","<b>LOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
         input name: "autoLockBool", type: "bool", title: getFormat("important","<b>Auto Lock if unlocked after a delay?</b>&nbsp &nbsp <small>Applies to all Locks. Ignores Contact Switches, could lock while door is open! Use case is if door unlocked but never opened. Will not run if Paused or Incorrect mode.</small>"), defaultValue:false, newLineAfter: true, width: 8, submitOnChange:true, style: 'margin-left:10px' 
         	if (autoLockBool) {input name: "lockDelaySec", type: "number", title: getFormat("blueRegular","<b>AutoLock Delay</b>&nbsp &nbsp <small>After unlocked will wait this time till Auto lockiing. Default = 30, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "30", accepts:"0 to 600", range:"0..600", width: 4, newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
-      	input name: "lockRetryBool", type: "bool", title: getFormat("important","<b>If Auto Lock fails to Lock in 5sec, Try one more time?</b>&nbsp &nbsp <small>Applies to all Locks.</small>"), defaultValue:false, newLineAfter: true, width: 6, submitOnChange:true, style: 'margin-left:10px' 
-        input name: "contactLock1", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 1: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 1 Delay time after Contact Closed. Applies to devices with 'Actions' case #1 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+      	input name: "lockRetryBool", type: "bool", title: getFormat("important","<b>If Auto Lock fails to Lock in 5sec, Retry one more time?</b>&nbsp &nbsp <small>Applies to all Locks.</small>"), defaultValue:false, newLineAfter: true, width: 6, submitOnChange:true, style: 'margin-left:10px' 
+        input name: "contactLock1", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 1: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 1 Delay time after Contact Closed. Applies to devices with 'Actions' case #1 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open. Only Use Action #1 for one Lock.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
     		if (contactLock1) {input name: "contactLock1DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 1: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5sec, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
-        input name: "contactLock2", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 2: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 2 Delay time after Contact Closed. Applies to devices with 'Actions' case #2 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+        input name: "contactLock2", type: "capability.contactSensor", title: getFormat("important","<b>Lock Actions 2: Select a Contact sensor to Auto Lock. &nbsp </b><small>Will use Actions 2 Delay time after Contact Closed. Applies to devices with 'Actions' case #2 in table. Will not run if Paused or Incorrect mode. Lock will not lock if Conatct is Open. Only Use Action #2 for one Lock.</small>"), multiple: false, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
     		if (contactLock2) {input name: "contactLock2DelaySec", type: "number", title: getFormat("blueRegular","<b>Actions 2: AutoLock Delay</b>&nbsp &nbsp <small>After selected contact is closed then Lock. Default = 5sec, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "5", accepts:"0 to 600", range:"0..600", newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
     }
     section(getFormat("header","<b>UNLOCK ACTION Case Options</b>"),hideable: true, hidden: false) { 
@@ -104,7 +111,7 @@ def mainPage() {
       "<li>Table will not auto refresh values or states, you must hit in App Refresh button.</li>"+
       "<li>If you make/change a schedule change it wont take unless you hit 'Done' exiting the App or hitting the 'Update/Store' button.</li>"+   
       "<li><b>Active On Time and Counts</b> track Locks Open(red) and Contacts Open(red) Times.</li>"+                      
-      "<li><b>State:</b> Shows current device state after hitting in app Refresh. Clicking will toggle a Lock unless all Paused.</li>"+
+      "<li><b>State:</b> Shows current device state after hitting in app Refresh. Clicking will toggle a Lock unless 'Pause All' enabled.</li>"+
       "<li><b>Reset:</b> From table per row will reset the total On Time and Counts. Configureation will remain.</li>"+	
       "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want Lock to only run during a specific Mode click and select that mode <br> If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
       "<li><b>Notify:</b> Click Play to recieve push notifications of open/closed, locked/unlocks or special cases in advanced options. Must select a device to send notification to.</li>"+  
@@ -273,20 +280,34 @@ void initialize() {
      else {unschedule (allLockHandler)}	 
 }   
 ////////////////////////////////////////////////////////////////// Handlers //////////////////////////////////////////////////////////////////
-def onTimeHandler(evt) { //// Called by; Subscribes only
+def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
     state.DeVices[evt.device.id].start = now()
     state.DeVices[evt.device.id].counts += 1  
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
-    	if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
-    	if (pushDevice && state.DeVices[evt.device.id].notify) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
-    	if (autoLockBool && !pauseAllBool && evt.device.currentLock == "unlocked") {zone = state.DeVices[evt.device.id].zone; runIn(lockDelaySec, lockHandler, [data:zone, overwrite:false]) }
+    if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
+    if (pushDevice && state.DeVices[evt.device.id].notify) {
+    	if (pushOpen && evt.device.currentContact == "open") {
+    		if (openDelay > 1) {dataMap = [notifyCase:1, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
+           		runIn(openDelay, notifyDataHandler, [data:dataMap, overwrite:false]) }
+        	else {notifyEvtHandler(evt)}
+    	}
+    	if (pushUnlocked && evt.device.currentLock == "unlocked") {
+    		if (unlockedDelay > 1) {dataMap = [notifyCase:2, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
+           		runIn(unlockedDelay, notifyDataHandler, [data:dataMap, overwrite:false]) }
+        	else {notifyEvtHandler(evt)}
+    	}
+    }
+    if (autoLockBool && !pauseAllBool && evt.device.currentLock == "unlocked") {zone = state.DeVices[evt.device.id].zone; runIn(lockDelaySec, lockHandler, [data:zone, overwrite:false]) }
 }   
-def offTimeHandler(evt) { //// Called by; Subscribes only
+def offTimeHandler(evt) { //// Called by; Subscribes only  CLOSED
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
-    	if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
-    	if (pushDevice && state.DeVices[evt.device.id].notify) {pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText") }
-}       
+    if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
+    if (pushDevice && state.DeVices[evt.device.id].notify) {
+    	if (pushClosed && evt.device.currentContact == "closed") {notifyEvtHandler(evt) }
+    	if (pushLocked && evt.device.currentLock == "locked") {notifyEvtHandler(evt) }
+    }    
+ }       
 void lockHandler(data) { 
     if (pauseAllBool) {return} // All paused, get out, dont run
     if (logDebugEnableBool) {log.debug "App: ${app.label} -- LockHandler.... data.value = ${data.value} .. "}
@@ -299,11 +320,11 @@ void lockHandler(data) {
 }  }
 void lockRetryHandler(data) { 
     DeVices.each { dev -> 
-        if (dev.currentLock == "unlocked" && data.value == state.DeVices["$dev.id"].zone ) {
-        	dev.lock()
-            if (logInfoEnableBool) {log.info "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"}
-       		if (pushDevice && pushLockFailed && state.DeVices["$dev.id"].notify) {pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure") }
-        } 
+    if (dev.currentLock == "unlocked" && data.value == state.DeVices["$dev.id"].zone ) {
+       	dev.lock()
+        if (logInfoEnableBool) {log.info "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"}
+        if (pushDevice && pushLockFailed && state.DeVices["$dev.id"].notify) {dataMap=[notifyCase:3, value:dev.currentLock, displayName:dev.displayName, zone:state.DeVices["$dev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
+     } 
 }  }
 void unLockHandler(data) {   
     if (neverUnlockBool || pauseAllBool) {return}
@@ -314,7 +335,7 @@ void unLockHandler(data) {
 }  }
 void contactClosedHandler(evt) {
     if (pauseAllBool) {return} // All paused, get out, dont run
-    if (logDebugEnableBool) {log.debug "App: ${app.label} -- evt.device.currentContact = ${evt.device.currentContact}.... evt.device = ${evt.device}...contactLock1 = ${contactLock1}"}
+    if (logDebugEnableBool) {log.debug "App: ${app.label} -- evt.device.currentContact = ${evt.device.currentContact}.... evt.deviceId = ${evt.deviceId} ... evt.device = ${evt.device}...contactLock1 = ${contactLock1}"}
     DeVices.each { dev ->
         if (dev.currentLock && evt.device.currentContact == "closed") {
          	zone = state.DeVices["$dev.id"].zone 
@@ -332,6 +353,20 @@ void contactOpendHandler(evt) {
 			//////////////////  TBD  ////////////////////////
         }     
 }  } 
+void notifyEvtHandler(evt) { // evt Descritption
+    if (logDebugEnableBool) {log.debug "evtHandler App: ${app.label} -- id = $evt.displayName -- evt.descriptionText = $evt.descriptionText"} 
+   	pushDevice.deviceNotification("App: ${app.label} -- $evt.descriptionText")
+}
+void notifyDataHandler(data) { // special cases, Data
+    if (logDebugEnableBool) {log.debug "TdataHandler App: ${app.label} -- data.displayName = ${data.displayName}"}
+    DeVices.each { dev ->
+    	if (data.zone == state.DeVices["$dev.id"].zone) {  
+    		switch (data.notifyCase) {
+        	case 1: if (dev.currentContact == "open") {pushDevice.deviceNotification("App: ${app.label} -- **$dev** has been Open for > $openDelay seconds") } ; break
+       		case 2: if (dev.currentLock == "unlocked") {pushDevice.deviceNotification("App: ${app.label} -- **$dev** has been Unlocked for > $unlockedDelay seconds") } ; break
+       	    case 3: pushDevice.deviceNotification("App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"); break
+            }  
+}  } }
 def allLockHandler(evt) {//// Called by Sched All off time or App button
     if (pauseAllBool) {return} // All paused, get out, dont run
     DeVices.each { dev ->
