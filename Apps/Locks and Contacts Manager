@@ -85,7 +85,7 @@ def mainPage() {
     			["pushUnlocked": "Get Notified of Locks Unlocking"],
     			["pushLocked": "Get Notified of Locks Locking"],
     			["pushLockFailed": "Get Notified about any Lock possibly Jamming"],
-    			["pushBattery": "Get Notified about Battery Levels below selected level"],
+            	["pushBattery": "Get Notified about Battery Levels below selected level"],
     			["pushLockSet": "Get Notified about any Lock Code Changes within App"]
     			]
             if (settings.notifyOptions?.contains("pushOpen")) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open<b>&nbsp <small>Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, width: 6, newLineAfter: true, style: 'margin-left:80px'} 
@@ -254,7 +254,7 @@ String displayTable() {
         		endif
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("A$dev.id", state.pauseIcon) : buttonLink("B$dev.id", state.playIcon) 
         String notifyCheckBoxT = (state.DeVices["$dev.id"].notify) ? buttonLink("Q$dev.id", state.playIcon) : buttonLink("R$dev.id", state.pauseIcon) 
-             
+        
 ///////////////////////////////////////////////// Table Rows Build /////////////////////////////////////////////
         str += "<tr style='color:black'><td>${state.DeVices["$dev.id"].zone}</td>" +     
         "<td style='border-right:2px solid black'>$devLink</td>" 
@@ -270,7 +270,7 @@ String displayTable() {
         if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Click to Pause all Lock App actions, Red is paused, Green is run'>$pauseCheckBoxT</td>"} 
         	else  {str += "<td style='border-right:2px solid black' title='Cant Pause a contact'>N/A</td>"} 
         str += "<td style='border-right:2px solid black' title='Get Notifications from this devices actions? Check selections in advanced options, Green is Yes'>$notifyCheckBoxT</td>" 
-        str += "<td style='border-right:2px solid black' title='Battery Level' >${dev.currentBattery}</td>" +
+        str += "<td style='border-right:2px solid black; color:${dev.currentBattery > batPercent ? "black" : "red"}'>${dev.currentBattery}</td>"+    
         "<td style='font-size:14px !important' title='Last Time Lock or contact went Open' >${state.DeVices["$dev.id"].onTime}</td>"+
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
         if (dev.currentLock) {str += "<td style='font-weight:bold; color:${dev.currentLock == "locked" ? "green" : "red"}'>$time</td>" }  
@@ -326,7 +326,7 @@ def offTimeHandler(evt) { //// Called by; Subscribes only  CLOSED
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
     if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
     if (pushDevice && state.DeVices[evt.device.id].notify) {
-    	if (settings.notifyOptions?.contains("pushOpen") && evt.device.currentContact == "closed") {notifyEvtHandler(evt) }
+    	if (settings.notifyOptions?.contains("pushClosed") && evt.device.currentContact == "closed") {notifyEvtHandler(evt) }
     	if (settings.notifyOptions?.contains("pushLocked") && evt.device.currentLock == "locked") {notifyEvtHandler(evt) }
     }    
 }       
@@ -490,7 +490,7 @@ def setLockCode(btn) {
 String statusBar() {
     if (pauseAllBool) {paragraph getFormat("noticable","<b>All Lock Actions Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
-    if (pushDevice) {paragraph getFormat("smallLineSpace","<b>Last Notification:</b> &nbsp ${state.lastPush}")}
+    if (pushDevice) {paragraph getFormat("important","<b>Last Notification:</b> <small> &nbsp ${state.lastPush} </small>")}
 }
 ///////////////////////////////////////////////////////////  Icon Graphics  ////////////////////////////////////////////////////////////////// 
 def icons() { 
