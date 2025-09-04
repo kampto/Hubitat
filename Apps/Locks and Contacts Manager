@@ -333,17 +333,17 @@ def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
     if (pushDevice) {
     	if (((settings.notifyOptions1?.contains("pushOpen1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushOpen2") && state.DeVices[evt.device.id].notifyOptions == 2)) && evt.device.currentContact == "open") {
     		if (openDelay > 1) {dataMap = [notifyCase:1, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
-           		runIn(openDelay, notifyDataHandler, [data:dataMap, overwrite:false]) }
+           		runIn(openDelay, notifyDataHandler, [data:dataMap, overwrite:true]) }
         	else {notifyEvtHandler(evt)}
     	} 
     	if (((settings.notifyOptions1?.contains("pushUnlocked1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushUnlocked2") && state.DeVices[evt.device.id].notifyOptions == 2)) && evt.device.currentLock == "unlocked") {
     		if (unlockedDelay > 1) {dataMap = [notifyCase:2, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
-           		runIn(unlockedDelay, notifyDataHandler, [data:dataMap, overwrite:false]) }
+           		runIn(unlockedDelay, notifyDataHandler, [data:dataMap, overwrite:true]) }
         	else {notifyEvtHandler(evt)}
     	}
     }
     if (autoLockBool && !pauseAllBool && evt.device.currentLock == "unlocked") {zone = state.DeVices[evt.device.id].zone; runIn(lockDelaySec, lockHandler, [data:zone, overwrite:false]) }
-    if (logDebugEnableBool) {log.debug "TEST App: ${app.label} -- evt = $evt -------- dev = $device" }
+    if (logDebugEnableBool) {log.debug "TEST App: ${app.label} -- dataMap-notifyCase = ${dataMap.notifyCase}....evt = $evt -------- dev = $device" }
 }   
 def offTimeHandler(evt) { //// Called by; Subscribes only  CLOSED
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
@@ -404,17 +404,16 @@ void notifyEvtHandler(evt) { // evt Descritption
     pushDevice.deviceNotification(state.lastPush) 
 }
 void notifyDataHandler(data) { // special cases, Data
-    if (logDebugEnableBool) {log.debug "dataHandler App: ${app.label} -- data.displayName = ${data.displayName}"}
+    if (logDebugEnableBool) {log.debug "dataHandler App: ${app.label} -- notify-Case = ${data.notifyCase} ... data.displayName = ${data.displayName}"}
     DeVices.each { dev ->
-    	if (data.zone == state.DeVices["$dev.id"].zone) {  
-    	switch (data.notifyCase) {
-        	case 1: if (dev.currentContact == "open") {state.lastPush = "App: ${app.label} -- **$dev** has been Open for > $openDelay seconds"} ; break
-       		case 2: if (dev.currentLock == "unlocked") {state.lastPush = "App: ${app.label} -- **$dev** has been Unlocked for > $unlockedDelay seconds"} ; break
-       	    case 3: state.lastPush = "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"; break  
-            case 4: state.lastPush = "App: ${app.label} -- Lock Code Modified or Checked,  ${state.lockSetMSG}"; break  
-            }
-        pushDevice.deviceNotification(state.lastPush) 
-}  } }
+    	if (data.zone == state.DeVices["$dev.id"].zone) {
+           if (data.notifyCase == 1 && dev.currentContact == "open") {state.lastPush = "App: ${app.label} -- **$dev** has been Open for > $openDelay seconds"; pushDevice.deviceNotification(state.lastPush)}
+           else if (data.notifyCase == 2 && dev.currentLock == "unlocked") {state.lastPush = "App: ${app.label} -- **$dev** has been Unlocked for > $unlockedDelay seconds"; pushDevice.deviceNotification(state.lastPush)}
+           else if (data.notifyCase == 3) {state.lastPush = "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"; pushDevice.deviceNotification(state.lastPush)}
+           else if (data.notifyCase == 4) {state.lastPush = "App: ${app.label} -- Lock Code Modified or Checked,  ${state.lockSetMSG}"; pushDevice.deviceNotification(state.lastPush)}
+    	   else return 
+		}  
+} }
 def allLockHandler(evt) {//// Called by Sched All off time or App button
     if (pauseAllBool) {return} // All paused, get out, dont run
     DeVices.each { dev ->
@@ -511,7 +510,7 @@ def setLockCode(btn) {
     	state.lockSetMSG = "**${lockCodeDev}**;  Retrieved Code(s) = ${resultCode} <br>Code digit Length = ${codeLength}, Max # of Codes = ${maxCodes}. &nbsp Lock State = ${lockCodeDev.currentLock}"    
     }
     if (pushDevice && ((settings.notifyOptions1?.contains("pushLockSet1") && state.DeVices["$lockCodeDev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockSet2") && state.DeVices["$lockCodeDev.id"].notifyOptions == 2))) {
-        dataMap = [notifyCase:4, zone:state.DeVices["$lockCodeDev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:false])}
+        dataMap = [notifyCase:4, zone:state.DeVices["$lockCodeDev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
     log.info "App: ${app.label} -- Lock Code Button Confrimation: ${state.lockSetMSG}"
 }
 ////////////////////////////////////////////////////////////  Status Bar  //////////////////////////////////////////////////////////////////// 
