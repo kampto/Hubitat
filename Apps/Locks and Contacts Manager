@@ -15,7 +15,7 @@
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
-import groovy.json.JsonSlurper  // Retriving Lock JSON
+import groovy.json.JsonSlurper  // Retrieving Lock JSON
 import groovy.json.JsonOutput
 
 def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.3" }
@@ -121,7 +121,7 @@ def mainPage() {
         input name: "neverUnlockBool", type: "bool", title: getFormat("important","<b>Never UnLock in any circumstance?</b> &nbsp <small>Applies to all Locks.</small>"), defaultValue:true, width: 6, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
     	input name: "remoteSwitch", type: "capability.switch", title: getFormat("important","<b>Unlock Actions $state.unLockActionsIcon1: Select Switch(s) to control lock state.</b><br><small>On = Unlock, Off = Lock. Will not run if Paused or Incorrect mode. Use dashboard, virtual switch, or linked physical switch.</small>"), defaultValue:false, multiple: true, submitOnChange:true, width: 9, style: 'margin-left:10px' 
    }	
-    section(getFormat("header","<b>Lock Code Admin.</b> &nbsp <small>BETA, Results may vary!!</small>"),hideable: true, hidden: false) { 
+    section(getFormat("header","<b>Lock Code Admin</b> &nbsp <small>BETA, Results may vary!!</small>"),hideable: true, hidden: false) { 
         input "lockCodeDev", "capability.lockCodes", title: "<b>Select Lock to Modify</b>&nbsp <small>For locks with Code capability only.</small>", required: false, multiple: false, submitOnChange: true, newLineAfter: true, width: 7
         paragraph getFormat("important","<small>To Set Lock code enter: Slot#, Pin Code, code Name, then push Lock Code Button. Some locks will not support the following; overwrite an existing slot <br>unless deleted first, Test Unlock Feature. Alternatively you can open the Lock Device in Hub Device menu to verify</small>")
         input name: "slotNumber", type: "enum", title: getFormat("blueRegular","<b>Select Slot Number</b>"), defaultValue:0, width: 3, options: ["1","2","3","4","5","6","7","8","9","10"], submitOnChange:true
@@ -218,7 +218,7 @@ String displayTable() {
 	    state.DeVices[state.pauseCheckedBox].pause = true; state.remove("pauseCheckedBox") }
 	else if (state.pauseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseUnCheckedBox}  
 	    state.DeVices[state.pauseUnCheckedBox].pause = false; state.remove("pauseUnCheckedBox") }
-      endif
+     endif
 ///////////////////////////////////////// Table Header Build /////////////////////////////////////
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:16px !important; padding:2px 6px;text-align:center} + .tstat-col td {font-size:16px  }" +
