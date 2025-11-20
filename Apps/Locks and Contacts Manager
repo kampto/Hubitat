@@ -8,7 +8,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*	1.1.5	2025-11-02	kampto		Added 3rd different notification maps per device.
+*	1.1.6	2025-11-02	kampto		Added 3rd different notification maps per device. Cancellable loccking if contact re-opened after delay, then restart timer. Actions 1 and 2.
 *	1.1.4	2025-09-02	kampto		Added 2 different notification maps per device. Added send notifications per Mode option
 *   1.1.1	2025-08-21	kampto		Add section for managing Lock Codes. This section is BETA, may not work for everyones Locks. Rework Notification menu	
 *   1.0.5	2025-08-14	kampto    	Add Notifications enable per device. Other clean up. Lock All Locks logic.
@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 import groovy.json.JsonSlurper  // Retrieving Lock JSON
 import groovy.json.JsonOutput
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.5" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.6" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -370,8 +370,14 @@ void lockHandler(data) {
     if (logDebugEnableBool) {log.debug "App: ${app.label} -- LockHandler.... data.value = ${data.value} .. "}
     DeVices.each { dev -> 
        if (dev.currentLock == "unlocked" && !state.DeVices["$dev.id"].pause && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any") 
-           && data.value == state.DeVices["$dev.id"].zone ) {  dev.lock() 
-           if (lockRetryBool) {zone = state.DeVices["$dev.id"].zone; runIn(5, lockRetryHandler, [data:zone, overwrite:true])}
+           && data.value == state.DeVices["$dev.id"].zone ) {  
+           
+           if (autoLockBool && !pauseAllBool && dev.currentLock == "unlocked") {dev.lock(); state.lockCancel = false }  // Lock regardless of contacts
+           if ((state.DeVices["$dev.id"].lockActions == 1 && contactLock1.currentContact == "closed") || (state.DeVices["$dev.id"].lockActions == 2 && contactLock2.currentContact == "closed")) {
+               dev.lock(); state.lockCancel = false}
+           else {state.lockCancel = true; log.info "App: ${app.label} -- Locking Cancelled... ${contactLock1} is ${contactLock1.currentContact} when AutoLock delay was up. Will restart Actions (1 or 2) delay when contact closed again"} 
+           
+           if (lockRetryBool && !state.lockCancel) {zone = state.DeVices["$dev.id"].zone; runIn(5, lockRetryHandler, [data:zone, overwrite:true])}
        }
 }  }
 void lockRetryHandler(data) { 
