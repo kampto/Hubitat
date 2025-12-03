@@ -158,7 +158,7 @@ def mainPage() {
        			input name: "invertBool2", type: "bool", title: getFormat("blueRegular","<b>If Motion and a Switch/Valve is currently On, switch Off instead?</b> &nbsp <small> Off devices will still switch On <br>Will switch Off for run time or active entered above then back On. Toggle a night light to alert intruders!</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px' 
             	} }
 ///////////// Actions           
-    section(getFormat("header","ACTION Switch Options: &nbsp <small><b>For Switches, not Valves</b></small>"),hideable: true, hidden: false) {        
+    section(getFormat("header","ACTION Switch Options: &nbsp <small><b>Caese 1 & 2 Blink is for Switches only</b></small>"),hideable: true, hidden: false) {        
       	paragraph getFormat("important","<b>Actions $state.actionsIcon1: Blink Timer1 device On/Off feature? &nbsp </b><small>Applies to scheduled devices with 'Actions' case #1 in table. &nbsp &nbsp Enter 0.1 to 60min, Default = 1min</small>")
               input name: "blinkOn1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'ON' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
               input name: "blinkOff1", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'OFF' time minutes</b></small>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
@@ -1249,3 +1249,4 @@ def getFormat(type, myText="") {
     	}
 }
 def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
+
