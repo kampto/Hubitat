@@ -576,6 +576,7 @@ String displayTable() {
         else if (state.DeVices["$dev.id"].motionCase == 1 && motionActive1) {str += "<td style='border-right:2px solid black' title='Runs while motion still Active'>Active</td>" }  ////ver2.1.0
         else if (state.DeVices["$dev.id"].motionCase == 2 && motionActive2) {str += "<td style='border-right:2px solid black' title='Runs while motion still Active'>Active</td>" } 
         else if (state.DeVices["$dev.id"].trigger == 4) {str += "<td style='border-right:2px solid black' title='Runs with Mode Trigger'>Other</td>" } 
+        else if (state.DeVices["$dev.id"].trigger == 1 && state.DeVices["$dev.id"].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
         else if (state.DeVices["$dev.id"].trigger == 2 && state.DeVices["$dev.id"].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
         else if (state.DeVices["$dev.id"].trigger == 1 || state.DeVices["$dev.id"].trigger == 2 || state.DeVices["$dev.id"].trigger == 3) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Other</td>" } 
         else if (!state.DeVices["$dev.id"].sunrise) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Click to Change Run Duration Minutes'>$durTime</td>" }  ////ver2.03
@@ -776,9 +777,9 @@ def onTimeHandler(evt) {//// Called by; Subscribes only
        	zone = state.DeVices[evt.device.id].zone
     	String classType = getObjectClassName(state.DeVices[evt.device.id].durTime).replace("java.lang.", "")
     		if (classType == "Integer") {
-                log.info "${app.label} -- **${evt.device}** Turned ON Manually for ${state.DeVices[evt.device.id].durTime} minutes"
-       			if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && pushDevice && settings.notifyOptions1?.contains("pushManOn1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushManOn2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushManOn3"))) 
-                    && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${evt.device}** Turned ON Manually for ${state.DeVices[evt.device.id].durTime} minutes")}
+                log.info "${app.label} -- **${evt.device}** Turned ON Manually, Auto Off in ${state.DeVices[evt.device.id].durTime}min"
+       			if (pushDevice && ((state.DeVices[evt.device.id].notifyOptions == 1 && pushDevice && settings.notifyOptions1?.contains("pushManOn1")) || (state.DeVices[evt.device.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushManOn2")) || (state.DeVices[evt.device.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushManOn3"))) 
+                    && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${evt.device}** Turned ON Manually, Auto Off in ${state.DeVices[evt.device.id].durTime}min")}
                 runIn(60*state.DeVices[evt.device.id].durTime, switchOffHandler, [data:zone, overwrite:false])
     			}  
     }
@@ -845,7 +846,15 @@ void contactTrigHandler(evt) {
            	else if ((state.DeVices["$dev.id"].actions == 1 || state.DeVices["$dev.id"].actions == 2) && dev.currentSwitch) {  // Switches Only
 				if (state.contactTrigBool) {state.DeVices["$dev.id"].blink = true; runIn(1, blinkOnHandler, [data:zone, overwrite:true])}
                 else {runIn(1, switchOffHandler, [data:zone, overwrite:true])}
-                } 
+                }
+            else if (state.DeVices["$dev.id"].actions == 3 && state.contactTrigBool) {
+           		String classType = getObjectClassName(state.DeVices["$dev.id"].durTime).replace("java.lang.", "")
+                if (classType == "Integer") {
+                    if (state.contactTrigBool && dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+                	else if (state.contactTrigBool && dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+    				//runIn(60*state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+    				}  
+         		} 
          }
 }  }         
 void switchTrigHandler(evt) { ////ver2.1.0
@@ -1081,7 +1090,7 @@ def remoteOffHandler(evt) {//// Called by; Subscribes only.  // Handles remote o
             }
     else if (leakBool && wetLeakSensor && evt.device.currentWater == "wet") { // Leak Detect turn off and pause everything
         	state.pauseAllBool = true; app?.updateSetting("pauseAllBool",[value:"true",type:"bool"])  
-        	if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushLeak1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushLeak2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushLeak3")))) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
+        	if (pushDevice && ((state.DeVices[evt.device.id].notifyOptions == 1 && settings.notifyOptions1?.contains("pushLeak1")) || (state.DeVices[evt.device.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushLeak2")) || (state.DeVices[evt.device.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushLeak3")))) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
         	log.info "${app.label} -- All Devices Triggered Off by Leak Detect" 
         	allOffHandler()  /// Shut all Off	
     		}
@@ -1317,4 +1326,3 @@ def getFormat(type, myText="") {
     	}
 }
 def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} }
-
