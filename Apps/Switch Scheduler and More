@@ -9,6 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
+*   2.3.x	2025-12-04	kampto		TBD
 *   2.3.1	2025-11-22	kampto    	Add Action case #3, ability to manually turn on and have timed Off. Improved Notification options. Changed temp trigger to differential temp On/Off. Added toggle for Advanced/Basic display. Updated instructions. Make notifications per device and 3 Map options
 *   2.2.3	2025-09-18	kampto    	Add Pause Case #6 using Hub Variables. Clean up some Options labeling. Add Last time device active coloumn, !!requires remiving and re-adding devices.
 *	2.2.0	2025-08-22	kampto    	Seperated Triggers from Actions. Added Temperatiure trigger. Added option to clear start time if seledcted. Some clean up. 
@@ -100,11 +101,8 @@ def mainPage() {
             if (remoteSwitchBool) {
             input "remoteSwitch", "capability.switch", title: getFormat("important", "<b>Select a Switch to Remotely turn Off all switches and Pause/Resume all schedules (Optional)</b><br><small>Real or Virtual Switch, Switch On is Off/Pause</small>"), required: false, multiple: false, submitOnChange: true, style: 'margin-left:160px'   
             }
-       	input name: "runTwiceOffset", type: "enum", title: getFormat("important","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run start to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Only applies to all devices with 2 'Runs a day' selected, max 2nd run time is at hr 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 8, newLineAfter: true, style: 'margin-left:10px'
+       	input name: "runTwiceOffset", type: "enum", title: getFormat("important","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run start to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Only applies to all devices with 2 'Runs a day' selected, max 2nd run time is at hr 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 7, newLineAfter: true, style: 'margin-left:10px'
        	input name: "sunriseOffset", type: "number", title: getFormat("important","<b>If using 'Off @ Sunrise', &nbsp Enter +/- Sunrise Offset minutes to adjust Off time</b><small>&nbsp &nbsp Enter -360 to 360min, Default = -30min</small>"), defaultValue: "-30", submitOnChange: true, required: false, width: 9, accepts: "-360 to 360", range: "-360..360", newLineAfter: true, style: 'margin-left:10px'	
-
-       	
-   
         input name: "statsResetBool", type: "bool", title: getFormat("important","<b>Reset On Time and Count Stats at a specific time and day weekly?</b><br><small>Applys to all devices. This must remain checked ON to enable.</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (statsResetBool) {
             	input name: "statsResetTime", type: "time", title:getFormat("blueRegular","<b>Enter All Off time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 4, style: 'margin-left:70px'
@@ -211,7 +209,6 @@ def mainPage() {
           	if (tempSensor) {input name: "pauseTempValue", type: "number", title: getFormat("blueRegular","<b>Select Temperature to Pause</b><small>&nbsp &nbsp Default = 50deg</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
                input name: "invertTempBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Temperature is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
             }
-        
    /////// Get all variables just incase needed    
    HashMap varList = getAllGlobalVars()
                 ArrayList selectList = []
@@ -578,7 +575,9 @@ String displayTable() {
         else if (state.DeVices["$dev.id"].trigger == 4) {str += "<td style='border-right:2px solid black' title='Runs with Mode Trigger'>Other</td>" } 
         else if (state.DeVices["$dev.id"].trigger == 1 && state.DeVices["$dev.id"].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
         else if (state.DeVices["$dev.id"].trigger == 2 && state.DeVices["$dev.id"].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
-        else if (state.DeVices["$dev.id"].trigger == 1 || state.DeVices["$dev.id"].trigger == 2 || state.DeVices["$dev.id"].trigger == 3) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Other</td>" } 
+        else if (state.DeVices["$dev.id"].trigger == 3 && state.DeVices["$dev.id"].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
+        else if (state.DeVices["$dev.id"].trigger == 3) {str += "<td style='border-right:2px solid black' title='Runs Manually for this time'>Temp</td>" }
+        else if (state.DeVices["$dev.id"].trigger == 1 || state.DeVices["$dev.id"].trigger == 2) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Other</td>" } 
         else if (!state.DeVices["$dev.id"].sunrise) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Click to Change Run Duration Minutes'>$durTime</td>" }  ////ver2.03
      	else {str += "<td style='border-right:2px solid black' >$thisDurTime</td>"} 
      		endif
@@ -748,7 +747,6 @@ def sensorScan() { //// Scan all sensors and multiples and update status  //// v
         else if (tempTrigOn == tempTrigOff && tempTrigger.currentTemperature[i] < tempTrigOn) {state.tempTrigStateDisplay = "<text style='color:green' >${tempTrigger.currentTemperature}deg, </text>" + "&nbsp Trigger On if Temp >= ${tempTrigOn}deg, Off when < ${tempTrigOn}deg"; state.tempTrigBool = false; break} 
         	endif 
     	} }
-    /////tempTrigDeltaThresh
     if (contactTrigger) {for(int i = 0; i < contactTrigger.currentContact.size(); i++) { // Scan arrary
        	if (contactTrigger.currentContact[i] == "open") {state.contactTrigStateDisplay = "<text style='color:red; font-weight: bold' >${contactTrigger.currentContact}, </text>" + "&nbsp Trigger if Contact = Open"; state.contactTrigBool = true; break} 
         else {state.contactTrigStateDisplay = "<text style='color:green' >${contactTrigger.currentContact}, </text>" + "&nbsp Trigger if Contact(s) = Open"; state.contactTrigBool = false}
@@ -782,8 +780,7 @@ def onTimeHandler(evt) {//// Called by; Subscribes only
                     && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${evt.device}** Turned ON Manually, Auto Off in ${state.DeVices[evt.device.id].durTime}min")}
                 runIn(60*state.DeVices[evt.device.id].durTime, switchOffHandler, [data:zone, overwrite:false])
     			}  
-    }
-}
+}  }
 def offTimeHandler(evt) {//// Called by; Subscribes only
     state.DeVices[evt.device.id].total += now() - state.DeVices[evt.device.id].start
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
@@ -814,7 +811,7 @@ void switchOnHandler(data) {//// Called by; Scheduled Cron's
                     	}	
                 }
             }
-} }
+}  }
 void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, and various on handlers. 
     DeVices.each { dev -> 
         if (data.value == state.DeVices["$dev.id"].zone ) {
@@ -850,9 +847,8 @@ void contactTrigHandler(evt) {
             else if (state.DeVices["$dev.id"].actions == 3 && state.contactTrigBool) {
            		String classType = getObjectClassName(state.DeVices["$dev.id"].durTime).replace("java.lang.", "")
                 if (classType == "Integer") {
-                    if (state.contactTrigBool && dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
-                	else if (state.contactTrigBool && dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
-    				//runIn(60*state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                    if (dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+                	else if (dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
     				}  
          		} 
          }
@@ -881,9 +877,8 @@ void switchTrigHandler(evt) { ////ver2.1.0
             else if (state.DeVices["$dev.id"].actions == 3 && state.switchTrigBool) {
            		String classType = getObjectClassName(state.DeVices["$dev.id"].durTime).replace("java.lang.", "")
                 if (classType == "Integer") {
-                    if (state.switchTrigBool && dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Turning ON triggered by Switch **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
-                	else if (state.switchTrigBool && dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Turning ON triggered by Manual Switch **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
-    				//runIn(60*state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
+                    if (dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Triggered ON by Switch **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+                	else if (dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Triggered ON by Switch **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
     				}  
          		}
 }  }  }        
@@ -908,6 +903,13 @@ void tempTrigHandler(evt) {
 				if (state.tempTrigBool) {state.DeVices["$dev.id"].blink = true; runIn(1, blinkOnHandler, [data:zone, overwrite:true])}
                 else {runIn(1, switchOffHandler, [data:zone, overwrite:true])}
             	}
+            else if (state.DeVices["$dev.id"].actions == 3 && state.tempTrigBool) {
+           		String classType = getObjectClassName(state.DeVices["$dev.id"].durTime).replace("java.lang.", "")
+                if (classType == "Integer") {
+                    if (dev.currentSwitch == "off") {dev.on(); log.info "${app.label} -- **${dev}** Triggered ON by Temperature sensor **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+                	else if (dev.currentValve == "closed") {dev.open(); log.info "${app.label} -- **${dev}** Triggered ON by Temperature sensort **${evt.device}** for duration ${state.DeVices["$dev.id"].durTime}min"}
+    				}  
+         		}  
          }
 }  }       
 void modeTrigHandler(evt) { //// Called by; Subscribes only. ////ver2.1.3
@@ -1032,8 +1034,8 @@ void motionBackOnHandler(data) {//// Called by; MotionHandler Invert mode.  ////
     DeVices.each { dev ->
         if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && state.DeVices["$dev.id"].motion != 0) {
         	if (data.value == state.DeVices["$dev.id"].zone ) {
-           		if (dev.currentSwitch && dev.currentSwitch == "off")  {dev.on()}
-           		if (dev.currentValve && dev.currentValve == "closed")  {dev.open()}
+           		if (dev.currentSwitch && dev.currentSwitch == "off")  {dev.on() }
+           		if (dev.currentValve && dev.currentValve == "closed")  {dev.open() }
                 if (logEnableBool) {log.debug "${app.label} -- Motion Back On handler... Device: *${dev}*...zone = ${data.value}"} 
             }
         }
@@ -1090,7 +1092,8 @@ def remoteOffHandler(evt) {//// Called by; Subscribes only.  // Handles remote o
             }
     else if (leakBool && wetLeakSensor && evt.device.currentWater == "wet") { // Leak Detect turn off and pause everything
         	state.pauseAllBool = true; app?.updateSetting("pauseAllBool",[value:"true",type:"bool"])  
-        	if (pushDevice && ((state.DeVices[evt.device.id].notifyOptions == 1 && settings.notifyOptions1?.contains("pushLeak1")) || (state.DeVices[evt.device.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushLeak2")) || (state.DeVices[evt.device.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushLeak3")))) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
+        	if (pushDevice && ((state.DeVices[evt.device.id].notifyOptions == 1 && settings.notifyOptions1?.contains("pushLeak1")) || (state.DeVices[evt.device.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushLeak2")) || (state.DeVices[evt.device.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushLeak3")))) {
+                pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
         	log.info "${app.label} -- All Devices Triggered Off by Leak Detect" 
         	allOffHandler()  /// Shut all Off	
     		}
