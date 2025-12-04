@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   2.3.0	2025-11-20	kampto    	Add Action case #3, ability to manually turn on and have timed Off. Improved Notification options. Changed temp trigger to differential temp On/Off. Added toggle for Advanced/Basic display. Updated instructions.
+*   2.3.1	2025-11-22	kampto    	Add Action case #3, ability to manually turn on and have timed Off. Improved Notification options. Changed temp trigger to differential temp On/Off. Added toggle for Advanced/Basic display. Updated instructions. Make notifications per device and 3 Map options
 *   2.2.3	2025-09-18	kampto    	Add Pause Case #6 using Hub Variables. Clean up some Options labeling. Add Last time device active coloumn, !!requires remiving and re-adding devices.
 *	2.2.0	2025-08-22	kampto    	Seperated Triggers from Actions. Added Temperatiure trigger. Added option to clear start time if seledcted. Some clean up. 
 *   2.1.5	2025-07-18	kampto    	Added trigger by Mode action. Icons in Option selections 
@@ -29,7 +29,7 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.0" }
+def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.1" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule/Control Switches, Relays, Outlets, Sprinklers, Valves",
@@ -64,7 +64,7 @@ def mainPage() {
 	   if(!state.DeVices["$dev.id"]) {    
             state.DeVices["$dev.id"] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, 
             	total: 0, sunTime: false, sunrise: false, sunset: true, offset: 0, modes: "Any", blink: false, actions: 0, trigger: 0,
-            	sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, onTime: "NotYet",
+            	sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, onTime: "NotYet", notifyOptions: 0,
             	startTime: "000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, specialPause: 0, sensorPause: false, motionCase: 0]  
             state.DeVicesList += dev.id 
            }
@@ -102,22 +102,9 @@ def mainPage() {
             }
        	input name: "runTwiceOffset", type: "enum", title: getFormat("important","<b>If device 'Runs per Day' = 2 in table; Select hours after 1st run start to start 2nd run of day</b><br><small>Default = 12hr, &nbsp Only applies to all devices with 2 'Runs a day' selected, max 2nd run time is at hr 23:00</small>"), defaultValue: "12", submitOnChange: true,  options: ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"], required: false, width: 8, newLineAfter: true, style: 'margin-left:10px'
        	input name: "sunriseOffset", type: "number", title: getFormat("important","<b>If using 'Off @ Sunrise', &nbsp Enter +/- Sunrise Offset minutes to adjust Off time</b><small>&nbsp &nbsp Enter -360 to 360min, Default = -30min</small>"), defaultValue: "-30", submitOnChange: true, required: false, width: 9, accepts: "-360 to 360", range: "-360..360", newLineAfter: true, style: 'margin-left:10px'	
-   		input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notifications to (Optional)</b> &nbsp <small>Leave empty for no Notifications.</small>", multiple: true, required: false, submitOnChange: true, width: 8, newLineAfter: true, style: 'margin-left:10px'       
-       		if (pushDevice) {
-            input "notifyOptions1", "enum", title: "<b>Notify Options: Select Events that you want to get Notifications for:</b>", required: false, multiple: true, submitOnChange: true, width: 5, style: 'margin-left:60px', options:[
-                ["pushSchedOn1": "Get Notified of Scheduled Device On"],
-				["pushSchedBlink1": "Get Notified of Scheduled Device On with Blink (if Actions 1 or 2 used)"],
-                ["pushManOn1": "Get Notified of Manually turned On Devices with Auto Turn Off (if Action 3 used)"],
-                ["pushDevOff1": "Get Notified of Devices turning Off"], 
-    			["pushMotion1": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
-    			["pushLeak1": "Get Notified of Leak Detection (if Leak detect used)"], 
-                ["pushContactTrig1": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
-                ["pushSwitchTrig1": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
-                ["pushTempTrig1": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
-                ["pushModeTrig1": "Get Notified of Device triggered On by Mode change (if Trigger 4 used)"] 
-            ]
-           	input name: "pushMode", type: "mode", title: getFormat("blueRegular","<b>Only send Notifications during selected Mode?</b>"), defaultValue: "Any", width: 4, submitOnChange:true, newLineAfter: true, style: 'margin-left:10px' 
-			}
+
+       	
+   
         input name: "statsResetBool", type: "bool", title: getFormat("important","<b>Reset On Time and Count Stats at a specific time and day weekly?</b><br><small>Applys to all devices. This must remain checked ON to enable.</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (statsResetBool) {
             	input name: "statsResetTime", type: "time", title:getFormat("blueRegular","<b>Enter All Off time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 4, style: 'margin-left:70px'
@@ -127,11 +114,51 @@ def mainPage() {
         input name: "logEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging of App based device activity and refreshes?</b><br><small>Shuts off in 1hr</small>"), defaultValue:true, submitOnChange:true, style: 'margin-left:10px'
    		} 
   if (advModeBool) {  //// Toggle Advanced mode options
+/////////////// Notifications      
+	section(getFormat("header","Push Notification Options: &nbsp <small><b>Selectable per devices</b></small>"),hideable: true, hidden: false) {  
+        input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notifications to (Optional)</b> &nbsp <small>Leave empty for no Notifications.</small>", multiple: true, required: false, submitOnChange: true, width: 8, newLineAfter: true, style: 'margin-left:10px'       
+       		if (pushDevice) {
+            input "notifyOptions1", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon1}: Select Notify Events:</b>", required: false, multiple: true, submitOnChange: true, width: 3, style: 'margin-left:60px', options:[
+                ["pushSchedOn1": "Get Notified of Scheduled Device On"],
+				["pushSchedBlink1": "Get Notified of Scheduled Device On with Blink (if Actions 1 or 2 used)"],
+                ["pushManOn1": "Get Notified of Manually turned On Devices with Auto Turn Off (if Action 3 used)"],
+                ["pushDevOff1": "Get Notified of Devices turning Off"], 
+    			["pushMotion1": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
+    			["pushLeak1": "Get Notified of Leak Detection (if Leak detect used)"], 
+                ["pushContactTrig1": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
+                ["pushSwitchTrig1": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
+                ["pushTempTrig1": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
+                ["pushModeTrig1": "Get Notified of Device triggered On by Mode change (if Trigger 4 used)"] ]
+          	input "notifyOptions2", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon2}: Select Notify Events:</b>", required: false, multiple: true, submitOnChange: true, width: 3, style: 'margin-left:60px', options:[
+                ["pushSchedOn2": "Get Notified of Scheduled Device On"],
+				["pushSchedBlink2": "Get Notified of Scheduled Device On with Blink (if Actions 1 or 2 used)"],
+                ["pushManOn2": "Get Notified of Manually turned On Devices with Auto Turn Off (if Action 3 used)"],
+                ["pushDevOff2": "Get Notified of Devices turning Off"], 
+    			["pushMotion2": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
+    			["pushLeak2": "Get Notified of Leak Detection (if Leak detect used)"], 
+                ["pushContactTrig2": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
+                ["pushSwitchTrig2": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
+                ["pushTempTrig2": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
+                ["pushModeTrig2": "Get Notified of Device triggered On by Mode change (if Trigger 4 used)"] ] 
+            input "notifyOptions3", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon3}: Select Notify Events:</b>", required: false, multiple: true, submitOnChange: true, width: 3, style: 'margin-left:60px', options:[
+                ["pushSchedOn3": "Get Notified of Scheduled Device On"],
+				["pushSchedBlink3": "Get Notified of Scheduled Device On with Blink (if Actions 1 or 2 used)"],
+                ["pushManOn3": "Get Notified of Manually turned On Devices with Auto Turn Off (if Action 3 used)"],
+                ["pushDevOff3": "Get Notified of Devices turning Off"], 
+    			["pushMotion3": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
+    			["pushLeak3": "Get Notified of Leak Detection (if Leak detect used)"], 
+                ["pushContactTrig3": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
+                ["pushSwitchTrig3": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
+                ["pushTempTrig3": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
+                ["pushModeTrig3": "Get Notified of Device triggered On by Mode change (if Trigger 4 used)"] ]     
+            input name: "pushMode", type: "mode", title: getFormat("blueRegular","<b>Only send Notifications during selected Mode?</b>"), defaultValue: "Any", width: 4, submitOnChange:true, newLineAfter: true, style: 'margin-left:60px' 
+			}   
+    }    
 ///////////// Triggers           
     section(getFormat("header","TRIGGER Options: &nbsp <small><b>Use devices/sensors to trigger On/Off switches or valves</b></small>"),hideable: true, hidden: false) {  
-    	input name: "contactTrigger", type: "capability.contactSensor", title: getFormat("important","<b>Trigger $state.triggerIcon1: Select a Contact sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Trigger' case #1 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 8, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-    	input name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Trigger $state.triggerIcon2: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Trigger' case #2 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 8, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-        input name: "tempTrigger", type: "capability.temperatureMeasurement", title: getFormat("important","<b>Trigger $state.triggerIcon3: Select a Temperature sensor to Trigger device. &nbsp </b><small>Enter a turn On temp and a turn Off temp. They can be high to low or low to high. If they are equal temps it will only use the On trigger temp and turn device On on way up then Off on way down to On temp. Applies to devices with 'Trigger' case #3 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 8, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	input name: "contactTrigger", type: "capability.contactSensor", title: getFormat("important","<b>Trigger $state.triggerIcon1: Select a Contact sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Trigger' case #1 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	input name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Trigger $state.triggerIcon2: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Trigger' case #2 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+        input name: "tempTrigger", type: "capability.temperatureMeasurement", title: getFormat("important","<b>Trigger $state.triggerIcon3: Select a Temperature sensor to Trigger device. &nbsp </b><small>Enter a turn On temp and a turn Off temp. They can be high to low or low to high. If they are equal temps it will only use the On trigger temp and turn device On on way up then Off on way down to On temp. Applies to devices with 'Trigger' case #3 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
         	if (tempTrigger) {
               input name: "tempTrigOn", type: "decimal", title: getFormat("blueRegular","<b>Enter On Trigger Temperature, &nbsp</b><small>Default = 40</small>"), defaultValue: "40", required: false, submitOnChange: true, width: 4, style: 'margin-left:30px' 
         	  input name: "tempTrigOff", type: "decimal", title: getFormat("blueRegular","<b>Enter Off Trigger Temperature, &nbsp</b><small>Default = 40</small>"), defaultValue: "40", required: false, submitOnChange: true, width: 4, style: 'margin-left:30px' 
@@ -165,7 +192,7 @@ def mainPage() {
         paragraph getFormat("important","<b>Actions $state.actionsIcon2: Blink Timer2 device On/Off feature? &nbsp </b><small>Applies to scheduled devices with 'Actions' case #2 in table. &nbsp &nbsp Enter 0.1 to 60min, Default = 1min</small>")
               input name: "blinkOn2", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'ON' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
               input name: "blinkOff2", type: "decimal", title: getFormat("blueRegular","<b>Input blink 'OFF' time minutes</b>"), defaultValue: "1", required: false, submitOnChange: true, accepts: "0.1 to 60", range: "0.1..60", width: 3, style: 'margin-left:60px'       
-  		paragraph getFormat("important","<b>Actions $state.actionsIcon3: If Manually or Triggered On, Use Run time that was set in table, then turn Off. &nbsp </b><small>Applies to scheduled devices with 'Actions' case #3 in table.</small>")
+  		paragraph getFormat("important","<b>Actions $state.actionsIcon3: If Manually or Triggered On, Use Run time that was set in table, then turn Off. &nbsp </b><small>Applies to devices with 'Actions' case #3 in table.</small>")
     }
 ///////////// Pause Cases      
   	section(getFormat("header","PAUSE CASE Options: &nbsp <small><b>Schedule pause via; Wet, Moisture, Contact state, Voltage, ... For Switches & Valves</b></small>"),hideable: true, hidden: false) {    
@@ -219,17 +246,17 @@ def mainPage() {
       "<li><b>Off @ Sunrise:</b> Instead of setting a time duration, use Sunrise time. Set the Sunrise offset in standard options section. Easier option for all night lights. Run time will appear in Minutes.</li>"+	
       "<li><b>Remote Switch:</b> Optional, Select a virtual or real switch to remotely turn off all switches and pause/resume schedules (optional). Use case EX: Rain delay for spinklers, dashboard access.</li>"+
       "<li><b>Leak Detect:</b> This will shut off and stop every device schedule and actions permanently until a user unchecks 'Pause All Devices' in advanced options. Use case: if you have a water leak in house, can shut off an installed water valve listed in table. Not recommended to use if using 'wet' (rain) sensor for sprinklers.Only triggers if sensor goes from Dry to Wet. If still 'wet' this will not prevent the valve from being manually turned on outside of app.</li>"+
-      "<li><b>Runs Per Day:</b> Optional, Typically for sprinklers to run in morning and evening. Select 2 in table. Then select Hours after 1st run start in standard options section. <br>Note: If start time plus 2nd run offset exceeds hour 24 it will run at hour 23 2nd time. Start will not roll over into next day.</li>"+                    
+      "<li><b>Runs Per Day:</b> Optional, Typically for sprinklers to run in morning and evening. Select 2 in table. Then select Hours after 1st run start in standard options section. Note: If start time plus 2nd run offset exceeds hour 24 it will run at hour 23 2nd time. Start will not roll over into next day.</li>"+                    
       "<li><b>You must hit DONE at page bottom to save App after first making.</b></li>"+     
       "<br>"+                 
       "<b>Advanced Features</b>"+
       "<li><b>Trigger and Pause cases:</b> Will only act when the selected Sensor changes state. It subscribes to the Sensor and needs to see a change in order to act on the new state.</li>"+                    
       "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want to only run during a specific Mode click and select that mode. If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
-      "<li><b>Motion:</b> Selecting a motion group # will toggle a device if Motion device is triggerd. Select Motion device in Options below table, Run or while active time in Advanced options. Will not change the scheduled on times if any.<br>If On to Off enabled the, the switch if On will turn Off for the time selected then back On. Makes it look like someone is Home!<br>For both Off-On-Off or On-Off-On cases the Motion Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a schedule start time entered."+	
-      "<li><b>Pause Cases:</b> Select 'None' or case # in table, set up in Options below table to pause upcoming schedule for that device only. Pause cases will work with schedules, triggers, motion, or anything.</li>"+   
+      "<li><b>Motion:</b> Selecting a motion group # will toggle a device if Motion device is triggerd. Select Motion device in Options section below table, Run or while active time in Advanced options. Will not change the scheduled on times if any.If On to Off enabled the, the switch if On will turn Off for the time selected then back On. Makes it look like someone is Home! For both Off-On-Off or On-Off-On cases the Motion Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a schedule start time entered."+	
+      "<li><b>Pause Cases:</b> Select 'None' or case # in table, set up in Pause Options section below table to pause upcoming schedule for that device only. Pause cases will work with schedules, triggers, motion, or anything.</li>"+   
       "<li><b>Pause Case #6 Variables:</b> Select Hub varibale(s), These variables must be a set up as a Number or String Datatype. Will only pause when variable value 'changes' and then pause criteria is met</li>"+   
-      "<li><b>Trigger Cases:</b> Select 'None' or case # in table, set up in Option below table. Each case uses another device and its state change to trigger the target device in table.  Some like temperature or modes have additional settings. Triggers can be combined with Actions</li>"+    	                     
-      "<li><b>Actions Cases:</b> Select 'None' or case # in table, set up in Option below table. Cases 1 - 2 (blink) will work with startime defined schedules or triggers, blink is for switches only. Actions can be combined with Triggers.</li>"+    	                     
+      "<li><b>Trigger Cases:</b> Select 'None' or case # in table, set up in Trigger Options section below table. Each case uses another device and its state change to trigger the target device in table.  Some like temperature or modes have additional settings. Triggers can be combined with Actions</li>"+    	                     
+      "<li><b>Actions Cases:</b> Select 'None' or case # in table, set up in Action Options section below table. Cases 1 - 2 (blink) will work with startime defined schedules or triggers, blink is for switches only. Actions can be combined with Triggers.</li>"+    	                     
       "</ul>")
       }
   }
@@ -382,6 +409,17 @@ String displayTable() {
     else if(state.trigger4) {def dev = DeVices.find{"$it.id" == state.trigger4}  
 	    state.DeVices[state.trigger4].trigger = 4; state.remove("trigger4") }
      endif
+    if (state.notifyOptions0) {def dev = DeVices.find{"$it.id" == state.notifyOptions0}  
+	    state.DeVices[state.notifyOptions0].notifyOptions = 0; state.remove("notifyOptions0") }
+    else if (state.notifyOptions1) {def dev = DeVices.find{"$it.id" == state.notifyOptions1}  
+	    state.DeVices[state.notifyOptions1].notifyOptions = 1; state.remove("notifyOptions1") }
+    else if (state.notifyOptions2) {def dev = DeVices.find{"$it.id" == state.notifyOptions2}  
+	    state.DeVices[state.notifyOptions2].notifyOptions = 2; state.remove("notifyOptions2") }
+    else if (state.notifyOptions3) {def dev = DeVices.find{"$it.id" == state.notifyOptions3}  
+	    state.DeVices[state.notifyOptions3].notifyOptions = 3; state.remove("notifyOptions3") }
+    else if (state.notifyOptions4) {def dev = DeVices.find{"$it.id" == state.notifyOptions4}  
+	    state.DeVices[state.notifyOptions4].notifyOptions = 4; state.remove("notifyOptions4") }
+     endif
     if(state.pauseCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseCheckedBox}  //// ver1.0.2
 	    state.DeVices[state.pauseCheckedBox].pause = true; state.remove("pauseCheckedBox") }
 	else if(state.pauseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseUnCheckedBox}  
@@ -423,7 +461,8 @@ String displayTable() {
         "<th style='border-right:2px solid black'>Use<br>Motion</th>"+  //// ver2.0.1 
         "<th style='border-right:2px solid black'>Use<br>Trigger</th>"+    
         "<th style='border-right:2px solid black'>Use<br>Actions</th>"+    
-        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7 
+        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7
+        "<th style='border-right:2px solid black'>Push-<br>Notify?</th>"+     
         "<th style='border-right:2px solid black'>Sensor<br>Paused</th>"    //// ver1.0.3
     }      
         str += "<th style='border-right:2px solid black'>Manual<br>Pause?</th>"+    //// ver1.0.3    
@@ -501,6 +540,14 @@ String displayTable() {
         	else if (state.DeVices["$dev.id"].trigger == 3) {triggerT = buttonLink("N$dev.id", state.triggerIcon3)}
         	else if (state.DeVices["$dev.id"].trigger == 4) {triggerT = buttonLink("O$dev.id", state.triggerIcon4)}
         	 endif
+        String notifyOptionsT 
+        	if (state.DeVices["$dev.id"].notifyOptions == 0) {notifyOptionsT = buttonLink("Qn$dev.id", state.pauseIcon)}
+        	else if (state.DeVices["$dev.id"].notifyOptions == 1) {notifyOptionsT = buttonLink("Rn$dev.id", state.notifyOptionsIcon1)}  
+        	else if (state.DeVices["$dev.id"].notifyOptions == 2) {notifyOptionsT = buttonLink("Sn$dev.id", state.notifyOptionsIcon2)}
+        	else if (state.DeVices["$dev.id"].notifyOptions == 3) {notifyOptionsT = buttonLink("Tn$dev.id", state.notifyOptionsIcon3)}
+        	else if (state.DeVices["$dev.id"].notifyOptions == 4) {notifyOptionsT = buttonLink("Un$dev.id", state.notifyOptionsIcon4)} 
+        	else {notifyOptionsT = buttonLink("Qn$dev.id", state.pauseIcon)} // Jump Start new feature from being Null
+        		endif
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("t$dev.id", state.pauseIcon) : buttonLink("v$dev.id", state.playIcon) 
         String sunTimeCheckBoxT = (state.DeVices["$dev.id"].sunTime) ? buttonLink("w$dev.id", state.purpleCheckBox) : buttonLink("x$dev.id", state.unCheckedBox)  //// ver1.1.0
         String sunsetCheckBoxT = (state.DeVices["$dev.id"].sunset) ? buttonLink("D$dev.id", state.moonIcon) : buttonLink("E$dev.id", state.sunIcon)  //// ver1.1.0
@@ -562,9 +609,10 @@ String displayTable() {
         if (dev.currentValve) {str += "<td style='border-right:2px solid black' title='Valves Cant use special Actions'>N/A</td>"} // Valve cant use Actions
         	else  {str += "<td style='border-right:2px solid black' title='Select device actions or none'>$actionsT</td>"}     
         str += "<td style='border-right:2px solid black' title='Check Box to have this device use the special schedule pause cases like Wet/Moisture sched pause'>$specialPauseT</td>"
+        str += "<td style='border-right:2px solid black' title='Get Notifications from this devices actions? Check # Options in advanced options, Red Pause is None'>$notifyOptionsT</td>" 
         if (state.DeVices["$dev.id"].sensorPause) {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.pauseIconGrey</td>"} 
         	else {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.playIconGrey</td>"} 
-    }
+     }
         str += "<td style='border-right:2px solid black' title='Click to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" + 
         "<td style='width: 70px; font-size:11px !important' title='Last Time Device was Active' >${state.DeVices["$dev.id"].onTime}</td>"+
         "<td style='font-weight:bold' title='Total On Counts' >${state.DeVices["$dev.id"].counts}</td>" 
@@ -729,7 +777,8 @@ def onTimeHandler(evt) {//// Called by; Subscribes only
     	String classType = getObjectClassName(state.DeVices[evt.device.id].durTime).replace("java.lang.", "")
     		if (classType == "Integer") {
                 log.info "${app.label} -- **${evt.device}** Turned ON Manually for ${state.DeVices[evt.device.id].durTime} minutes"
-       			if (pushDevice && settings.notifyOptions1?.contains("pushManOn1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${evt.device}** Turned ON Manually for ${state.DeVices[evt.device.id].durTime} minutes")}
+       			if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && pushDevice && settings.notifyOptions1?.contains("pushManOn1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushManOn2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushManOn3"))) 
+                    && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${evt.device}** Turned ON Manually for ${state.DeVices[evt.device.id].durTime} minutes")}
                 runIn(60*state.DeVices[evt.device.id].durTime, switchOffHandler, [data:zone, overwrite:false])
     			}  
     }
@@ -748,14 +797,16 @@ void switchOnHandler(data) {//// Called by; Scheduled Cron's
                	if (data.value == state.DeVices["$dev.id"].zone ) {
              		if (state.DeVices["$dev.id"].actions == 1 || state.DeVices["$dev.id"].actions == 2) {  //// Blink ON
                         log.info "${app.label} -- Device **${dev}** Scheduled Turn ON in Blink Mode for duration ${state.DeVices["$dev.id"].durTime}min"
-    					if (pushDevice && settings.notifyOptions1?.contains("pushSchedBlink1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- ***$dev** has Scheduled turn ON in Blink Mode for duration ${state.DeVices["$dev.id"].durTime}min")}
+    					if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushSchedBlink1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushSchedBlink2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushSchedBlink3"))) 
+                            && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- ***$dev** has Scheduled turn ON in Blink Mode for duration ${state.DeVices["$dev.id"].durTime}min")}
            				state.DeVices["$dev.id"].blink = true
                    		runIn(1, blinkOnHandler, [data:zone, overwrite:false])
                         runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
                         }
                     else {  //// ON
                         log.info "${app.label} -- Device **${dev}** Scheduled Turn ON for duration ${state.DeVices["$dev.id"].durTime}min"
-                        if (pushDevice && settings.notifyOptions1?.contains("pushSchedOn1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- ***$dev** has Scheduled turn ON for duration ${state.DeVices["$dev.id"].durTime}min")}
+                        if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushSchedOn1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushSchedOn2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushSchedOn3"))) 
+                            && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- ***$dev** has Scheduled turn ON for duration ${state.DeVices["$dev.id"].durTime}min")}
            				if (dev.currentSwitch)  {dev.on()}
                 		if (dev.currentValve)  {dev.open()}  //// ver1.20
                     	runIn(60 * state.DeVices["$dev.id"].durTime, switchOffHandler, [data:zone, overwrite:false])
@@ -769,7 +820,8 @@ void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, and var
            if (dev.currentSwitch == "on")  {dev.off() }  
            if (dev.currentValve == "open")  {dev.close() } 
            if (state.DeVices["$dev.id"].blink) {state.DeVices["$dev.id"].blink = false} // cancel a blink session
-           if (pushDevice && settings.notifyOptions1?.contains("pushDevOff1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- **${dev}** has Turned OFF")}
+           if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushDevOff1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushDevOff2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushDevOff3"))) 
+               && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("App: ${app.label} -- **${dev}** has Turned OFF")}
            log.info "${app.label} -- SwitchOffHandler ... **${dev}** Turning OFF, Zone = **${data.value}**"
            } 
 }  }
@@ -783,7 +835,8 @@ void contactTrigHandler(evt) {
             if (state.DeVices["$dev.id"].actions == 0) { 
                 if (state.contactTrigBool && (dev.currentSwitch == "off" || dev.currentValve == "closed")) { 
                         log.info "${app.label} -- **${dev}** Triggered ON by Contact **${evt.device}**"  //// Notifications
-                		if (pushDevice && settings.notifyOptions1?.contains("pushContactTrig1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Contact **${evt.device}**")}
+                		if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && ssettings.notifyOptions1?.contains("pushContactTrig1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && ssettings.notifyOptions2?.contains("pushContactTrig2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && ssettings.notifyOptions3?.contains("pushContactTrig3"))) 
+                            && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Contact **${evt.device}**")}
                  		if (dev.currentSwitch == "off") {dev.on() }
                 		else if (dev.currentValve == "closed") {dev.open() }
                 		}
@@ -805,7 +858,8 @@ void switchTrigHandler(evt) { ////ver2.1.0
             if (state.DeVices["$dev.id"].actions == 0) {
                 if (state.switchTrigBool && (dev.currentSwitch == "off" || dev.currentValve == "closed")) { 
                    	  	log.info "${app.label} -- **${dev}** Triggered ON by Switch **${evt.device}**"  //// Notifications
-                		if (pushDevice && settings.notifyOptions1?.contains("pushSwitchTrig1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Switch **${evt.device}**")}
+                		if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushSwitchTrig1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushSwitchTrig2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushSwitchTrig3"))) 
+                            && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Switch **${evt.device}**")}
                    		if (dev.currentSwitch == "off") {dev.on() }
                 		else if (dev.currentValve == "closed") {dev.open() }
                 		}
@@ -834,7 +888,8 @@ void tempTrigHandler(evt) {
             if (state.DeVices["$dev.id"].actions == 0) { 
                 if (state.tempTrigBool && (dev.currentSwitch == "off" || dev.currentValve == "closed")) {
                         log.info "${app.label} -- **${dev}** Triggered ON by Temperature sensor **${evt.device}**"   //// Notifications
-                		if (pushDevice && settings.notifyOptions1?.contains("pushTempTrig1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Temperature sensor **${evt.device}**")}
+                		if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushTempTrig1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushTempTrig2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushTempTrig3"))) 
+                            && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Temperature sensor **${evt.device}**")}
                     	if (dev.currentSwitch == "off") {dev.on(); }
                 		else if (dev.currentValve == "closed") {dev.open(); }
                 		} 
@@ -889,7 +944,8 @@ void modeTrigHandler(evt) { //// Called by; Subscribes only. ////ver2.1.3
        			}  
             endif
            log.info "${app.label} -- ModeHandler, **${dev}** Triggered by Mode change to **${location.mode}**"
-           if (pushDevice && settings.notifyOptions1?.contains("pushModeTrig1") && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Mode change to **${location.mode}**")}  
+           if (pushDevice && ((state.DeVices["$dev.id"].actions == 1 && settings.notifyOptions1?.contains("pushModeTrig1")) || (state.DeVices["$dev.id"].actions == 2 && settings.notifyOptions2?.contains("pushModeTrig2")) || (state.DeVices["$dev.id"].actions == 3 && settings.notifyOptions3?.contains("pushModeTrig3"))) 
+               && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification ("${app.label} -- **${dev}** Triggered ON by Mode change to **${location.mode}**")}  
          }
 }  }         
 void motionHandler1(evt) { //// Called by; Subscribes only.  //// ver 2.0.1
@@ -898,7 +954,8 @@ void motionHandler1(evt) { //// Called by; Subscribes only.  //// ver 2.0.1
           if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause &&  state.DeVices["$dev.id"].motionCase == 1 && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
                	zone = state.DeVices["$dev.id"].zone; int xRun = Math.round(60 * motionRunTime1)
             if (!motionActive1 && evt.device.currentMotion == "active") {
-                   	if (pushDevice && settings.notifyOptions1?.contains("pushMotion1") && (pushMode == location.mode || pushMode == "Any")) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ${xRun/60}min")} //// ver2.0.1
+                   	if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushMotion1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushMotion2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushMotion3"))) 
+                        && (pushMode == location.mode || pushMode == "Any")) { pushDevice.deviceNotification("App: ${app.label} -- Motion Group-1 Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ${xRun/60}min")}
 					log.info "${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}** for ^${xRun/60}min^ .. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool1})" 
                        	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])} ////  Turn On if Off
                        	else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool1) {dev.off(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])} ////  Turn Off if On
@@ -932,8 +989,9 @@ void motionHandler2(evt) { //// Called by; Subscribes only.  //// ver 2.1.0
           if (!state.DeVices["$dev.id"].pause && !state.DeVices["$dev.id"].sensorPause && state.DeVices["$dev.id"].motionCase == 2 && ((state.DeVices["$dev.id"].modes == location.mode) || state.DeVices["$dev.id"].modes == "Any")) { //// Pasued per device in table and motion enabled
                	zone = state.DeVices["$dev.id"].zone; int xRun = Math.round(60 * motionRunTime2)
             if (!motionActive2 && evt.device.currentMotion == "active") {
-                   	if (pushDevice && settings.notifyOptions1?.contains("pushMotion1") && (pushMode == location.mode || pushMode == "Any")) { pushDevice.deviceNotification("App: ${app.label} -- Motion Detected by **${evt.device}** is ${evt.device.currentMotion}, Toggling Device **${dev}** for ${xRun/60}min")} //// ver2.0.1
-					log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ^${xRun/60}min^ .. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool2})" 
+                   	if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushMotion1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushMotion2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushMotion3"))) 
+                        && (pushMode == location.mode || pushMode == "Any")) { pushDevice.deviceNotification("App: ${app.label} -- Motion Group2 Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ${xRun/60}min")}
+                	log.info "${app.label} -- Motion Detected by **${evt.device}** is '${evt.device.currentMotion}', Toggling Device **${dev}** for ^${xRun/60}min^ .. (MotionGroup=${state.DeVices["$dev.id"].motionCase}..Invert=${invertBool2})" 
                        	if (dev.currentSwitch && dev.currentSwitch == "off") {dev.on(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])} ////  Turn On if Off
                        	else if (dev.currentSwitch && dev.currentSwitch == "on" && invertBool2) {dev.off(); runIn(xRun, motionBackOnHandler, [data:zone, overwrite:false])} ////  Turn Off if On
                 		else if (dev.currentValve && dev.currentValve == "closed") {dev.open(); runIn(xRun, switchOffHandler, [data:zone, overwrite:false])}  ////  Turn On if Off /// ver1.20
@@ -1023,7 +1081,7 @@ def remoteOffHandler(evt) {//// Called by; Subscribes only.  // Handles remote o
             }
     else if (leakBool && wetLeakSensor && evt.device.currentWater == "wet") { // Leak Detect turn off and pause everything
         	state.pauseAllBool = true; app?.updateSetting("pauseAllBool",[value:"true",type:"bool"])  
-        	if (pushDevice && settings.notifyOptions1?.contains("pushLeak1")) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
+        	if (pushDevice && ((state.DeVices["$dev.id"].notifyOptions == 1 && settings.notifyOptions1?.contains("pushLeak1")) || (state.DeVices["$dev.id"].notifyOptions == 2 && settings.notifyOptions2?.contains("pushLeak2")) || (state.DeVices["$dev.id"].notifyOptions == 3 && settings.notifyOptions3?.contains("pushLeak3")))) {pushDevice.deviceNotification("${app.label} -- LEAK Detected by **${evt.device}**, turning all Devices OFF and Pause all schedules")} /// ver2.0.1
         	log.info "${app.label} -- All Devices Triggered Off by Leak Detect" 
         	allOffHandler()  /// Shut all Off	
     		}
@@ -1105,7 +1163,12 @@ void appButtonHandler(btn) {//// Called by; In app Button pushes
   		else if (btn.startsWith("L")) state.trigger2 = btn.minus("L")
   		else if (btn.startsWith("M")) state.trigger3 = btn.minus("M")
     	else if (btn.startsWith("N")) state.trigger4 = btn.minus("N")  
-    //else if (btn.startsWith("P")) state.actions10 = btn.minus("P")    
+    //else if (btn.startsWith("P")) state.actions10 = btn.minus("P")
+  	else if (btn.startsWith("Un")) state.notifyOptions0 = btn.minus("Un")
+    else if (btn.startsWith("Qn")) state.notifyOptions1 = btn.minus("Qn") 
+    else if (btn.startsWith("Rn")) state.notifyOptions2= btn.minus("Rn")
+    else if (btn.startsWith("Sn")) state.notifyOptions3= btn.minus("Sn")
+    else if (btn.startsWith("Tn")) state.notifyOptions4= btn.minus("Tn")          
     endif    
 }
 def refreshHandler() {//// Called by; In App Button push and within functions  // Update Times if Active/On
@@ -1222,6 +1285,11 @@ def icons() { ////ver2.1.1
 ////Motion
     state.motionIcon1 = "<iconify-icon inline style='color:#097969; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
     state.motionIcon2 = "<iconify-icon inline style='color:#50C878; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
+////Notify    
+    state.notifyOptionsIcon1 = "<iconify-icon inline style='color:#006400; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
+    state.notifyOptionsIcon2 = "<iconify-icon inline style='color:#228B22; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
+    state.notifyOptionsIcon3 = "<iconify-icon inline style='color:#4CBB17; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
+    state.notifyOptionsIcon4 = "<iconify-icon inline style='color:#9ACD32; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
 }    
 //////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
