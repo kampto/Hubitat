@@ -68,7 +68,7 @@ def mainPage() {
     refreshHandler()  // get latest times at app open
     paragraph displayTable()
        input "refresh", "button", title: "<b>REFRESH</b> Table Times, Counts, & States", width: 3
-       input "allLock", "button", title: "<b>Lock All Locks</b>", width: 2, style: 'margin-left:10px' 
+       if (!contactModeBool) {input "allLock", "button", title: "<b>Lock All Locks</b>", width: 2, style: 'margin-left:10px'}  
        input name: "inDaysCBool", type: "bool", title:getFormat("important","Display Total Time in Days?"), defaultValue:false, submitOnChange:true, width: 3   
     statusBar()  
       }
