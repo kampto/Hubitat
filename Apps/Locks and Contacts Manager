@@ -8,7 +8,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*	1.1.7	2026-01-28	kampto		Add option to count only open/unlocked or closed/locked or both. Add option to reset counts/active times a specified time per week or everyday with option push report
+*	1.1.8	2026-01-29	kampto		Add option to count only open/unlocked or closed/locked or both. Add option to reset counts/active times a specified time per week or everyday with option push report
 *	1.1.6	2025-11-02	kampto		Added 3rd different notification maps per device. Cancellable loccking if contact re-opened after delay, then restart timer. Actions 1 and 2. 
 *	1.1.4	2025-09-02	kampto		Added 2 different notification maps per device. Added send notifications per Mode option
 *   1.1.1	2025-08-21	kampto		Add section for managing Lock Codes. This section is BETA, may not work for everyones Locks. Rework Notification menu	
@@ -20,7 +20,7 @@ import java.text.SimpleDateFormat
 import groovy.json.JsonSlurper  // Retrieving Lock JSON
 import groovy.json.JsonOutput
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.7" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.8" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -32,11 +32,12 @@ definition (
 	singleThreaded: true	
 )
 preferences { page(name: "mainPage") }
-////////////////////////////////////////////////////////////  Main Page Inputs/Set-Up /////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////  MAIN PAGE / SET-UP /////////////////////////////////////////////////////////////
 def mainPage() {
     if (app.getInstallationState() != "COMPLETE") {hide=false} else {hide=true}  
     if (state.DeVices == null) state.DeVices = [:]
     if (state.DeVicesList == null) state.DeVicesList = []
+    if (statsResetTime == null) {statsResetTime = "000000000000000000000000000000"}
     if (allLockTime == null) {allLockTime = "000000000000000000000000000000"}
     if (state.lastPush == null) {state.lastPush = "Waiting"}
     if (state.lockSetMSG == null) {state.lockSetMSG = "Not Yet"}
@@ -68,11 +69,11 @@ def mainPage() {
     paragraph displayTable()
        input "refresh", "button", title: "<b>REFRESH</b> Table Times, Counts, & States", width: 3
        input "allLock", "button", title: "<b>Lock All Locks</b>", width: 2, style: 'margin-left:10px' 
-       input name: "inDaysCBool", type: "bool", title:getFormat("important","Display Total Time in Days?"), defaultValue:false, submitOnChange:true, width: 3   //// ver1.1.7  
+       input name: "inDaysCBool", type: "bool", title:getFormat("important","Display Total Time in Days?"), defaultValue:false, submitOnChange:true, width: 3   
     statusBar()  
       }
   }
-//////////////////////////////////////////////////////////////  Advanced Inputs /////////////////////////////////////////////////////////////      
+///////////////////////////////////////////////////////////////////  ADVANCED INPUTS /////////////////////////////////////////////////////////////      
    section(getFormat("header","<b>Advanced Options:</b>"),hideable: true, hidden: false) {
         input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App", width: 7, newLineAfter: true 
         input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Lock Actions? &nbsp No Locks will change state from App</b>"), defaultValue:false, width: 7, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
@@ -92,7 +93,7 @@ def mainPage() {
         input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, submitOnChange:true,  width: 3, style: 'margin-left:10px'
         input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, submitOnChange:true,  width: 3, style: 'margin-left:10px'
 }
-///////////// Push Notify Options
+/////////////// PUSH NOTIFY OPTIONS
 	 section(getFormat("header","<b>PUSH Notification Options:</b>"),hideable: true, hidden: false) {      
         input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notification to (Optional)</b> &nbsp <small>Applies to Selected Devices in table.</small>", multiple: true, required: false, submitOnChange: true, width: 8, newLineAfter: true, style: 'margin-left:10px'       
        	if (pushDevice) {
@@ -127,7 +128,7 @@ def mainPage() {
             if (statsResetBool) { input name: "statsReportBool", type: "bool", title: getFormat("blueRegular","<b>If using Reset all Stats at specific Time option, send a push notification Report of all devices Total Active Time and Counts Stats?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:80px' }
         	}
 }       
-///////////// Actions           
+///////////////// ACTIONS           
     section(getFormat("header","<b>LOCK ACTION Case Options:</b>"),hideable: true, hidden: false) { 
         input name: "autoLockBool", type: "bool", title: getFormat("important","<b>Auto Lock if unlocked after a delay?</b>&nbsp &nbsp <small>Applies to all Locks. Ignores Contact Switches, could lock while door is open! Use case is if door unlocked but never opened or if you dont have a contact sensor on door. Will not run if Paused or Incorrect mode.</small>"), defaultValue:false, newLineAfter: true, width: 8, submitOnChange:true, style: 'margin-left:10px' 
         	if (autoLockBool) {input name: "lockDelaySec", type: "number", title: getFormat("blueRegular","<b>AutoLock Delay</b>&nbsp &nbsp <small>After unlocked will wait this time till Auto lockiing. Default = 30, &nbsp Enter 0 to 600 seconds</small>"), defaultValue: "30", accepts:"0 to 600", range:"0..600", width: 4, newLineAfter: true, submitOnChange:true, style: 'margin-left:60px'} 
@@ -141,6 +142,7 @@ def mainPage() {
         input name: "neverUnlockBool", type: "bool", title: getFormat("important","<b>Never UnLock in any circumstance?</b> &nbsp <small>Applies to all Locks.</small>"), defaultValue:true, width: 6, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
     	input name: "remoteSwitch", type: "capability.switch", title: getFormat("important","<b>Unlock Actions $state.unLockActionsIcon1: Select Switch(s) to control lock state.</b><br><small>On = Unlock, Off = Lock. Will not run if Paused or Incorrect mode. Use dashboard, virtual switch, or linked physical switch.</small>"), defaultValue:false, multiple: true, submitOnChange:true, width: 9, style: 'margin-left:10px' 
    }	
+///////////////// LOCK CODES       
     section(getFormat("header","<b>Lock Code Admin</b> &nbsp <small>BETA, Results may vary!!</small>"),hideable: true, hidden: false) { 
         input "lockCodeDev", "capability.lockCodes", title: "<b>Select Lock to Modify</b>&nbsp <small>For locks with Code capability only.</small>", required: false, multiple: false, submitOnChange: true, newLineAfter: true, width: 7
         paragraph getFormat("important","<small>To Set Lock code enter: Slot#, Pin Code, code Name, then push Lock Code Button. Some locks will not support the following; overwrite an existing slot <br>unless deleted first, Test Unlock Feature. Alternatively you can open the Lock Device in Hub Device menu to verify</small>")
@@ -155,7 +157,7 @@ def mainPage() {
         input "retrieveCodeButton", "button", title: "<b>Retrieve Codes(s) and Code constraints</b>", width: 4
         paragraph getFormat("important","Button Confrimation Message:&nbsp <small>${state.lockSetMSG}</small>")
 }	  
-///////////////////////////////////////////////////////////////  Usage Notes Section  //////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////  USAGE NOTES  //////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes / Instructions:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
       "<li>Use for any Lock or Contact capability. Add as many as you want on table.</li>"+
@@ -175,7 +177,7 @@ def mainPage() {
       }
   }
 }
-//////////////////////////////////////////////////////////////////  Main Table Build ///////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////  MAIN TABLE BUILD ///////////////////////////////////////////////////////////////
 String displayTable() {
     //////////////////////////// Table Input Fields /////////////////////////////
     if(state.newMode) { //////// Input Modes  
@@ -240,7 +242,7 @@ String displayTable() {
 	else if (state.pauseUnCheckedBox) {def dev = DeVices.find{"$it.id" == state.pauseUnCheckedBox}  
 	    state.DeVices[state.pauseUnCheckedBox].pause = false; state.remove("pauseUnCheckedBox") }
      endif
-///////////////////////////////////////// Table Header Build /////////////////////////////////////
+////////////////////////////////////////////////////////// TABLE HEADER BUILD ////////////////////////////////////////////////////
 	String str = "<script src='https://code.iconify.design/iconify-icon/1.0.0/iconify-icon.min.js'></script>"   
         str += "<style>.mdl-data-table tbody tr:hover{background-color:inherit} .tstat-col td, .tstat-col th {font-size:16px !important; padding:2px 6px;text-align:center} + .tstat-col td {font-size:16px  }" +
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style='border:3px solid black'>" +
@@ -302,7 +304,7 @@ String displayTable() {
         String pauseCheckBoxT = (state.DeVices["$dev.id"].pause) ? buttonLink("A$dev.id", state.pauseIcon) : buttonLink("B$dev.id", state.playIcon) 
         /String notifyCheckBoxT = (state.DeVices["$dev.id"].notify) ? buttonLink("Q$dev.id", state.playIcon) : buttonLink("R$dev.id", state.pauseIcon) 
         
-///////////////////////////////////////////////// Table Rows Build /////////////////////////////////////////////
+/////////////////////////////////////////////////////////////// TABLE ROWS BUILD //////////////////////////////////////////////////
         str += "<tr style='color:black'><td>${state.DeVices["$dev.id"].zone}</td>" +     
         "<td style='border-right:2px solid black'>$devLink</td>" 
        	if (dev.currentLock) {str += "<td style='font-weight:bold; font-size:18px !important; border-right:2px solid black; color:${dev.currentLock == "locked" ? "green" : "red"}' title='Click to Change State'>$deviceStateT</td>"}  
@@ -330,7 +332,7 @@ String displayTable() {
 String buttonLink(String btnName, String linkText, color = SteelBlue, font = "13px") { //// Device Link Format
   	"<div class='form-group'><input type='hidden' name='${btnName}.type' value='button'></div><div><div class='submitOnChange' onclick='buttonClick(this)' style='color:$color;cursor:pointer;font-size:$font'>$linkText</div></div><input type='hidden' name='settings[$btnName]' value=''>"
 	}
-/////////////////////////////////////////////////////////// Schedules and Subscribes //////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////// SCHEDULES AND SUBSCRIBES //////////////////////////////////////////////////////////
 void initialize() {
      subscribe(DeVices, "lock.unlocked", onTimeHandler)
 	 subscribe(DeVices, "lock.locked", offTimeHandler)
@@ -353,7 +355,7 @@ void initialize() {
      if(logDebugEnableBool) runIn(3600, logsOff)  // Disable all debug Logging after time elapsed
      else unschedule(logsOff)
 }   
-////////////////////////////////////////////////////////////////// Handlers //////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////// HANDLERS //////////////////////////////////////////////////////////////////
 def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
     state.DeVices[evt.device.id].start = now()
     if (countsBothBool || countsOpenBool) {state.DeVices[evt.device.id].counts += 1 } 
@@ -528,26 +530,26 @@ def statsResetHandler() { //// Called by; Sched Reset time
         }
     state.lastPush = statsReport
     if (statsReportBool && pushDevice && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification(state.lastPush)}  
-    log.info "${state.lastPush}"
+    if (logInfoEnableBool) {log.info "${state.lastPush}"}
 }
 def buildCron() {//// Build Cron for All Locked Time if used
   if (allLockBool) {
-        String formattedTimeOff = allOffTime.substring(11, allOffTime.length() - 12)
+        String formattedTimeOff = allLockTime.substring(11, allLockTime.length() - 12)
         String hoursOff = formattedTimeOff.substring(0, formattedTimeOff.length() - 3) // Chop off the last 3 in string
         String minutesOff = formattedTimeOff.substring(3) // Chop off the first 3 in string
-        state.allLockCron = "0 ${minutesOff} ${hoursOff} * * ? * "  
+        state.allLockCron = "0 ${minutesOff} ${hoursOff} ? * * * "  
     }
   //// Stats Reset Cron 
   if (statsResetBool) {
         String formattedTimeReset = statsResetTime.substring(11, statsResetTime.length() - 12)
         String hoursReset = formattedTimeReset.substring(0, formattedTimeReset.length() - 3) // Chop off the last 3 in string
         String minutesReset = formattedTimeReset.substring(3) // Chop off the first 3 in string
-        if (statsResetDay == "Everyday") {state.statsResetCron = "0 ${minutesReset} ${hoursReset} * * ? * * *" }
-        else state.statsResetCron = "0 ${minutesReset} ${hoursReset} * * ? * ${statsResetDay} *"  
-    }   
-  if (logDebugEnableBool) {log.debug "App: ${app.label} -- Cron Schedule Successfully Built"} 
+        if (statsResetDay == "Everyday") {state.statsResetCron = "0 ${minutesReset} ${hoursReset} ? * * *" }
+        else state.statsResetCron = "0 ${minutesReset} ${hoursReset} ? * ${statsResetDay} *" 
+       }   
+  if (logDebugEnableBool) {log.debug "App: ${app.label} -- Cron Schedule(s) Successfully Built"} 
 }
-/////////// Lock Codes
+///////////////////////////////////////////////////////////// LOCK CODES /////////////////////////////////////////////////////////
 def setLockCode(btn) {
     if (btn == "lockCodeButton") {
 		int slotNumberInt = Integer.valueOf(slotNumber) 
@@ -576,15 +578,15 @@ def setLockCode(btn) {
     }
     if (pushDevice && ((settings.notifyOptions1?.contains("pushLockSet1") && state.DeVices["$lockCodeDev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockSet2") && state.DeVices["$lockCodeDev.id"].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLockSet3") && state.DeVices["$lockCodeDev.id"].notifyOptions == 3))) {
         dataMap = [notifyCase:4, zone:state.DeVices["$lockCodeDev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
-    log.info "App: ${app.label} -- Lock Code Button Confrimation: ${state.lockSetMSG}"
+    if (logInfoEnableBool) {log.info "App: ${app.label} -- Lock Code Button Confrimation: ${state.lockSetMSG}"}
 }
-////////////////////////////////////////////////////////////  Status Bar  //////////////////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////////////////////  STATUS BAR  //////////////////////////////////////////////////////////////////// 
 String statusBar() {
-    if (pauseAllBool) {paragraph getFormat("noticable","<b>All Lock Actions Paused!!!</b>")}
+    if (pauseAllBool) {paragraph getFormat("noticable","<b>All App Lock Actions Paused!!!</b>")}
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
     if (pushDevice) {paragraph getFormat("important","<b>Last Push Notification:</b> &nbsp ${state.lastPush}" )}
 }
-///////////////////////////////////////////////////////////  Icon Graphics  ////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////  ICON GRAPHICS  ////////////////////////////////////////////////////////////////// 
 def icons() { 
     	state.playIcon = "<iconify-icon inline style='color:green; font-size:23px' icon=ic:baseline-play-circle></iconify-icon>"
     	state.pauseIcon = "<iconify-icon inline style='color:red; font-size:23px' icon=ic:sharp-pause-circle-filled></iconify-icon>" 
@@ -603,7 +605,7 @@ def icons() {
     state.notifyOptionsIcon4 = "<iconify-icon inline style='color:#9ACD32; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
     if (logDebugEnableBool) {log.debug "App: ${app.label} -- Get Icon Graphics"}
 }    
-////////////////////////////////////////////////////////////  Other Stuff //////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////  OTHER STUFF //////////////////////////////////////////////////////////////////
 def updated() {  // runs every 'Done' on already installed app 
     unsubscribe()  ////   
     unschedule()  // cancels all(or one) scheduled jobs including runIn
