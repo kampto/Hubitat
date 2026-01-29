@@ -20,7 +20,7 @@ import java.text.SimpleDateFormat
 import groovy.json.JsonSlurper  // Retrieving Lock JSON
 import groovy.json.JsonOutput
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.6" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.7" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
