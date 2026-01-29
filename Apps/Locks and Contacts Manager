@@ -75,12 +75,15 @@ def mainPage() {
   }
 ///////////////////////////////////////////////////////////////////  ADVANCED INPUTS /////////////////////////////////////////////////////////////      
    section(getFormat("header","<b>Advanced Options:</b>"),hideable: true, hidden: false) {
-        input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App", width: 7, newLineAfter: true 
-        input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Lock Actions? &nbsp No Locks will change state from App</b>"), defaultValue:false, width: 7, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
-   		input name: "allLockBool", type: "bool", title: getFormat("important","<b>Lock All Locks at a Specific daily time?</b> &nbsp <small>This must remain checked ON to enable. <br>Ignores Modes and Device specific Pause. Will not run if 'Pause All' enabled</small>"), defaultValue:false, width: 7, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
-        if (allLockBool) {
-            input name: "allLockTime", type: "time", title:getFormat("blueRegular","<b>Enter All Locks locked time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
-           	}
+        input "updateButton", "button", title: "<b>Update/Store Schedules</b> without hitting Done exiting App", width: 4, newLineAfter: false
+      	input name: "contactModeBool", type: "bool", title: getFormat("important","<b>Show only 'Contacts' features (Simplify by hidding Lock Options) ? &nbsp</b><br><small>Note: If you have Locks Actions added toggling to Contacts only they will not be erased, only hidden and still run in background.</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, width: 7  
+        if (!contactModeBool) {
+        	input name: "pauseAllBool", type: "bool", title: getFormat("important","<b>Pause All App Lock Actions? &nbsp No Locks will change state from App</b>"), defaultValue:false, width: 7, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
+   			input name: "allLockBool", type: "bool", title: getFormat("important","<b>Lock All Locks at a Specific daily time?</b> &nbsp <small>This must remain checked ON to enable. <br>Ignores Modes and Device specific Pause. Will not run if 'Pause All' enabled</small>"), defaultValue:false, width: 7, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px' 
+        	if (allLockBool) {
+            	input name: "allLockTime", type: "time", title:getFormat("blueRegular","<b>Enter All Locks locked time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, newLineAfter: true, style: 'margin-left:70px'
+           		}
+        	}
         ////input name: "formatBool", type: "bool", title: getFormat("important","<b>Enable Alternative UI formatting, dark screen mode?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:10px'
         input name: "countsBothBool", type: "bool", title: getFormat("important","<b>Count both Open/Unlocked and Closed/Locked Activity?</b> &nbsp <small>Uncheck to select one or the other</small>"), defaultValue:true, width: 5,submitOnChange:true, style: 'margin-left:10px' 
         if (!countsBothBool) {input name: "countsOpenBool", type: "bool", title: getFormat("important","<b>If checked Count only Open/Unlocked, if unchecked Count only Closed/Locked Activity</b>"), defaultValue:false, width: 5, newLineAfter: true, submitOnChange:true, style: 'margin-left:30px' 
@@ -98,36 +101,38 @@ def mainPage() {
         input "pushDevice", "capability.notification", title: "<b>Select Device(s) to send Notification to (Optional)</b> &nbsp <small>Applies to Selected Devices in table.</small>", multiple: true, required: false, submitOnChange: true, width: 8, newLineAfter: true, style: 'margin-left:10px'       
        	if (pushDevice) {
             input "notifyOptions1", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon1}: Select Events that you want to get Notifications for:</b>", required: false, multiple: true, submitOnChange: true, width: 3, style: 'margin-left:60px', options:[
-                ["pushOpen1": "Get Notified of Contacts Opening"],
-    			["pushClosed1": "Get Notified of Contacts Closing"],
-    			["pushUnlocked1": "Get Notified of Locks Unlocking"],
-    			["pushLocked1": "Get Notified of Locks Locking"],
-    			["pushLockFailed1": "Get Notified about any Lock possibly Jamming"],
-            	["pushBattery1": "Get Notified about Battery Levels below selected level"],
-    			["pushLockSet1": "Get Notified about any Lock Code Changes within App"]  ]
+                ["pushOpen": "Get Notified of Contacts Opening"],
+    			["pushClosed": "Get Notified of Contacts Closing"],
+    			["pushUnlocked": "Get Notified of Locks Unlocking"],
+    			["pushLocked": "Get Notified of Locks Locking"],
+    			["pushLockFailed": "Get Notified about any Lock possibly Jamming"],
+            	["pushBattery": "Get Notified about Battery Levels below selected level"],
+    			["pushLockSet": "Get Notified about any Lock Code Changes within App"]  ]
             input "notifyOptions2", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon2}: Select Events that you want to get Notifications for:</b>", required: false, multiple: true, submitOnChange: true, width: 3, style: 'margin-left:60px', options:[
-                ["pushOpen2": "Get Notified of Contacts Opening"],
-    			["pushClosed2": "Get Notified of Contacts Closing"],
-    			["pushUnlocked2": "Get Notified of Locks Unlocking"],
-    			["pushLocked2": "Get Notified of Locks Locking"],
-    			["pushLockFailed2": "Get Notified about any Lock possibly Jamming"],
-            	["pushBattery2": "Get Notified about Battery Levels below selected level"],
-    			["pushLockSet2": "Get Notified about any Lock Code Changes within App"]  ]
+                ["pushOpen": "Get Notified of Contacts Opening"],
+    			["pushClosed": "Get Notified of Contacts Closing"],
+    			["pushUnlocked": "Get Notified of Locks Unlocking"],
+    			["pushLocked": "Get Notified of Locks Locking"],
+    			["pushLockFailed": "Get Notified about any Lock possibly Jamming"],
+            	["pushBattery": "Get Notified about Battery Levels below selected level"],
+    			["pushLockSet": "Get Notified about any Lock Code Changes within App"]  ]
             input "notifyOptions3", "enum", title: "<b>Notify Options ${state.notifyOptionsIcon3}: Select Events that you want to get Notifications for:</b>", required: false, multiple: true, submitOnChange: true, width: 3, newLineAfter: true, style: 'margin-left:60px', options:[
-                ["pushOpen3": "Get Notified of Contacts Opening"],
-    			["pushClosed3": "Get Notified of Contacts Closing"],
-    			["pushUnlocked3": "Get Notified of Locks Unlocking"],
-    			["pushLocked3": "Get Notified of Locks Locking"],
-    			["pushLockFailed3": "Get Notified about any Lock possibly Jamming"],
-            	["pushBattery3": "Get Notified about Battery Levels below selected level"],
-    			["pushLockSet3": "Get Notified about any Lock Code Changes within App"]  ]
+                ["pushOpen": "Get Notified of Contacts Opening"],
+    			["pushClosed": "Get Notified of Contacts Closing"],
+    			["pushUnlocked": "Get Notified of Locks Unlocking"],
+    			["pushLocked": "Get Notified of Locks Locking"],
+    			["pushLockFailed": "Get Notified about any Lock possibly Jamming"],
+            	["pushBattery": "Get Notified about Battery Levels below selected level"],
+    			["pushLockSet": "Get Notified about any Lock Code Changes within App"]  ]
             input name: "pushMode", type: "mode", title: getFormat("blueRegular","<b>Only send Notifications during selected Mode?</b>"), defaultValue: "Any", width: 4, submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'   
-            if (settings.notifyOptions1?.contains("pushOpen1") || settings.notifyOptions2?.contains("pushOpen2") || settings.notifyOptions3?.contains("pushOpen3")) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open.<b>&nbsp <small>Notify Options 1-3, Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, width:6, newLineAfter: true, style: 'margin-left:80px'} 
-            if (settings.notifyOptions1?.contains("pushUnlocked1") || settings.notifyOptions2?.contains("pushUnlocked2") || settings.notifyOptions3?.contains("pushUnlocked3")) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked.<b>&nbsp <small>Notify Options 1-3, Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
-           	if (settings.notifyOptions1?.contains("pushBattery1") || settings.notifyOptions2?.contains("pushBattery2") || settings.notifyOptions3?.contains("pushBattery3")) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter Battery % low level to get Notified,<b>&nbsp <small>All Devices, Default = 40</small>"), defaultValue: "40", submitOnChange:true,  newLineAfter: true, style: 'margin-left:80px'}
+            if (settings.notifyOptions1?.contains("pushOpen") || settings.notifyOptions2?.contains("pushOpen") || settings.notifyOptions3?.contains("pushOpen")) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open.<b>&nbsp <small>Notify Options 1-3, Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, width:6, newLineAfter: true, style: 'margin-left:80px'} 
+            if (settings.notifyOptions1?.contains("pushUnlocked") || settings.notifyOptions2?.contains("pushUnlocked") || settings.notifyOptions3?.contains("pushUnlocked")) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked.<b>&nbsp <small>Notify Options 1-3, Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
+           	if (settings.notifyOptions1?.contains("pushBattery") || settings.notifyOptions2?.contains("pushBattery") || settings.notifyOptions3?.contains("pushBattery")) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter Battery % low level to get Notified,<b>&nbsp <small>All Devices, Default = 40</small>"), defaultValue: "40", submitOnChange:true,  newLineAfter: true, style: 'margin-left:80px'}
             if (statsResetBool) { input name: "statsReportBool", type: "bool", title: getFormat("blueRegular","<b>If using Reset all Stats at specific Time option, send a push notification Report of all devices Total Active Time and Counts Stats?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:80px' }
         	}
-}       
+}      
+///////////////////////////////////////////////////////////////  LOCK OPTIONS  //////////////////////////////////////////////////////////////      
+if (!contactModeBool) {         
 ///////////////// ACTIONS           
     section(getFormat("header","<b>LOCK ACTION Case Options:</b>"),hideable: true, hidden: false) { 
         input name: "autoLockBool", type: "bool", title: getFormat("important","<b>Auto Lock if unlocked after a delay?</b>&nbsp &nbsp <small>Applies to all Locks. Ignores Contact Switches, could lock while door is open! Use case is if door unlocked but never opened or if you dont have a contact sensor on door. Will not run if Paused or Incorrect mode.</small>"), defaultValue:false, newLineAfter: true, width: 8, submitOnChange:true, style: 'margin-left:10px' 
@@ -156,7 +161,8 @@ def mainPage() {
         input "testCodeButton", "button", title: "<b>Test Unlock Code</b>", width: 3
         input "retrieveCodeButton", "button", title: "<b>Retrieve Codes(s) and Code constraints</b>", width: 4
         paragraph getFormat("important","Button Confrimation Message:&nbsp <small>${state.lockSetMSG}</small>")
-}	  
+    }	  
+}
 ///////////////////////////////////////////////////////////////  USAGE NOTES  //////////////////////////////////////////////////////////////
    section(getFormat("header","Usage Notes / Instructions:"), hideable: true, hidden: hide) {  
       paragraph getFormat("lessImportant","<ul>"+    
@@ -248,12 +254,14 @@ String displayTable() {
         "</style><div style='overflow-x:auto'><table class='mdl-data-table tstat-col' style='border:3px solid black'>" +
         "<thead><tr style='border-bottom:2px solid black'><th>#</th>" +	
         "<th style='border-right:2px solid black'><small><small>App ver${state.version}</small></small><br>Device</th>" +
-        "<th style='border-right:2px solid black'>State</th>" +     
-		"<th style='border-right:2px solid black'>Run<br>Mode</th>"+    
+        "<th style='border-right:2px solid black'>State</th>" 
+        if (!contactModeBool) {    
+		str += "<th style='border-right:2px solid black'>Run<br>Mode</th>"+    
         "<th style='border-right:2px solid black'>Lock<br>Actions</th>"+    
         "<th style='border-right:2px solid black'>Unlock<br>Actions</th>"+  
-        "<th style='border-right:2px solid black'>Lock<br>Pause?</th>"+
-        "<th style='border-right:2px solid black'>Notifi-<br>cations?</th>"+    
+        "<th style='border-right:2px solid black'>Lock<br>Pause?</th>"
+        }    
+        str += "<th style='border-right:2px solid black'>Notifi-<br>cations?</th>"+    
         "<th style='border-right:2px solid black'>Battery<br>Level%</th>"+    
         "<th>Last State<br>Change Time" 
             if (countsBothBool) {str += "<th>Active<br>Counts"}    
@@ -309,7 +317,8 @@ String displayTable() {
         "<td style='border-right:2px solid black'>$devLink</td>" 
        	if (dev.currentLock) {str += "<td style='font-weight:bold; font-size:18px !important; border-right:2px solid black; color:${dev.currentLock == "locked" ? "green" : "red"}' title='Click to Change State'>$deviceStateT</td>"}  
         else if (dev.currentContact) {str += "<td style='font-weight:bold; font-size:16px; border-right:2px solid black; color:${dev.currentContact == "closed" ? "green" : "red"}' title='Contact State'>${dev.currentContact}</td>"}
-        	endif    
+        	endif
+        if (!contactModeBool) {
        	if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Click to Change Mode'>$mode</td>"}
        		else {str += "<td style='border-right:2px solid black' title='Contacts Cant use Modes'>N/A</td>"} 
         if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Select Lock actions or none'>$lockActionsT</td>"} 
@@ -318,6 +327,7 @@ String displayTable() {
         	else  {str += "<td style='border-right:2px solid black' title='Contacts Cant use special Actions'>N/A</td>"} 
         if (dev.currentLock) {str += "<td style='border-right:2px solid black' title='Click to Pause all Lock App actions, Red is paused, Green is run'>$pauseCheckBoxT</td>"} 
         	else  {str += "<td style='border-right:2px solid black' title='Cant Pause a contact'>N/A</td>"} 
+        	}
         str += "<td style='border-right:2px solid black' title='Get Notifications from this devices actions? Check # Options in advanced options, Red Pause is None'>$notifyOptionsT</td>" 
         str += "<td style='border-right:2px solid black; color:${dev.currentBattery > batPercent ? "black" : "red"}'>${dev.currentBattery}</td>"+    
         "<td style='font-size:14px !important' title='Last Time Lock or contact went Open' >${state.DeVices["$dev.id"].onTime}</td>"+
@@ -367,7 +377,7 @@ def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
            		runIn(openDelay, notifyDataHandler, [data:dataMap, overwrite:true]) }
         	else {notifyEvtHandler(evt)}
     	} 
-    	if (((settings.notifyOptions1?.contains("pushUnlocked1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushUnlocked2") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushUnlocked3") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentLock == "unlocked") {
+    	if (((settings.notifyOptions1?.contains("pushUnlocked") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushUnlocked") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushUnlocked") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentLock == "unlocked") {
     		if (unlockedDelay > 1) {dataMap = [notifyCase:2, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
            		runIn(unlockedDelay, notifyDataHandler, [data:dataMap, overwrite:true]) }
         	else {notifyEvtHandler(evt)}
@@ -382,8 +392,8 @@ def offTimeHandler(evt) { //// Called by; Subscribes only  CLOSED
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
     if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
     if (pushDevice) {
-    	if (((settings.notifyOptions1?.contains("pushClosed1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushClosed2") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushClosed3") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentContact == "closed") {notifyEvtHandler(evt) }
-        if (((settings.notifyOptions1?.contains("pushLocked1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLocked2") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLocked3") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentLock == "locked") {notifyEvtHandler(evt) }
+    	if (((settings.notifyOptions1?.contains("pushClosed") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushClosed") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushClosed") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentContact == "closed") {notifyEvtHandler(evt) }
+        if (((settings.notifyOptions1?.contains("pushLocked") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLocked") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLocked") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentLock == "locked") {notifyEvtHandler(evt) }
     }    
 }       
 void lockHandler(data) { 
@@ -406,7 +416,7 @@ void lockRetryHandler(data) {
     if (dev.currentLock == "unlocked" && data.value == state.DeVices["$dev.id"].zone ) {
        	dev.lock()
         if (logInfoEnableBool) {log.info "App: ${app.label} -- Locking Retry, **${dev}** Possible Failure"}
-        if (pushDevice && ((settings.notifyOptions1?.contains("pushLockFailed1") && state.DeVices["$dev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockFailed2") && state.DeVices["$dev.id"].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLockFailed3") && state.DeVices["$dev.id"].notifyOptions == 3))) {dataMap=[notifyCase:3, value:dev.currentLock, displayName:dev.displayName, zone:state.DeVices["$dev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
+        if (pushDevice && ((settings.notifyOptions1?.contains("pushLockFailed") && state.DeVices["$dev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockFailed") && state.DeVices["$dev.id"].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLockFailed") && state.DeVices["$dev.id"].notifyOptions == 3))) {dataMap=[notifyCase:3, value:dev.currentLock, displayName:dev.displayName, zone:state.DeVices["$dev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
      } 
 }  }
 void unLockHandler(data) {   
@@ -461,7 +471,7 @@ def allLockHandler(evt) {//// Called by Sched All off time or App button
 }
 def batHandler(evt) {
     if (evt.device.currentBattery <= batPercent) {
-    	if (pushDevice && (pushMode == location.mode || pushMode == "Any") && ((settings.notifyOptions1?.contains("pushBattery1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushBattery2") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushBattery3") && state.DeVices[evt.device.id].notifyOptions == 3))) { pushDevice.deviceNotification("${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%") }
+    	if (pushDevice && (pushMode == location.mode || pushMode == "Any") && ((settings.notifyOptions1?.contains("pushBattery") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushBattery") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushBattery") && state.DeVices[evt.device.id].notifyOptions == 3))) { pushDevice.deviceNotification("${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%") }
 		if (logInfoEnableBool) {log.info "App: ${app.label} -- Device **${evt.device}** Battery level ${evt.device.currentBattery}%, warning is ${batPercent}%"}
 }  }
 def remoteSwitchHandler(evt) {//// Called by Subscribes only.
@@ -576,7 +586,7 @@ def setLockCode(btn) {
     	   	}
     	state.lockSetMSG = "**${lockCodeDev}**;  Retrieved Code(s) = ${resultCode} <br>Code digit Length = ${codeLength}, Max # of Codes = ${maxCodes}. &nbsp Lock State = ${lockCodeDev.currentLock}"    
     }
-    if (pushDevice && ((settings.notifyOptions1?.contains("pushLockSet1") && state.DeVices["$lockCodeDev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockSet2") && state.DeVices["$lockCodeDev.id"].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLockSet3") && state.DeVices["$lockCodeDev.id"].notifyOptions == 3))) {
+    if (pushDevice && ((settings.notifyOptions1?.contains("pushLockSet") && state.DeVices["$lockCodeDev.id"].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushLockSet") && state.DeVices["$lockCodeDev.id"].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushLockSet") && state.DeVices["$lockCodeDev.id"].notifyOptions == 3))) {
         dataMap = [notifyCase:4, zone:state.DeVices["$lockCodeDev.id"].zone]; runIn(1, notifyDataHandler, [data:dataMap, overwrite:true])}
     if (logInfoEnableBool) {log.info "App: ${app.label} -- Lock Code Button Confrimation: ${state.lockSetMSG}"}
 }
