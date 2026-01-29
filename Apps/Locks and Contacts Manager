@@ -86,10 +86,9 @@ def mainPage() {
            }
         input name: "statsResetBool", type: "bool", title: getFormat("important","<b>Reset On Time and Count Stats at a specific time and day weekly?</b><br><small>Applys to all devices. This must remain checked ON to enable.</small>"), defaultValue:false, submitOnChange:true, style: 'margin-left:10px' 
             if (statsResetBool) {
-            	input name: "statsResetTime", type: "time", title:getFormat("blueRegular","<b>Enter All Off time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 4, style: 'margin-left:70px'
-           		input name: "statsResetDay", type: "enum", title: getFormat("blueRegular","Select Day"), defaultValue: "SUN", submitOnChange: true,  options: ["Everyday","SUN","MON","TUE","WED","THU","FRI","SAT"], required: false, width: 2, style: 'margin-left:30px'   
-            	input name: "statsReportBool", type: "bool", title: getFormat("blueRegular","<b>At Reset Time send a push notification Report of all devices Total Active Time and Counts?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, width: 4, style: 'margin-left:20px' 
-            }	
+            	input name: "statsResetTime", type: "time", title:getFormat("blueRegular","<b>Enter All Off time, Applies to all.</b> &nbsp <small>Uses 24hr time, &nbsp Hit Update</small>"), defaultValue: "", required: false,  submitOnChange:true, width: 5, style: 'margin-left:70px'
+           		input name: "statsResetDay", type: "enum", title: getFormat("blueRegular","Select Day"), defaultValue: "SUN", submitOnChange: true,  options: ["Everyday","SUN","MON","TUE","WED","THU","FRI","SAT"], required: false, newLineAfter: true, width: 3, style: 'margin-left:30px'   
+            	}	
         input name: "logInfoEnableBool", type: "bool", title: getFormat("important","<b>Enable Info Logging?</b> &nbsp <small>Stays active</small>"), defaultValue:true, submitOnChange:true,  width: 3, style: 'margin-left:10px'
         input name: "logDebugEnableBool", type: "bool", title: getFormat("important","<b>Enable Debug Logging?</b> &nbsp <small>Shuts off in 1hr</small>"), defaultValue:false, submitOnChange:true,  width: 3, style: 'margin-left:10px'
 }
@@ -125,7 +124,8 @@ def mainPage() {
             if (settings.notifyOptions1?.contains("pushOpen1") || settings.notifyOptions2?.contains("pushOpen2") || settings.notifyOptions3?.contains("pushOpen3")) {input name: "openDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Open<b>&nbsp <small>Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, width:6, newLineAfter: true, style: 'margin-left:80px'} 
             if (settings.notifyOptions1?.contains("pushUnlocked1") || settings.notifyOptions2?.contains("pushUnlocked2") || settings.notifyOptions3?.contains("pushUnlocked3")) {input name: "unlockedDelay", type: "number", title:getFormat("blueRegular","<b>Wait this many Seconds before sending Notification if still Unlocked<b>&nbsp <small>Default = 1sec</small>"), defaultValue: "1", submitOnChange:true, newLineAfter: true, style: 'margin-left:80px'}
            	if (settings.notifyOptions1?.contains("pushBattery1") || settings.notifyOptions2?.contains("pushBattery2") || settings.notifyOptions3?.contains("pushBattery3")) {input name: "batPercent", type: "number", title:getFormat("blueRegular","<b>Enter Battery % low level to get Notified<b>"), defaultValue: "40", submitOnChange:true,  newLineAfter: true, style: 'margin-left:80px'}
-            }
+            if (statsResetBool) { input name: "statsReportBool", type: "bool", title: getFormat("blueRegular","<b>If using Reset all Stats at specific Time option, send a push notification Report of all devices Total Active Time and Counts Stats?</b>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:80px' }
+        	}
 }       
 ///////////// Actions           
     section(getFormat("header","<b>LOCK ACTION Case Options:</b>"),hideable: true, hidden: false) { 
