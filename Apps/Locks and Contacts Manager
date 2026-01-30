@@ -8,7 +8,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*	1.1.8	2026-01-29	kampto		More counts options. Add option to reset counts/active times a specified time per week or everyday with option push report. Fix Cron timer bug for all-lock and stats reset
+*	1.1.9	2026-01-29	kampto		More counts options. Add option to reset counts/active times a specified time per week or everyday with option push report. Fix Cron timer bug for all-lock and stats reset. 1.1.9 Seperated reporting formats push vs log
 *	1.1.6	2025-11-02	kampto		Added 3rd different notification maps per device. Cancellable loccking if contact re-opened after delay, then restart timer. Actions 1 and 2. 
 *	1.1.4	2025-09-02	kampto		Added 2 different notification maps per device. Added send notifications per Mode option
 *   1.1.1	2025-08-21	kampto		Add section for managing Lock Codes. This section is BETA, may not work for everyones Locks. Rework Notification menu	
@@ -20,7 +20,7 @@ import java.text.SimpleDateFormat
 import groovy.json.JsonSlurper  // Retrieving Lock JSON
 import groovy.json.JsonOutput
 
-def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.8" }
+def titleVersion() {state.name = "Locks and Contacts Manager...(Control/Automate Locks and Monitor Contacts)"; state.version = "1.1.9" }
 definition (
 	name: "Locks and Contacts Manager", namespace: "kampto", author: "T. K.",
 	description: "Control/Automate Locks, Use contacts if applicable",
@@ -523,25 +523,28 @@ def refreshHandler() {//// Called by; In App Button push and within functions  /
           }
 }  }
 def statsResetHandler() { //// Called by; Sched Reset time
-    String statsReport = "${app.label} -- All Device On Times and Counts Stats Scheduled Reset, Stats Report: \r\nDevice ..... Total Active Time(HH:MM:SS) ..... Counts: \r\n"
+    String statsReportPush = "${app.label} -- All Device On Times and Counts Stats Scheduled Reset, Stats Report: \r\nDevice.....TotalActiveTime(HH:MM:SS).....Counts: \r\n" //// Format for Push
+    String statsReportLog = "${app.label} -- All Device On Times and Counts Stats Scheduled Reset, Stats Report: <br>Device.....TotalActiveTime(HH:MM:SS).....Counts: <br>"  //// Format for Log
+    
     DeVices.each { dev ->
       	if (statsReportBool) { //// calc total active time, build report
             int total = state.DeVices[dev.id].total / 1000
-        	float totalDays = (total / 86400) as float //// ver1.1.1
+        	float totalDays = (total / 86400) as float 
         	int hours = total / 3600
         	total = total % 3600
 	    	int mins = total / 60
 	    	int secs = total % 60
         	String time = "$hours:${mins < 10 ? "0" : ""}$mins:${secs < 10 ? "0" : ""}$secs"
-            statsReport = "$statsReport" + "${dev} ........... ${time} ........ ${state.DeVices[dev.id].counts} \r\n"
+            statsReportPush = "$statsReportPush" + "${dev}.....${time}.....${state.DeVices[dev.id].counts} \r\n" //// Format for Push
+            statsReportLog = "$statsReportLog" + "${dev}.....${time}.....${state.DeVices[dev.id].counts} <br>" //// Format for Log
     		}
         state.DeVices[dev.id].start = now()
        	state.DeVices[dev.id].total = 0
 		state.DeVices[dev.id].counts = 0
         }
-    state.lastPush = statsReport
-    if (statsReportBool && pushDevice && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification(state.lastPush)}  
-    if (logInfoEnableBool) {log.info "${state.lastPush}"}
+    state.lastPush = statsReportLog  //// For status Bar
+    if (statsReportBool && pushDevice && (pushMode == location.mode || pushMode == "Any")) {pushDevice.deviceNotification(statsReportPush)}  
+    if (logInfoEnableBool) {log.info "${statsReportLog}"}
 }
 def buildCron() {//// Build Cron for All Locked Time if used
   if (allLockBool) {
@@ -597,7 +600,7 @@ String statusBar() {
    	paragraph getFormat("smallLineSpace","<b>Current Hub Mode:</b> &nbsp ${location.mode}")
     if (pushDevice) {paragraph getFormat("important","<b>Last Push Notification:</b> &nbsp ${state.lastPush}" )}
 }
-//////////////////////////////////////////////////////////////////  ICON GRAPHICS  ////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////  ICON GRAPHICS  //////////////////////////////////////////////////////////////////
 def icons() { 
     	state.playIcon = "<iconify-icon inline style='color:green; font-size:23px' icon=ic:baseline-play-circle></iconify-icon>"
     	state.pauseIcon = "<iconify-icon inline style='color:red; font-size:23px' icon=ic:sharp-pause-circle-filled></iconify-icon>" 
