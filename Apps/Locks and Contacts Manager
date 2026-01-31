@@ -373,7 +373,7 @@ def onTimeHandler(evt) { //// Called by; Subscribes only  OPEN
     state.DeVices[evt.device.id].onTime = new Date().format("MM-dd-yyyy ${location.timeFormat == "12" ? "h:mm:ss a" : "HH:mm:ss"}")  // Last Update
     if (logInfoEnableBool) {log.info "App: ${app.label} -- $evt.descriptionText"}
     if (pushDevice) {
-    	if (((settings.notifyOptions1?.contains("pushOpen1") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushOpen2") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushOpen3") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentContact == "open") {
+    	if (((settings.notifyOptions1?.contains("pushOpen") && state.DeVices[evt.device.id].notifyOptions == 1) || (settings.notifyOptions2?.contains("pushOpen") && state.DeVices[evt.device.id].notifyOptions == 2) || (settings.notifyOptions3?.contains("pushOpen") && state.DeVices[evt.device.id].notifyOptions == 3)) && evt.device.currentContact == "open") {
     		if (openDelay > 1) {dataMap = [notifyCase:1, value:evt.value, displayName:evt.displayName, descriptionText:evt.descriptionText, zone:state.DeVices[evt.device.id].zone]
            		runIn(openDelay, notifyDataHandler, [data:dataMap, overwrite:true]) }
         	else {notifyEvtHandler(evt)}
