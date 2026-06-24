@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   2.3.5	2026-05-25	kampto		Add 2nd voltage pause case. Code clean up. Attempt at improviong the 5min repeat Notification. Fix Off schedule overwrite issue. Add pause case Terminate device
+*   2.3.6	2026-06-24  kampto		Add 2nd voltage pause case. Code clean up. Attempt at improviong the 5min repeat Notification. Fix Off schedule overwrite bug. Add pause case stop/Terminate per device column
 *   2.3.3	2026-02-26	kampto		Cron per day Bug Fix, Added devices report notification @ optional stats reset
 *   2.3.2	2025-12-12	kampto		Moved Mode trigger#4 and Motion Ontime's to table Run Time. Modified notifications and bug found. Added 'Last Info Log' to status area. New option notify every 5min option if trigger still active.
 *   2.3.1	2025-11-22	kampto    	Add Action case #3, ability to manually turn on and have timed Off. Improved Notification options. Changed temp trigger to differential temp On/Off. Added toggle for Advanced/Basic display. Updated instructions. Make notifications per device and 3 Map options
@@ -32,7 +32,7 @@
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
 
-def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.5" }
+def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.6" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule/Control Switches, Relays, Outlets, Sprinklers, Valves",
@@ -56,6 +56,7 @@ def mainPage() {
     if (allOffTime == null) {allOffTime = "000000000000000000000000000000"}
     if (statsResetTime == null) {statsResetTime = "000000000000000000000000000000"}
     if (state.lastNotify == null) {state.lastNotify = "None Yet"}
+    state.pauseOrstop = "Pause Schedule" //// pause status text
                 
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
   displayTitle() 
@@ -69,7 +70,7 @@ def mainPage() {
             state.DeVices[dev.id] = [start: dev.currentSwitch == "on" || dev.currentValve == "open" ? now() : 0, 
             	total: 0, sunTime: false, sunrise: false, sunset: true, offset: 0, modes: "Any", blink: false, actions: 0, trigger: 0,
             	sun: false, mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, odd: false, onTime: "NotYet", notifyOptions: 0, notifyRepeat: false,
-            	startTime: "000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, specialPause: 0, sensorPause: false, motionCase: 0]  
+            	startTime: "000000000000000000000000000000", durTime: 0, cron: "", days: "", zone: 0, counts: 0, runsDay: 1, pause: false, specialPause: 0, sensorPause: false, pauseOff: false, motionCase: 0]  
             state.DeVicesList += dev.id 
            }
        }
@@ -127,7 +128,7 @@ def mainPage() {
                 ["pushDevOff": "Get Notified of Devices turning Off"], 
     			["pushMotion": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
     			["pushLeak": "Get Notified of Leak Detection (if Leak detect used)"], 
-                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Pause Terminate Function checked)"], 
+                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Off Case Checked)"], 
                 ["pushContactTrig": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
                 ["pushSwitchTrig": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
                 ["pushTempTrig": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
@@ -140,7 +141,7 @@ def mainPage() {
                 ["pushDevOff": "Get Notified of Devices turning Off"], 
     			["pushMotion": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
     			["pushLeak": "Get Notified of Leak Detection (if Leak detect used)"], 
-                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Pause Terminate Function checked)"],  
+                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Off Case Checked)"],  
                 ["pushContactTrig": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
                 ["pushSwitchTrig": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
                 ["pushTempTrig": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
@@ -153,7 +154,7 @@ def mainPage() {
                 ["pushDevOff": "Get Notified of Devices turning Off"], 
     			["pushMotion": "Get Notified of Motion Detection (if Motion 1 or 2 used)"],
     			["pushLeak": "Get Notified of Leak Detection (if Leak detect used)"], 
-                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Pause Terminate Function checked)"], 
+                ["pushTerminate": "Get Notified of On device getiing Terminated by a Pause case (If Off Case Checked)"], 
                 ["pushContactTrig": "Get Notified of Device triggered On by Contact Sensor (if Trigger 1 used)"],
                 ["pushSwitchTrig": "Get Notified of Device triggered On by Switch (if Trigger 2 used)"],
                 ["pushTempTrig": "Get Notified of Device triggered On by Temperature (if Trigger 3 used)"], 
@@ -204,9 +205,6 @@ def mainPage() {
     }
 ///////////// Pause Cases      
   	section(getFormat("header","PAUSE CASE Options: &nbsp <small><b>Schedule pause via; Wet, Moisture, Contact state, Voltage, ... For Switches & Valves</b></small>"),hideable: true, hidden: false) {    
-          input name: "pauseTerminate", type: "bool", title: getFormat("important","<b>Allow any met Pause Case set in table to also Terminate/Stop that Device if already On/Open?</b><br><small>Instead of just pausing upcoming schedules(default). Could prematurely shut off irrigation if using wet/dry pause case</small>"), defaultValue:false, submitOnChange:true, newLineAfter: true, style: 'margin-left:10px'
-        		if (pauseTerminate) {state.pauseOrstop = "Pause Schedule or Terminate(Off)"}  
-                else {state.pauseOrstop = "Pause Schedule"} 
           input "humidSensor", "capability.relativeHumidityMeasurement", title: getFormat("important", "<b>Pause Case $state.pauseCaseIcon1 Humidity/Moisture: Select Humidity sensor(s) to Pause Schedules/Triggers</b><br><small>If Humidity above (or below) selected % Will pause upcoming, Applies to devices with 'Pause Case' #1 in table. Typically used to pause Sprinklers.</small>"), required: false, multiple: true, newLineAfter: true, submitOnChange: true, width: 8, style: 'margin-left:10px'  
             if (humidSensor) {input name: "pauseHumidValue", type: "number", title: getFormat("blueRegular","<b>Select Humidity level % to Pause</b><small>&nbsp &nbsp Default = 50%</small>"), defaultValue: "50", submitOnChange: true, required: false, width: 4, style: 'margin-left:60px'
              input name: "invertHumidBool", type: "bool", title: getFormat("blueRegular","<b>Pause if Humidity % is below selected level instead?</b>"), defaultValue: false, submitOnChange: true, required: false, width: 3, newLineAfter: true
@@ -267,6 +265,7 @@ def mainPage() {
       "<li><b>Modes:</b> If your not using modes keep at 'Any'. If you want to only run during a specific Mode click and select that mode. If changed and need to get back to 'Any', go to Hub settings / Modes, and add new mode 'Any'"+	                     
       "<li><b>Motion:</b> Selecting a motion group # will toggle a device if Motion device is triggerd. Select Motion device in Options section below table, Run or while active time in Advanced options. Will not change the scheduled on times if any.If On to Off enabled the, the switch if On will turn Off for the time selected then back On. Makes it look like someone is Home! For both Off-On-Off or On-Off-On cases the Motion Sensor needs to clear back to inactive to trigger again. Can use Motion triggers with or without a schedule start time entered."+	
       "<li><b>Pause Cases:</b> Select 'None' or case # in table, set up in Pause Options section below table to pause upcoming schedule for that device only. Pause cases will work with schedules, triggers, motion, or anything.</li>"+   
+      "<li><b>Off Cases:</b> Check this box if you want a met Pause case to also shut Off a device that is currently On/Open. Note: Checking this could be problematic if using for irrigation and selecting wet/dry Pause Case, leave unchecked.</li>"+   
       "<li><b>Pause Case #6 Variables:</b> Select Hub varibale(s), These variables must be a set up as a Number or String Datatype. Will only pause when variable value 'changes' and then pause criteria is met</li>"+   
       "<li><b>Trigger Cases:</b> Select 'None' or case # in table, set up in Trigger Options section below table. Each case uses another device and its state change to trigger the target device in table.  Some like temperature or modes have additional settings. Triggers can be combined with Actions</li>"+    	                     
       "<li><b>Actions Cases:</b> Select 'None' or case # in table, set up in Action Options section below table. Cases 1 - 2 (blink) will work with startime defined schedules or triggers. Actions can be combined with Triggers but note Triggers + Actions could compete with each other giving unexpected On/Off results. So choose wisely.</li>"+    	                     
@@ -357,8 +356,9 @@ String displayTable() {
         "<th style='border-right:2px solid black'>Use<br>Motion</th>"+  //// ver2.0.1 
         "<th style='border-right:2px solid black'>Use<br>Trigger</th>"+    
         "<th style='border-right:2px solid black'>Use<br>Actions</th>"+    
-        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+  //// ver1.4.7
         "<th style='border-right:2px solid black'>Push-<br>Notify?</th>"+     
+        "<th style='border-right:2px solid black'>Pause<br>Case?</th>"+ 
+        "<th style='border-right:2px solid black'>Off<br>Case?</th>"+     
         "<th style='border-right:2px solid black'>Sensor<br>Paused</th>"    //// ver1.0.3
     }      
         str += "<th style='border-right:2px solid black'>Manual<br>Pause?</th>"+    //// ver1.0.3    
@@ -445,6 +445,7 @@ String displayTable() {
         	else if (state.DeVices[dev.id].notifyOptions == 4) {notifyOptionsT = buttonLink("Un$dev.id", state.notifyOptionsIcon4)} 
         	else {notifyOptionsT = buttonLink("Qn$dev.id", state.pauseIcon)} // Jump Start new feature from being Null
         		endif
+        String pauseOffT = (state.DeVices[dev.id].pauseOff) ? buttonLink("%$dev.id", state.darkOrangeCheckBox) : buttonLink("#$dev.id", state.unCheckedBox)
         String pauseCheckBoxT = (state.DeVices[dev.id].pause) ? buttonLink("t$dev.id", state.pauseIcon) : buttonLink("v$dev.id", state.playIcon) 
         String sunTimeCheckBoxT = (state.DeVices[dev.id].sunTime) ? buttonLink("w$dev.id", state.purpleCheckBox) : buttonLink("x$dev.id", state.unCheckedBox)  //// ver1.1.0
         String sunsetCheckBoxT = (state.DeVices[dev.id].sunset) ? buttonLink("D$dev.id", state.moonIcon) : buttonLink("E$dev.id", state.sunIcon)  //// ver1.1.0
@@ -508,8 +509,9 @@ String displayTable() {
         str += "<td style='border-right:2px solid black' title='Select None or which Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>" +
         "<td style='border-right:2px solid black' title='Select None or which Trigger to use for this device'>$triggerT</td>"     
         str += "<td style='border-right:2px solid black' title='Select None or which Actions to use'>$actionsT</td>"     
-        str += "<td style='border-right:2px solid black' title='Select None or which schedule Pause case for this device'>$specialPauseT</td>"
         str += "<td style='border-right:2px solid black' title='Red Pause is None, or select which set of Notifications to recieve for this device'>$notifyOptionsT</td>" 
+        str += "<td style='border-right:2px solid black' title='Select None or which schedule Pause case for this device'>$specialPauseT</td>"
+        str += "<td style='border-right:2px solid black' title='Do you want Pause Case to also shut OFF a currently On device, Checked = Yes'>$pauseOffT</td>"
         if (state.DeVices[dev.id].sensorPause) {str += "<td style='border-right:2px solid black' title='Shows if device schedule is Paused by a sensor pause case, non-editable'>$state.pauseIconGrey</td>"} 
         	else {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.playIconGrey</td>"} 
      }
@@ -671,9 +673,9 @@ def sensorScan(evt) { //// Scan all sensors and multiples and update status  ///
             || (state.voltPauseBool && state.DeVices[dev.id].specialPause == 3) || (state.volt2PauseBool && state.DeVices[dev.id].specialPause == 4) || (state.contactPauseBool && state.DeVices[dev.id].specialPause == 5)  
             || (state.tempPauseBool && state.DeVices[dev.id].specialPause == 6) || (state.varPauseBool && state.DeVices[dev.id].specialPause == 7)) {
             	state.DeVices[dev.id].sensorPause = true
-        		//////	Use pause case to terminate/ turn Off an device that is On/Open
-           		if (pauseTerminate && state.DeVices[dev.id].sensorPause && (dev.currentSwitch == "on" || dev.currentValve == "open") && evt != null) { 
-                	state.lastNotify = "${app.label} -- **${dev}** Terminated(stopped) by Pause Case using **${evt.device}** now ${evt.value}" 
+        		//////	Use pause case to terminate/Stop turn Off an device that is On/Open
+            	if (state.DeVices[dev.id].pauseOff && state.DeVices[dev.id].sensorPause && (dev.currentSwitch == "on" || dev.currentValve == "open") && evt != null) { 
+                    state.lastNotify = "${app.label} -- **${dev}** Terminated(stopped) by Pause Case using **${evt.device}** now ${evt.value}" 
                 	dataMap = [dataLastNotify:state.lastNotify, pushOption:"pushTerminate", zone:state.DeVices[dev.id].zone]  //// Log.info & Notifications
                     runIn(1, infoLogNotifyHandler, [data:dataMap, overwrite:false])     
                     runIn(1, switchOffHandler, [data:dataMap, overwrite:false])
@@ -742,7 +744,7 @@ void switchOnHandler(data) {//// Called by; Scheduled Cron's
                 }
             }
 }  } 
-void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, and various on handlers. 
+void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, and various handlers. 
     if (logDebugEnableBool) {log.debug "Test ... switchOffHandler ... data = $data"}
     DeVices.each { dev -> 
        	if (data.zone == state.DeVices[dev.id].zone && (dev.currentSwitch == "on" || dev.currentValve == "open")) {
@@ -750,7 +752,7 @@ void switchOffHandler(data) {//// Called by; End of Cron Sched Dur time, and var
           	if (dev.currentSwitch == "on")  {dev.off() }  
           	if (dev.currentValve == "open")  {dev.close() } 
             state.DeVices[dev.id].blink = false // cancel a blink session
-           	if (data.pushOption != "pushTerminate")  {//// if terminate do not send inf, was already sent
+           	if (data.pushOption != "pushTerminate")  {//// if terminate do not send info, was already sent
                 state.lastNotify = "${app.label} -- SwitchOffHandler ... **${dev}** Turning OFF,  Zone = **${data.zone}**" 
             	dataMap = [dataLastNotify:state.lastNotify, pushOption:"pushDevOff", state:"off", zone:state.DeVices[dev.id].zone]  // Log.info & Notifications
             	runIn(1, infoLogNotifyHandler, [data:dataMap, overwrite:false])  
@@ -1180,6 +1182,8 @@ void appButtonHandler(btn) {//// Called by; In app Button pushes
     else if (btn.startsWith("Rn")) {state.DeVices[btn.minus("Rn")].notifyOptions = 2}
     else if (btn.startsWith("Sn")) {state.DeVices[btn.minus("Sn")].notifyOptions = 3}
     else if (btn.startsWith("Tn")) {state.DeVices[btn.minus("Tn")].notifyOptions = 4}
+    	else if (btn.startsWith("#")) {state.DeVices[btn.minus("#")].pauseOff = true}
+    	else if (btn.startsWith("%")) {state.DeVices[btn.minus("%")].pauseOff = false}
 }
 def refreshHandler() {//// Called by; In App Button push and within functions  // Update Times if Active/On
     state.DeVices.each {k, v ->
@@ -1291,7 +1295,7 @@ def icons() { ////ver2.1.1
     state.unCheckedBox = "<iconify-icon inline style='color:black; font-size:23px' icon='material-symbols:check-box-outline-blank'></iconify-icon>"  
     state.greenCheckBox = "<iconify-icon inline style='color:green; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
     state.steelBlueCheckBox = "<iconify-icon inline style='color:SteelBlue; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
-    state.darkOrangeCheckBox = "<iconify-icon inline style='color:darkorange; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
+    state.darkOrangeCheckBox = "<iconify-icon inline style='color:#CC5500; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
     state.purpleCheckBox = "<iconify-icon inline style='color:purple; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
     state.steelBlueCircle1 = "<iconify-icon inline style='color:SteelBlue; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
     state.darkOrangeCircle2 = "<iconify-icon inline style='color:darkorange; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
