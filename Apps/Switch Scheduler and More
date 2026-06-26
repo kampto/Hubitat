@@ -9,7 +9,7 @@
 *
 *	Change Revision History:  
 *   Ver		Date:		Who:		What:
-*   2.3.6	2026-06-24  kampto		Add 2nd voltage pause case. Code clean up. Attempt at improviong the 5min repeat Notification. Fix Off schedule overwrite bug. Add pause case stop/Terminate per device column
+*   2.3.6	2026-06-26  kampto		Add 2nd voltage pause case and 2nd Contact Trigger case. Code clean up. Attempt at improviong the 5min repeat Notification. Fix Off schedule overwrite bug. Add pause Off case per device column. 
 *   2.3.3	2026-02-26	kampto		Cron per day Bug Fix, Added devices report notification @ optional stats reset
 *   2.3.2	2025-12-12	kampto		Moved Mode trigger#4 and Motion Ontime's to table Run Time. Modified notifications and bug found. Added 'Last Info Log' to status area. New option notify every 5min option if trigger still active.
 *   2.3.1	2025-11-22	kampto    	Add Action case #3, ability to manually turn on and have timed Off. Improved Notification options. Changed temp trigger to differential temp On/Off. Added toggle for Advanced/Basic display. Updated instructions. Make notifications per device and 3 Map options
@@ -31,8 +31,8 @@
 */
 import groovy.time.TimeCategory
 import java.text.SimpleDateFormat
+state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.6"
 
-def titleVersion() {state.name = "Switch/Valve Controller (Schedule/Control On/Off: Lights, Outlets, Sprinklers, Switches, Relays, Valves...)"; state.version = "2.3.6" }
 definition (
 	name: "Switch/Valve Scheduler and More", namespace: "kampto", author: "T. K.",
 	description: "Automate/Schedule/Control Switches, Relays, Outlets, Sprinklers, Valves",
@@ -59,7 +59,7 @@ def mainPage() {
     state.pauseOrstop = "Pause Schedule" //// pause status text
                 
   dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
-  displayTitle() 
+  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {}
   section (getFormat("header","Initial Set-Up:"),hideable: true, hidden: hide){  
        label title: "<b>1. Name this App</b>", required: true, submitOnChange: true, width: 3
        input "DeVices", "capability.switch, capability.valve", title: "<b>2. Select Devices to Turn On/Off and Track Time</b>", required: true, multiple: true, submitOnChange: true, width: 6
@@ -166,16 +166,19 @@ def mainPage() {
     }    
 ///////////// Triggers           
     section(getFormat("header","TRIGGER Options: &nbsp <small><b>Use devices/sensors to trigger On/Off switches or valves</b></small>"),hideable: true, hidden: false) {  
-    	input name: "contactTrigger", type: "capability.contactSensor", title: getFormat("important","<b>Trigger $state.triggerIcon1: Select a Contact sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Trigger' case #1 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-    	input name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Trigger $state.triggerIcon2: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Trigger' case #2 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
-        input name: "tempTrigger", type: "capability.temperatureMeasurement", title: getFormat("important","<b>Trigger $state.triggerIcon3: Select a Temperature sensor to Trigger device. &nbsp </b><small>Enter a turn On temp and a turn Off temp. They can be high to low or low to high. If they are equal temps it will only use the On trigger temp and turn device On on way up then Off on way down to On temp. Applies to devices with 'Trigger' case #3 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	input name: "contactTrigger", type: "capability.contactSensor", title: getFormat("important","<b>Trigger $state.triggerIcon1: Select a Contact1 sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Trigger' case #1 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	input name: "contactTrigger2", type: "capability.contactSensor", title: getFormat("important","<b>Trigger $state.triggerIcon2: Select a Contact2 sensor to trigger device On. &nbsp </b><small>Device will stay On as long as Contact is 'open'. Applies to devices with 'Trigger' case #2 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+    	
+        
+        input name: "switchTrigger", type: "capability.switch", title: getFormat("important","<b>Trigger $state.triggerIcon3: Select a Switch to turn On a seperate device. &nbsp </b><small>Device will stay On as long as selected Switch is 'on'. Applies to devices with 'Trigger' case #3 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
+        input name: "tempTrigger", type: "capability.temperatureMeasurement", title: getFormat("important","<b>Trigger $state.triggerIcon4: Select a Temperature sensor to Trigger device. &nbsp </b><small>Enter a turn On temp and a turn Off temp. They can be high to low or low to high. If they are equal temps it will only use the On trigger temp and turn device On on way up then Off on way down to On temp. Applies to devices with 'Trigger' case #4 in table. Will not run if Paused, Incorrect mode, or Special Pause case. Will work on devices with or without a start time/schedule defined in table.</small>"), multiple: true, width: 9, newLineAfter: true, submitOnChange:true, style: 'margin-left:10px'   //// ver2.1.0
         	if (tempTrigger) {
               input name: "tempTrigOn", type: "decimal", title: getFormat("blueRegular","<b>Enter On Trigger Temperature, &nbsp</b><small>Default = 40</small>"), defaultValue: "40", required: false, submitOnChange: true, width: 4, style: 'margin-left:30px' 
         	  input name: "tempTrigOff", type: "decimal", title: getFormat("blueRegular","<b>Enter Off Trigger Temperature, &nbsp</b><small>Default = 40</small>"), defaultValue: "40", required: false, submitOnChange: true, width: 4, style: 'margin-left:30px' 
             	if (tempTrigOn > tempTrigOff) {paragraph "&nbsp &nbsp &nbsp Will turn On if temp >= ${tempTrigOn}deg and Off when temp <= ${tempTrigOff}deg."}
         		if (tempTrigOn < tempTrigOff) {paragraph "&nbsp &nbsp &nbsp Will turn On if temp <= ${tempTrigOn}deg and Off when temp >= ${tempTrigOff}deg."}
             }    
-        paragraph getFormat("important","<b>Trigger $state.triggerIcon4: Select Mode to trigger Device On/Off. &nbsp </b><small>Applies to Devices with 'Trigger' case #4 in table. &nbsp Switches/Valves will turn On/Off when mode changes to the Selected unless paused. <br>Will toggle back when mode changes back to not selected mode. Will use Run Time in table, If run time is 0 will stay On until mode changes back. Will work on devices with or without a start time/schedule defined in table.</small>")
+        paragraph getFormat("important","<b>Trigger $state.triggerIcon5: Select Mode to trigger Device On/Off. &nbsp </b><small>Applies to Devices with 'Trigger' case #5 in table. &nbsp Switches/Valves will turn On/Off when mode changes to the Selected unless paused. <br>Will toggle back when mode changes back to not selected mode. Will use Run Time in table, If run time is 0 will stay On until mode changes back. Will work on devices with or without a start time/schedule defined in table.</small>")
               input name: "modeTrigger", type: "mode", title: getFormat("blueRegular","<b>Select Mode Trigger</b>"), width: 2, submitOnChange:true, style: 'margin-left:60px'   
               input name: "modeInvertBool", type: "bool", title: getFormat("blueRegular","<b>Turn Device Off if On with mode instaed?</b>"), defaultValue:false, width: 3, submitOnChange:true, style: 'margin-left:30px'     
  }      
@@ -436,6 +439,7 @@ String displayTable() {
         	else if (state.DeVices[dev.id].trigger == 2) {triggerT = buttonLink("M$dev.id", state.triggerIcon2)}
         	else if (state.DeVices[dev.id].trigger == 3) {triggerT = buttonLink("N$dev.id", state.triggerIcon3)}
         	else if (state.DeVices[dev.id].trigger == 4) {triggerT = buttonLink("O$dev.id", state.triggerIcon4)}
+        	else if (state.DeVices[dev.id].trigger == 5) {triggerT = buttonLink(">$dev.id", state.triggerIcon5)}
         	 endif
         String notifyOptionsT 
         	if (state.DeVices[dev.id].notifyOptions == 0) {notifyOptionsT = buttonLink("Qn$dev.id", state.pauseIcon)}
@@ -475,9 +479,11 @@ String displayTable() {
         else if (state.DeVices[dev.id].trigger == 1 && state.DeVices[dev.id].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
         else if (state.DeVices[dev.id].trigger == 2 && state.DeVices[dev.id].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
         else if (state.DeVices[dev.id].trigger == 3 && state.DeVices[dev.id].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
-        else if (state.DeVices[dev.id].trigger == 4) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs this time if > 0'>$durTime</td>" }
-        else if (state.DeVices[dev.id].trigger == 3) {str += "<td style='border-right:2px solid black' title='Runs Manually for this time'>Temp</td>" }
-        else if (state.DeVices[dev.id].trigger == 2) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Swtch</td>" } 
+        else if (state.DeVices[dev.id].trigger == 4 && state.DeVices[dev.id].actions == 3) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs Manually for this time'>$durTime</td>" }
+        else if (state.DeVices[dev.id].trigger == 5) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Runs this time if > 0'>$durTime</td>" }
+        else if (state.DeVices[dev.id].trigger == 4) {str += "<td style='border-right:2px solid black' title='Runs Manually for this time'>Temp</td>" }
+        else if (state.DeVices[dev.id].trigger == 3) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Swtch</td>" }
+        else if (state.DeVices[dev.id].trigger == 2) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Cntct</td>" } 
         else if (state.DeVices[dev.id].trigger == 1) {str += "<td style='border-right:2px solid black' title='Runs with Triggers'>Cntct</td>" } 
         else if (!state.DeVices[dev.id].sunrise) {str += "<td style='font-weight:bold; border-right:2px solid black' title='Click to Change Run Duration Minutes'>$durTime</td>" }  ////ver2.03
         else if (state.DeVices[dev.id].sunrise) {str += "<td style='border-right:2px solid black' title='Off at Sunrise plus offsets time'>${state.DeVices[dev.id].durTime}</td>" } 
@@ -490,7 +496,7 @@ String displayTable() {
                 {str += "<td colspan=7 title='Using Unscheduled Trigger Cases Only, No Start time selected'>Using Manual On, Timed Off</td>"} 
         else if (state.DeVices[dev.id].startTime == "000000000000000000000000000000" && state.DeVices[dev.id].motionCase == 0 && state.DeVices[dev.id].trigger && state.DeVices[dev.id].actions == 3)
                 {str += "<td colspan=7 title='Using Unscheduled Trigger Cases Only, No Start time selected'>Using Triggered On, Timed Off</td>"} 
-        else if (state.DeVices[dev.id].startTime == "000000000000000000000000000000" && state.DeVices[dev.id].motionCase == 0 && (state.DeVices[dev.id].trigger == 1 || state.DeVices[dev.id].trigger == 2 || state.DeVices[dev.id].trigger == 3 || state.DeVices[dev.id].trigger == 4))
+        else if (state.DeVices[dev.id].startTime == "000000000000000000000000000000" && state.DeVices[dev.id].motionCase == 0 && (state.DeVices[dev.id].trigger == 1 || state.DeVices[dev.id].trigger == 2 || state.DeVices[dev.id].trigger == 3 || state.DeVices[dev.id].trigger == 4 || state.DeVices[dev.id].trigger == 5))
                 {str += "<td colspan=7 title='Using Unscheduled Trigger Cases Only, No Start time selected'>Using Unscheduled Trigger Case</td>"} 
         else if (state.DeVices[dev.id].odd) {str += "<td colspan=7 title='Run Every Odd Day of Month'>Run Every Odd day of Month</td>"}  //// ver1.0.2
      	else {str +=   
@@ -504,7 +510,7 @@ String displayTable() {
             }
        	str += "<td style='border-right:2px solid black' title='Check Box to Run on Odd Days only'>$oddCheckBoxT</td>"
 	if (advModeBool) {  //// Toggle Advanced mode options        
-        if (state.DeVices[dev.id].trigger == 4)  {str += "<td style='border-right:2px solid black' title='Mode unavalible for Trigger 4'>Trig4</td>"}     
+        if (state.DeVices[dev.id].trigger == 5)  {str += "<td style='border-right:2px solid black' title='Mode unavalible for Trigger 5'>Trig5</td>"}     
            else {str += "<td style='border-right:2px solid black' title='Click to change which Mode this device can run schedule or trigger'>$mode</td>"}     
         str += "<td style='border-right:2px solid black' title='Select None or which Motion sensors(s) from advanced options to use for this device'>$motionCaseT</td>" +
         "<td style='border-right:2px solid black' title='Select None or which Trigger to use for this device'>$triggerT</td>"     
@@ -512,8 +518,8 @@ String displayTable() {
         str += "<td style='border-right:2px solid black' title='Red Pause is None, or select which set of Notifications to recieve for this device'>$notifyOptionsT</td>" 
         str += "<td style='border-right:2px solid black' title='Select None or which schedule Pause case for this device'>$specialPauseT</td>"
         str += "<td style='border-right:2px solid black' title='Do you want Pause Case to also shut OFF a currently On device, Checked = Yes'>$pauseOffT</td>"
-        if (state.DeVices[dev.id].sensorPause) {str += "<td style='border-right:2px solid black' title='Shows if device schedule is Paused by a sensor pause case, non-editable'>$state.pauseIconGrey</td>"} 
-        	else {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Red is paused, Green is run'>$state.playIconGrey</td>"} 
+        if (state.DeVices[dev.id].sensorPause) {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Read Only'>$state.pauseIconGrey</td>"} 
+        	else {str += "<td style='border-right:2px solid black' title='Shows if device is Paused by a sensor pause case, Read Only'>$state.playIconGrey</td>"} 
      }
         str += "<td style='border-right:2px solid black' title='Click to Pause this device schedule, Red is paused, Green is run'>$pauseCheckBoxT</td>" + 
         "<td style='width: 70px; font-size:11px !important' title='Last Time Device was Active' >${state.DeVices[dev.id].onTime}</td>"+
@@ -553,6 +559,8 @@ void initialize() {
     if (voltageSensor2) {subscribe(voltageSensor2, "voltage", sensorUpdate) }  
     if (contactTrigger) {subscribe(contactTrigger, "contact.open", contactTrigHandler) } 
     if (contactTrigger) {subscribe(contactTrigger, "contact.closed", contactTrigHandler) }
+    if (contactTrigger2) {subscribe(contactTrigger2, "contact.open", contactTrigHandler2) } 
+    if (contactTrigger2) {subscribe(contactTrigger2, "contact.closed", contactTrigHandler2) }
     if (switchTrigger) {subscribe(switchTrigger, "switch.on", switchTrigHandler) }
     if (switchTrigger) {subscribe(switchTrigger, "switch.off", switchTrigHandler) }
     if (tempTrigger) {subscribe(tempTrigger, "temperature", tempTrigHandler) }
@@ -662,6 +670,10 @@ def sensorScan(evt) { //// Scan all sensors and multiples and update status  ///
     if (contactTrigger) {for(int i = 0; i < contactTrigger.currentContact.size(); i++) { // Scan arrary
        	if (contactTrigger.currentContact[i] == "open") {state.contactTrigStateDisplay = "<text style='color:red; font-weight: bold' >${contactTrigger.currentContact}, </text>" + "&nbsp Trigger if Contact = Open"; state.contactTrigBool = true; break} 
         else {state.contactTrigStateDisplay = "<text style='color:green' >${contactTrigger.currentContact}, </text>" + "&nbsp Trigger if Contact(s) = Open"; state.contactTrigBool = false}
+        } }
+    if (contactTrigger2) {for(int i = 0; i < contactTrigger2.currentContact.size(); i++) { // Scan arrary
+       	if (contactTrigger2.currentContact[i] == "open") {state.contactTrig2StateDisplay = "<text style='color:red; font-weight: bold' >${contactTrigger2.currentContact}, </text>" + "&nbsp Trigger if Contact = Open"; state.contactTrig2Bool = true; break} 
+        else {state.contactTrig2StateDisplay = "<text style='color:green' >${contactTrigger2.currentContact}, </text>" + "&nbsp Trigger if Contact(s) = Open"; state.contactTrig2Bool = false}
         } }
     if (switchTrigger) {for(int i = 0; i < switchTrigger.currentSwitch.size(); i++) { // Scan arrary
        	if (switchTrigger.currentSwitch[i] == "on") {state.switchTrigStateDisplay = "<text style='color:red; font-weight: bold' >${switchTrigger.currentSwitch}, </text>" + "&nbsp Trigger if Switch = On"; state.switchTrigBool = true; break} 
@@ -797,11 +809,49 @@ void contactTrigHandler(evt) {
            endif
          }
 }  } 
+void contactTrigHandler2(evt) {
+   if (pauseAllBool) {return}
+   sensorScan() // Grab sensor states 
+    	DeVices.each { dev -> 
+       		if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 2
+               && (state.DeVices[dev.id].modes == location.mode || state.DeVices[dev.id].modes == "Any")) {
+            state.trigNotifyBool = true // let onTimeHandler know notify already done 
+            if (state.DeVices[dev.id].actions == 0) { 
+                if (state.contactTrig2Bool && (dev.currentSwitch == "off" || dev.currentValve == "closed")) {
+                    if (dev.currentSwitch == "off") {dev.on() }
+                    else if (dev.currentValve == "closed") {dev.open() }
+                    state.lastNotify = "${app.label} -- **${dev}** Turning ON triggered by Contact **${evt.device}** is *${evt.device.currentContact}*, Off when contact closes"
+                    dataMap = [dataLastNotify:state.lastNotify, pushOption:"pushContactTrig", zone:state.DeVices[dev.id].zone]  //// Log.info & Notifications
+                    runIn(1, infoLogNotifyHandler, [data:dataMap, overwrite:false])  
+                    }
+              	else if (!state.contactTrig2Bool && (dev.currentSwitch == "on" || dev.currentValve == "open")) {runIn(1, switchOffHandler, [data:[zone:state.DeVices[dev.id].zone], overwrite:false])} //// Off
+            } 
+           	else if (state.DeVices[dev.id].actions == 1 || state.DeVices[dev.id].actions == 2) {  //// Blink
+				if (state.contactTrig2Bool && state.DeVices[dev.id].blink == false) {state.DeVices[dev.id].blink = true; runIn(1, blinkOnHandler, [data:[zone:state.DeVices[dev.id].zone], overwrite:false])
+                	state.lastNotify = "${app.label} -- **${dev}** Turning ON in Blink Mode (Action1/2) triggered by Contact **${evt.device}** is *${evt.device.currentContact}*" 
+                	dataMap = [dataLastNotify:state.lastNotify, pushOption:"pushContactTrig", zone:state.DeVices[dev.id].zone]  //// Log.info & Notifications
+                    runIn(1, infoLogNotifyHandler, [data:dataMap, overwrite:false])     
+                }     
+                else if (!state.contactTrig2Bool && state.DeVices[dev.id].blink == true) {runIn(1, switchOffHandler, [data:[zone:state.DeVices[dev.id].zone], overwrite:false])} //// Off
+            } 
+            else if (state.DeVices[dev.id].actions == 3) {
+                if (state.contactTrig2Bool  && state.DeVices[dev.id].durTime !=0 && (dev.currentSwitch == "off" || dev.currentValve == "closed")) {
+           		    if (dev.currentSwitch == "off") {dev.on() }
+                	else if (dev.currentValve == "closed") {dev.open() }
+                    state.lastNotify = "${app.label} -- **${dev}** Turning ON for duration ${state.DeVices[dev.id].durTime}min (Action3) triggered by Contact **${evt.device}** is *${evt.device.currentContact}*" 
+                	dataMap = [dataLastNotify:state.lastNotify, pushOption:"pushContactTrig", zone:state.DeVices[dev.id].zone]  //// Log.info & Notifications
+                    runIn(1, infoLogNotifyHandler, [data:dataMap, overwrite:false])     
+                    runIn(60*state.DeVices[dev.id].durTime, switchOffHandler, [data:dataMap, overwrite:false]) 
+                    }
+             	} 
+           endif
+         }
+}  } 
 void switchTrigHandler(evt) { ////ver2.1.0
    if (pauseAllBool) {return}
    sensorScan() // Grab sensor states 
        	DeVices.each { dev -> 
-          if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 2    
+          if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 3    
                && (state.DeVices[dev.id].modes == location.mode || state.DeVices["$dev.id"].modes == "Any")) { 
          	state.trigNotifyBool = true // let onTimeHandler know notify already done
             if (state.DeVices[dev.id].actions == 0) {
@@ -839,7 +889,7 @@ void tempTrigHandler(evt) {
    if (pauseAllBool) {return} 
    sensorScan() // Grab sensor states
    DeVices.each { dev -> 
-         if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 3 && (state.DeVices[dev.id].modes == location.mode || state.DeVices[dev.id].modes == "Any")) { //// Pasued per device in table
+         if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 4 && (state.DeVices[dev.id].modes == location.mode || state.DeVices[dev.id].modes == "Any")) { //// Pasued per device in table
          	state.trigNotifyBool = true // let onTimeHandler know notify already done 
             if (state.DeVices[dev.id].actions == 0) { 
                 if (state.tempTrigBool && (dev.currentSwitch == "off" || dev.currentValve == "closed")) {
@@ -875,7 +925,7 @@ void tempTrigHandler(evt) {
 void modeTrigHandler(evt) { //// Called by; Subscribes only. ////ver2.1.3
    if (pauseAllBool || !modeTrigger) {return} 
     	DeVices.each { dev -> 
-         if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 4) { //// Pasued per device in table and motion enabled
+         if (!state.DeVices[dev.id].pause && !state.DeVices[dev.id].sensorPause && state.DeVices[dev.id].trigger == 5) { //// Pasued per device in table and motion enabled
             state.trigNotifyBool = true // let onTimeHandler know notify already done 
            	if (((modeTrigger != location.mode && !modeInvertBool) || (modeTrigger == location.mode && modeInvertBool)) 
                 && (state.DeVices[dev.id].blink == true || dev.currentSwitch == "on" || dev.curentValve == "open")) {runIn(1, switchOffHandler, [data:[zone:state.DeVices[dev.id].zone], overwrite:false])} //// OFF 
@@ -1024,8 +1074,8 @@ def infoLogNotifyHandler(data) { //// NOTIFICATIONS AND LOG INFO's
     		//// Push
             if (pushDevice && (pushMode == location.mode || pushMode == "Any")) { // Sift out only push notifications selected
                 if (data.state == "off" || (state.DeVices[dev.id].notifyOptions == 1 && settings.notifyOptions1?.contains(data.pushOption)) || (state.DeVices[dev.id].notifyOptions == 2 && settings.notifyOptions2?.contains(data.pushOption)) || (state.DeVices[dev.id].notifyOptions == 3 && settings.notifyOptions3?.contains(data.pushOption))) {
-                    if (state.DeVices[dev.id].notifyRepeat == false && ((state.DeVices[dev.id].notifyOptions == 1 && settings.notifyOptions1?.contains("pushTrigEvery5min")) || (state.DeVices[dev.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushTrigEvery5min")) || (state.DeVices[dev.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushTrigEvery5min")))
-                    	&& ((data.pushOption == "pushContactTrig" && state.contactTrigBool) || (data.pushOption == "pushSwitchTrig" && state.switchTrigBool) || (data.pushOption == "pushTempTrig" && state.tempTrigBool))) {
+                    if ((state.DeVices[dev.id].notifyRepeat == false && ((state.DeVices[dev.id].notifyOptions == 1 && settings.notifyOptions1?.contains("pushTrigEvery5min")) || (state.DeVices[dev.id].notifyOptions == 2 && settings.notifyOptions2?.contains("pushTrigEvery5min")) || (state.DeVices[dev.id].notifyOptions == 3 && settings.notifyOptions3?.contains("pushTrigEvery5min")))
+                    	&& ((data.pushOption == "pushContactTrig" && (state.contactTrigBool || state.contactTrig2Bool)) || (data.pushOption == "pushSwitchTrig" && state.switchTrigBool) || (data.pushOption == "pushTempTrig" && state.tempTrigBool)))) {
                     	state.DeVices[dev.id].notifyRepeat = true
                         pushDevice.deviceNotification(data.dataLastNotify)
                         state.repeatLastNotify = data.dataLastNotify
@@ -1172,12 +1222,13 @@ void appButtonHandler(btn) {//// Called by; In app Button pushes
     else if (btn.startsWith("G")) {state.DeVices[btn.minus("G")].actions = 1}
     else if (btn.startsWith("H")) {state.DeVices[btn.minus("H")].actions = 2}
     else if (btn.startsWith("I")) {state.DeVices[btn.minus("I")].actions = 3}
-       	else if (btn.startsWith("O")) {state.DeVices[btn.minus("O")].trigger = 0}
+       	else if (btn.startsWith(">")) {state.DeVices[btn.minus(">")].trigger = 0}
     	else if (btn.startsWith("K")) {state.DeVices[btn.minus("K")].trigger = 1}
     	else if (btn.startsWith("L")) {state.DeVices[btn.minus("L")].trigger = 2}
     	else if (btn.startsWith("M")) {state.DeVices[btn.minus("M")].trigger = 3}
     	else if (btn.startsWith("N")) {state.DeVices[btn.minus("N")].trigger = 4}
-    else if (btn.startsWith("Un")) {state.DeVices[btn.minus("Un")].notifyOptions = 0}
+    	else if (btn.startsWith("O")) {state.DeVices[btn.minus("O")].trigger = 5}
+   	else if (btn.startsWith("Un")) {state.DeVices[btn.minus("Un")].notifyOptions = 0}
     else if (btn.startsWith("Qn")) {state.DeVices[btn.minus("Qn")].notifyOptions = 1}
     else if (btn.startsWith("Rn")) {state.DeVices[btn.minus("Rn")].notifyOptions = 2}
     else if (btn.startsWith("Sn")) {state.DeVices[btn.minus("Sn")].notifyOptions = 3}
@@ -1285,8 +1336,9 @@ String statusBar() {
 	if (motionSensor1) { paragraph getFormat("smallLineSpace","<b>Trigger Motion Sensor(s)</b>" + "&nbsp ${motionSensor1} = ${state.motionState1Display}" + ", Group" + "<text style='position:absolute; top:-.48em'>${state.motionIcon1}</text>")}
     if (motionSensor2) { paragraph getFormat("smallLineSpace","<b>Trigger Motion Sensor(s)</b>" + "&nbsp ${motionSensor2} = ${state.motionState2Display}" + ", Group" + "<text style='position:absolute; top:-.48em'>${state.motionIcon2}</text>")}
     if (contactTrigger) {paragraph getFormat("smallLineSpace","<b>Trigger Contact Sensor(s):</b> &nbsp ${contactTrigger} = ${state.contactTrigStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon1}</text>")} 
-    if (switchTrigger) {paragraph getFormat("smallLineSpace","<b>Trigger Switch Sensor(s):</b> &nbsp ${switchTrigger} = ${state.switchTrigStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon2}</text>")} 
-	if (tempTrigger) {paragraph getFormat("smallLineSpace","<b>Trigger Temperature Sensor(s):</b> &nbsp ${tempTrigger} = ${state.tempTrigStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon3}</text>")} 
+    if (contactTrigger2) {paragraph getFormat("smallLineSpace","<b>Trigger Contact Sensor(s):</b> &nbsp ${contactTrigger2} = ${state.contactTrig2StateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon2}</text>")} 
+    if (switchTrigger) {paragraph getFormat("smallLineSpace","<b>Trigger Switch Sensor(s):</b> &nbsp ${switchTrigger} = ${state.switchTrigStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon3}</text>")} 
+	if (tempTrigger) {paragraph getFormat("smallLineSpace","<b>Trigger Temperature Sensor(s):</b> &nbsp ${tempTrigger} = ${state.tempTrigStateDisplay}" + ", Case" + "<text style='position:absolute; top:-.48em'>${state.triggerIcon4}</text>")} 
 	if (pushDevice || logInfoEnableBool) {paragraph getFormat("important","<b>Last Push or Info Log:</b> &nbsp ${state.lastNotify}" )}
 }
 /////////////////////////////////////////////////////////////////////////////  ICON GRAPHICS  /////////////////////////////////////////////////////////////////////////////// 
@@ -1298,7 +1350,7 @@ def icons() { ////ver2.1.1
     state.darkOrangeCheckBox = "<iconify-icon inline style='color:#CC5500; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
     state.purpleCheckBox = "<iconify-icon inline style='color:purple; font-size:23px' icon='material-symbols:check-box'></iconify-icon>"
     state.steelBlueCircle1 = "<iconify-icon inline style='color:SteelBlue; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
-    state.darkOrangeCircle2 = "<iconify-icon inline style='color:darkorange; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
+    state.darkOrangeCircle2 = "<iconify-icon inline style='color:#EF5C08; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
 ////Other  
     state.sunIcon = "<iconify-icon inline style='color:orange; font-size:23px' icon='ph:sun-duotone'></iconify-icon>"
     state.moonIcon = "<iconify-icon inline style='color:DodgerBlue; font-size:23px' icon='ph:moon-stars-duotone'></iconify-icon>"
@@ -1307,23 +1359,24 @@ def icons() { ////ver2.1.1
     state.playIconGrey = "<iconify-icon inline style='color:grey; font-size:23px' icon=ic:baseline-play-circle></iconify-icon>"
     state.pauseIconGrey = "<iconify-icon inline style='color:grey; font-size:23px' icon=ic:sharp-pause-circle-filled></iconify-icon>" 
     state.resetIcon = "<iconify-icon inline style='color:black; font-size:23px' icon='bx:reset'></iconify-icon>" 
-////PauseCase    
-    state.pauseCaseIcon1 = "<iconify-icon inline style='color:#5f3d0c; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
-    state.pauseCaseIcon2 = "<iconify-icon inline style='color:#8a6634; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
-    state.pauseCaseIcon3 = "<iconify-icon inline style='color:#848710; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
-    state.pauseCaseIcon4 = "<iconify-icon inline style='color:#800b35; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
-    state.pauseCaseIcon5 = "<iconify-icon inline style='color:#C00030; font-size:23px' icon='tabler:circle-5-filled'></iconify-icon>"
-    state.pauseCaseIcon6 = "<iconify-icon inline style='color:#C11C84; font-size:23px' icon='tabler:circle-6-filled'></iconify-icon>"
-    state.pauseCaseIcon7 = "<iconify-icon inline style='color:#EB4034; font-size:23px' icon='tabler:circle-7-filled'></iconify-icon>"
+////PauseCase (Mustard color band)    
+    state.pauseCaseIcon1 = "<iconify-icon inline style='color:#b49c45; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
+    state.pauseCaseIcon2 = "<iconify-icon inline style='color:#c29f13; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
+    state.pauseCaseIcon3 = "<iconify-icon inline style='color:#b28300; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
+    state.pauseCaseIcon4 = "<iconify-icon inline style='color:#8e6a00; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
+    state.pauseCaseIcon5 = "<iconify-icon inline style='color:#6b5000; font-size:23px' icon='tabler:circle-5-filled'></iconify-icon>"
+    state.pauseCaseIcon6 = "<iconify-icon inline style='color:#8b4e02; font-size:23px' icon='tabler:circle-6-filled'></iconify-icon>"
+    state.pauseCaseIcon7 = "<iconify-icon inline style='color:#683b02; font-size:23px' icon='tabler:circle-7-filled'></iconify-icon>"   /// Pause 8 color #452701
 ////Actions
  	state.actionsIcon1 = "<iconify-icon inline style='color:#241571; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
     state.actionsIcon2 = "<iconify-icon inline style='color:#0F52BA; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
     state.actionsIcon3 = "<iconify-icon inline style='color:#48AAAD; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
-////Triggers
-    state.triggerIcon1 = "<iconify-icon inline style='color:#E34234; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
-    state.triggerIcon2 = "<iconify-icon inline style='color:#FF5F1F; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
-    state.triggerIcon3 = "<iconify-icon inline style='color:#B7410E; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
-    state.triggerIcon4 = "<iconify-icon inline style='color:#F28500; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
+////Triggers (Orange color band)
+    state.triggerIcon1 = "<iconify-icon inline style='color:#D24E01; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
+    state.triggerIcon2 = "<iconify-icon inline style='color:#DC6601; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
+    state.triggerIcon3 = "<iconify-icon inline style='color:#E27602; font-size:23px' icon='tabler:circle-3-filled'></iconify-icon>"
+    state.triggerIcon4 = "<iconify-icon inline style='color:#E88504; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
+    state.triggerIcon5 = "<iconify-icon inline style='color:#EC9006; font-size:23px' icon='tabler:circle-5-filled'></iconify-icon>"   /// Trig 6 color EE9F27
 ////Motion
     state.motionIcon1 = "<iconify-icon inline style='color:#097969; font-size:23px' icon='tabler:circle-1-filled'></iconify-icon>"
     state.motionIcon2 = "<iconify-icon inline style='color:#50C878; font-size:23px' icon='tabler:circle-2-filled'></iconify-icon>"
@@ -1334,14 +1387,14 @@ def icons() { ////ver2.1.1
     state.notifyOptionsIcon4 = "<iconify-icon inline style='color:#9ACD32; font-size:23px' icon='tabler:circle-4-filled'></iconify-icon>"
 }    
 /////////////////////////////////////////////////////////////////////////////  OTHER STUFF  ///////////////////////////////////////////////////////////////////////////////
-def updated() {  // runs every 'Done' on already installed app 
+def updated() {  // runs every 'Done' or 'update schedules' button on already installed app 
     unsubscribe()  ////   
     unschedule(switchOnHandler)  // cancels all(or one) scheduled jobs including runIn
     icons()
     buildCron()  // build schedules
     initialize()  // set schedules and subscribes
 }
-def installed() { updated() }  // only runs once for new app 'Done' or first time open 
+def installed() { updated() }  // only runs once for new app 'Done' button or first time open 
 def logsOff() {log.info "${app.label} -- All App 'debug' logging auto disabling itself"; app?.updateSetting("logDebugEnableBool",[value:"false",type:"bool"]) }
 def getFormat(type, myText="") {		
     if(type == "title") return "<h3 style='color:SteelBlue; line-height: 50%; font-weight: bold'>${myText}</h3>"  // Steel-Blue
@@ -1357,5 +1410,3 @@ def getFormat(type, myText="") {
           if(type == "important") return "<div style='color:#000000; line-height: 97%'>${myText}</div>"   // Black
     	}
 }
-def displayTitle() {titleVersion();  section (getFormat("title",  "App: ${state.name} - ${"ver " + state.version}")) {} } 
-
